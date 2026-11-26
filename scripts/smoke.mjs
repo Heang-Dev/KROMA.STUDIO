@@ -141,8 +141,24 @@ const exported = await page.evaluate(async (out) => {
 console.log("exported", exported);
 
 if (withDownload) {
-	const result = await page.evaluate(() => window.kroma.download("smoke-dl", "https://www.youtube.com/watch?v=jNQXAC9IVRw"));
-	console.log("downloaded", { name: result.media.name, duration: result.media.duration, subs: result.media.siteSubtitles });
+	// KROMA_TEST_URL picks the link (pasted exactly as a person would, tracking and all).
+	const result = await page.evaluate((url) => window.kroma.download("smoke-dl", url), process.env.KROMA_TEST_URL || "https://www.youtube.com/watch?v=jNQXAC9IVRw");
+	console.log("downloaded", { name: result.media.name, duration: result.media.duration, size: `${result.media.width}x${result.media.height}`, path: result.media.path, subs: result.media.siteSubtitles });
+}
+
+// Toasts: an error with its detail line and a success, in dark then light.
+for (const theme of ["dark", "light"]) {
+	await page.evaluate((t) => {
+		const { useEditor, applyAppearance } = window.__kroma;
+		applyAppearance(t);
+		useEditor.getState().showToast("Download failed", "error", "This link isn't a video page Kroma can download from. Open the video itself and copy its link, or check the site is supported.");
+		useEditor.getState().showToast("Translated 412 lines to Khmer.");
+	}, theme);
+	await page.waitForTimeout(700);
+	const shot = await app.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString("base64"));
+	writeFileSync(join(outDir, `toasts-${theme}.png`), Buffer.from(shot, "base64"));
+	await page.evaluate(() => window.__kroma.toast.dismiss());
+	await page.waitForTimeout(500);
 }
 
 console.log(errors.length ? `renderer errors:\n${errors.join("\n")}` : "no renderer errors");

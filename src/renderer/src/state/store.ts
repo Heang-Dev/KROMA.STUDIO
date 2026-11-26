@@ -55,7 +55,8 @@ interface EditorState {
 	closeSettings: () => void;
 	select: (selection: Selection | null) => void;
 	setTask: (task: TaskState) => void;
-	showToast: (text: string, tone?: "info" | "error") => void;
+	/** A notice: short title, optional detail line. Errors stay longer and can be closed. */
+	showToast: (text: string, tone?: "info" | "error", description?: string) => void;
 }
 
 export function newProject(): Project {
@@ -117,10 +118,10 @@ export const useEditor = create<EditorState>((set, get) => ({
 	closeSettings: () => set({ view: { name: "editor" } }),
 	select: (selection) => set({ selection }),
 	setTask: (task) => set((s) => ({ tasks: { ...s.tasks, [task.id]: task } })),
-	showToast: (text, tone = "info") => {
+	showToast: (text, tone = "info", description) => {
 		set({ toast: { text, tone } });
-		if (tone === "error") toast.error(text);
-		else toast.success(text);
+		if (tone === "error") toast.error(text, { description, duration: 9000, closeButton: true });
+		else toast.success(text, { description });
 		setTimeout(() => {
 			if (get().toast?.text === text) set({ toast: null });
 		}, tone === "error" ? 7000 : 3500);
@@ -138,7 +139,7 @@ export async function runTask<T>(id: string, label: string, work: (taskId: strin
 	} catch (err) {
 		const message = cleanError(err);
 		setTask({ id, label, progress: 0, message, status: "error", error: message });
-		if (message !== "Cancelled") showToast(`${label}: ${message}`, "error");
+		if (message !== "Cancelled") showToast(`${label} failed`, "error", message);
 		return null;
 	}
 }

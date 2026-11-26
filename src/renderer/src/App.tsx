@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ChevronDown, Film, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
 import { AIPanel } from "./components/AIPanel";
+import { AppToaster } from "./components/AppToaster";
 import { MediaPanel } from "./components/MediaPanel";
 import { PostPanel } from "./components/PostPanel";
 import { ResizeHandle } from "./components/ResizeHandle";
@@ -15,11 +16,10 @@ import { SettingsPage } from "./components/settings/SettingsPage";
 import { Button } from "./components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 import { Separator } from "./components/ui/separator";
-import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import * as actions from "./lib/actions";
 import { exportVideo, openProject, restoreAutosave, saveProject, startAutosave, startNewProject } from "./lib/actions";
-import { applyAppearance, isDark } from "./lib/appearance";
+import { applyAppearance } from "./lib/appearance";
 import { ensureFonts, renderBandPng, subtitleBand } from "./lib/subtitleRender";
 import { cn } from "./lib/utils";
 import { useLayout } from "./state/layout";
@@ -38,7 +38,6 @@ export function App() {
 	const view = useEditor((s) => s.view.name);
 	const leftWidth = useLayout((s) => s.sizes.left);
 	const [missingTools, setMissingTools] = useState<string[]>([]);
-	const [dark, setDark] = useState(true);
 
 	useEffect(() => subscribeProgress(), []);
 	useEffect(() => {
@@ -51,7 +50,7 @@ export function App() {
 	useEffect(() => {
 		void window.kroma.info().then(({ tools, smoke }) => {
 			// The automated smoke test (scripts/smoke.mjs) drives the editor through this handle.
-			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, applyAppearance, render: { ensureFonts, renderBandPng, subtitleBand } } });
+			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, applyAppearance, toast, render: { ensureFonts, renderBandPng, subtitleBand } } });
 			setMissingTools(Object.entries(tools).filter(([, ok]) => !ok).map(([name]) => (name === "ytdlp" ? "yt-dlp" : name)));
 		});
 		void window.kroma.getSettings().then((s) => {
@@ -63,14 +62,10 @@ export function App() {
 		// Browser-style notice when the interface size changes.
 		const stopZoom = window.kroma.onZoomChanged((zoom) => {
 			setZoomVar(zoom);
-			toast(`Interface size ${Math.round(zoom * 100)}%`, { id: "zoom", duration: 1200 });
+			toast.info(`Interface size ${Math.round(zoom * 100)}%`, { id: "zoom", duration: 1200 });
 		});
 		const stopFullscreen = window.kroma.onFullscreenChanged((on) => document.documentElement.toggleAttribute("data-fullscreen", on));
-		// Keep the toaster's theme in step with the <html> class.
-		const observer = new MutationObserver(() => setDark(isDark()));
-		observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 		return () => {
-			observer.disconnect();
 			stopZoom();
 			stopFullscreen();
 		};
@@ -132,7 +127,7 @@ export function App() {
 						<Timeline />
 					</>
 				)}
-				<Toaster position="bottom-center" theme={dark ? "dark" : "light"} offset={view === "settings" ? 24 : 228} />
+				<AppToaster />
 			</div>
 		</TooltipProvider>
 	);

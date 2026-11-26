@@ -3,6 +3,7 @@ import { Captions, Download, Film, FolderOpen, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { extractLink } from "@shared/links";
 import { appendToTimeline, downloadFromLink, importFiles } from "@/lib/actions";
 import { formatTime } from "@/lib/timeline";
 import { useEditor } from "@/state/store";
@@ -14,7 +15,7 @@ export function MediaPanel() {
 	const downloading = useBusy("download");
 
 	const submit = async () => {
-		if (!/^https?:\/\//i.test(url.trim())) return useEditor.getState().showToast("Paste a full link that starts with https://", "error");
+		if (!extractLink(url)) return useEditor.getState().showToast("Paste a link that starts with https:// (a share message with a link in it works too).", "error");
 		const ok = await downloadFromLink(url);
 		if (ok) setUrl("");
 	};

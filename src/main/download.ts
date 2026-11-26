@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { downloadErrorMessage, normalizeLink } from "@shared/links";
 import type { DownloadResult } from "@shared/types";
 import { probe } from "./media";
 import { requireTool, run } from "./tools";
@@ -11,12 +12,13 @@ export const LIBRARY_DIR = join(homedir(), "Movies", "Kroma Studio");
 const SUB_LANGS = "zh-Hans,zh-Hant,zh,zh-CN,zh-TW,ai-zh,en";
 
 export async function downloadLink(
-	url: string,
+	pasted: string,
 	cookiesBrowser: string,
 	onProgress: (progress: number, message: string) => void,
 	signal?: AbortSignal,
 ): Promise<DownloadResult> {
 	const ytdlp = requireTool("yt-dlp");
+	const url = normalizeLink(pasted);
 	const dir = join(LIBRARY_DIR, "downloads", String(Date.now()));
 	mkdirSync(dir, { recursive: true });
 
@@ -56,14 +58,20 @@ export async function downloadLink(
 
 	onProgress(-1, "Reading the link…");
 	try {
-		await run(ytdlp, [...baseArgs, ...subArgs, url], { onLine, signal });
-	} catch (err) {
-		if (signal?.aborted) throw err;
-		// Subtitle requests sometimes get rate limited; the video matters more, so retry without them.
-		if (!file) {
+		try {
+			await run(ytdlp, [...baseArgs, ...subArgs, url], { onLine, signal });
+		} catch (err) {
+			if (signal?.aborted) throw err;
+			const message = err instanceof Error ? err.message : String(err);
+			// Subtitle requests sometimes get rate limited; the video matters more, so retry without them.
+			// A link yt-dlp can't read at all fails the same way twice, so don't retry those.
+			if (file || /unsupported url|generic information extractor|drm|private|sign in/i.test(message)) throw err;
 			onProgress(-1, "Retrying without the site's subtitles…");
 			await run(ytdlp, [...baseArgs, url], { onLine, signal });
 		}
+	} catch (err) {
+		if (signal?.aborted) throw err;
+		throw new Error(downloadErrorMessage(err instanceof Error ? err.message : String(err)));
 	}
 	if (!file) throw new Error("The download finished but no video file was found.");
 
