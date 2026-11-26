@@ -165,6 +165,32 @@ export const KVS_TEMPLATES: { name: string; description: string }[] = [
 	{ name: "Young girl", description: "A sweet eight-year-old girl, a child with a high, playful young voice" },
 	{ name: "Villain (dark, slow)", description: "A menacing man with a dark, low, raspy and slow male voice" },
 	{ name: "Ghost story (whisper)", description: "A mysterious woman whispering softly, suspenseful female voice" },
+	{ name: "King (majestic)", description: "A powerful middle-aged king, a man with a deep, commanding, majestic and slow male voice full of authority" },
+	{ name: "Queen (elegant)", description: "A graceful noble queen, a mature woman with an elegant, calm and dignified female voice" },
+	{ name: "Empress dowager (stern)", description: "A stern elderly empress dowager, an old woman with a cold, slow and commanding female voice" },
+	{ name: "Prince (young noble)", description: "A young prince in his twenties, a man with a clear, confident and refined male voice" },
+	{ name: "Princess (gentle)", description: "A gentle young princess, a young woman with a soft, sweet and graceful female voice" },
+	{ name: "General (bold warrior)", description: "A middle-aged army general, clearly a man with a very deep, low, rough and commanding male voice, calm and steady" },
+	{ name: "Eunuch (palace servant)", description: "A palace eunuch, a man with a thin, high, sly and slightly nasal voice who speaks very politely" },
+	{ name: "Young man (hero)", description: "A brave young man in his twenties, clearly a grown man (not a woman or a child) with a warm, clear, medium-low and energetic male voice" },
+	{ name: "Young woman (heroine)", description: "A kind young woman in her twenties, a woman with a bright, clear and lively female voice" },
+	{ name: "Maid (timid servant)", description: "A timid young maid, a young woman with a small, polite and slightly nervous female voice" },
+	{ name: "Old monk (wise)", description: "A wise elderly Buddhist monk, an old man with a calm, slow, peaceful and kind male voice" },
+	{ name: "Mother (caring)", description: "A caring middle-aged mother, a woman with a warm, gentle and motherly female voice" },
+	{ name: "Father (strict)", description: "A strict middle-aged father, a man with a firm, steady and serious male voice" },
+	{ name: "Emperor (cold)", description: "A young emperor in his twenties, a man with a cold, calm and authoritative male voice" },
+	{ name: "Concubine (scheming)", description: "A scheming palace concubine, a young woman with a sweet but sly and flirtatious female voice" },
+	{ name: "Minister (old official)", description: "An elderly court minister, an old man with a careful, polite and slightly hoarse male voice" },
+	{ name: "Assassin (cold killer)", description: "A cold assassin, a man with a quiet, flat, emotionless and low male voice" },
+	{ name: "Swordswoman (fierce)", description: "A fierce female warrior, a young woman with a strong, confident and sharp female voice" },
+	{ name: "Old man (village elder)", description: "A village elder, an old man with a rough, slow and kind male voice" },
+	{ name: "Shopkeeper (cheerful)", description: "A friendly middle-aged shopkeeper, clearly a man with a deep, warm, relaxed and chatty male voice" },
+	{ name: "Rich young master (arrogant)", description: "An arrogant rich young master, a young man with a proud, mocking and lazy male voice" },
+	{ name: "CEO (cold boss)", description: "A rich company boss in his thirties, a man with a deep, calm, confident and slightly cold male voice" },
+	{ name: "Secretary (office woman)", description: "A capable young office woman, a woman with a clear, polite and professional female voice" },
+	{ name: "Teenage boy (cheeky)", description: "A teenage boy of about fifteen, a boy with a casual, cheeky voice that is just starting to break" },
+	{ name: "Teenage girl (cheerful)", description: "A teenage girl of about fifteen, a girl with a bright, quick and cheerful voice" },
+	{ name: "Villainess (cruel)", description: "A cruel and cunning woman, a middle-aged villainess with a sharp, cold and mocking female voice" },
 ];
 
 export const DEFAULT_VOICE: VoiceSettings = { enabled: false, voice: "km-KH-SreymomNeural", rate: 10, originalVolume: 0.15, lines: {} };
@@ -343,3 +369,22 @@ export const ASPECT_SIZE: Record<Aspect, { width: number; height: number }> = {
 	"9:16": { width: 1080, height: 1920 },
 	"1:1": { width: 1080, height: 1080 },
 };
+
+/** Groups for the preset voices (Voices page and pickers), in display order. */
+export const VOICE_GROUPS: { title: string; names: string[] }[] = [
+	{ title: "Narration", names: ["Narrator (deep male)", "Narrator (clear female)", "News anchor (male)", "News anchor (female)", "Storyteller (warm grandfather)", "Storyteller (kind grandmother)"] },
+	{ title: "Palace & royalty", names: ["King (majestic)", "Emperor (cold)", "Queen (elegant)", "Empress dowager (stern)", "Prince (young noble)", "Princess (gentle)", "Concubine (scheming)", "Minister (old official)", "Eunuch (palace servant)", "Maid (timid servant)"] },
+	{ title: "Heroes & fighters", names: ["Young man (hero)", "Young woman (heroine)", "General (bold warrior)", "Swordswoman (fierce)", "Assassin (cold killer)"] },
+	{ title: "Modern drama", names: ["CEO (cold boss)", "Secretary (office woman)", "Rich young master (arrogant)", "Shopkeeper (cheerful)"] },
+	{ title: "Family & elders", names: ["Father (strict)", "Mother (caring)", "Old man (village elder)", "Old monk (wise)"] },
+	{ title: "Children & teens", names: ["Young boy", "Young girl", "Teenage boy (cheeky)", "Teenage girl (cheerful)"] },
+	{ title: "Villains & mood", names: ["Villain (dark, slow)", "Villainess (cruel)", "Ghost story (whisper)"] },
+];
+
+/** Templates sorted into VOICE_GROUPS; any the groups don't name go under "More". */
+export function groupTemplates<T extends { name: string }>(templates: T[]): { title: string; items: T[] }[] {
+	const groups = VOICE_GROUPS.map((g) => ({ title: g.title, items: g.names.map((n) => templates.find((t) => t.name === n)).filter((t): t is T => Boolean(t)) }));
+	const named = new Set(VOICE_GROUPS.flatMap((g) => g.names));
+	const rest = templates.filter((t) => !named.has(t.name));
+	return [...groups, { title: "More", items: rest }].filter((g) => g.items.length);
+}

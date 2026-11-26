@@ -1,7 +1,7 @@
 import { createReadStream, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { Readable } from "node:stream";
-import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, shell } from "electron";
+import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, session, shell, systemPreferences } from "electron";
 import { parseSubtitles } from "@shared/srt";
 import { type CaptionRequest, type ExportRequest, type Project, type Settings, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
 import { fallbackCount, translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
@@ -15,7 +15,7 @@ import { mediaVisuals } from "./visuals";
 import { loadSettings, saveSettings, viewOf } from "./settings";
 import { findTool } from "./tools";
 import { transcribe } from "./transcribe";
-import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePath, kvsStatus, listKvsVoices, makePresetVoice, presetVoice, speakWithKvs } from "./kvs";
+import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePath, kvsStatus, listKvsVoices, makePresetVoice, presetVoice, saveRecording, speakWithKvs, syncKvsPresets } from "./kvs";
 import { removeVoices, type SeparationQuality } from "./separate";
 import { instantSample, synthesizeLines } from "./voice";
 import { type CharacterLine, type VoiceChoice, findCharacters } from "./characters";
@@ -53,13 +53,26 @@ function serveMedia(request: Request): Response {
 	});
 }
 
-let win: BrowserWindow | null = null;
 const tasks = new Map<string, AbortController>();
 
+// Several windows can be open, each with its own project. Each window has a slot (1, 2, …): slot 1 keeps the usual
+// autosave (reopened at launch), other slots autosave to their own file, removed when that window is closed.
+const slots = new Map<number, number>();
+const slotOf = (sender: Electron.WebContents) => slots.get(sender.id) ?? 1;
+const autosavePath = (slot: number) => join(app.getPath("userData"), slot === 1 ? "autosave.json" : `autosave-${slot}.json`);
+/** The window a dialog belongs to: the one the user is working in. */
+const focused = () => (BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0])!;
+
 function createWindow(): void {
-	win = new BrowserWindow({
-		width: 1500,
-		height: 940,
+	const used = new Set(slots.values());
+	let slot = 1;
+	while (used.has(slot)) slot++;
+	// A new window opens a little below and right of the one you're in, like other Mac apps.
+	const from = BrowserWindow.getFocusedWindow()?.getBounds();
+	const win = new BrowserWindow({
+		width: from?.width ?? 1500,
+		height: from?.height ?? 940,
+		...(from ? { x: from.x + 28, y: from.y + 28 } : {}),
 		minWidth: 1100,
 		minHeight: 700,
 		backgroundColor: "#0e0f12",
@@ -70,11 +83,22 @@ function createWindow(): void {
 		webPreferences: { preload: join(__dirname, "../preload/index.js"), sandbox: true, contextIsolation: true },
 	});
 	// The saved interface size, applied before the window shows and again after every reload.
-	win.webContents.on("did-finish-load", () => win?.webContents.setZoomFactor(loadSettings().uiZoom));
-	win.once("ready-to-show", () => win?.show());
+	const contentsId = win.webContents.id;
+	slots.set(contentsId, slot);
+	win.webContents.on("did-finish-load", () => win.webContents.setZoomFactor(loadSettings().uiZoom));
+	win.once("ready-to-show", () => win.show());
+	// Closing an extra window with unsaved work asks first (the editor flags it); its autosave then goes away.
+	win.webContents.on("will-prevent-unload", (event) => {
+		const choice = dialog.showMessageBoxSync(win, { type: "warning", buttons: ["Close Window", "Cancel"], defaultId: 1, cancelId: 1, message: "Close this window?", detail: "This window's project has changes that aren't saved to a file. Save it first (⌘S) to keep them." });
+		if (choice === 0) event.preventDefault();
+	});
+	win.on("closed", () => {
+		slots.delete(contentsId);
+		if (slot !== 1) rmSync(autosavePath(slot), { force: true });
+	});
 	// Full screen hides the traffic lights, so the title bar drops the space it keeps for them.
-	win.on("enter-full-screen", () => win?.webContents.send("fullscreen:changed", true));
-	win.on("leave-full-screen", () => win?.webContents.send("fullscreen:changed", false));
+	win.on("enter-full-screen", () => win.webContents.send("fullscreen:changed", true));
+	win.on("leave-full-screen", () => win.webContents.send("fullscreen:changed", false));
 	win.webContents.setWindowOpenHandler(({ url }) => {
 		void shell.openExternal(url);
 		return { action: "deny" };
@@ -88,8 +112,10 @@ function createWindow(): void {
 function setZoom(zoom: number): number {
 	const value = Math.round(Math.min(UI_ZOOM_STEPS[UI_ZOOM_STEPS.length - 1], Math.max(UI_ZOOM_STEPS[0], zoom)) * 100) / 100;
 	saveSettings({ uiZoom: value });
-	win?.webContents.setZoomFactor(value);
-	win?.webContents.send("zoom:changed", value);
+	for (const w of BrowserWindow.getAllWindows()) {
+		w.webContents.setZoomFactor(value);
+		w.webContents.send("zoom:changed", value);
+	}
 	return value;
 }
 
@@ -112,7 +138,7 @@ function buildMenu(): void {
 	Menu.setApplicationMenu(
 		Menu.buildFromTemplate([
 			{ role: "appMenu" },
-			{ role: "fileMenu" },
+			{ label: "File", submenu: [{ label: "New Window", accelerator: "CmdOrCtrl+Shift+N", click: () => createWindow() }, { type: "separator" }, { role: "close" }] },
 			{ role: "editMenu" },
 			{ label: "View", submenu: [...zoomItems, { type: "separator" }, { role: "togglefullscreen" }, ...(app.isPackaged ? [] : ([{ type: "separator" }, { role: "reload" }, { role: "toggleDevTools" }] as Electron.MenuItemConstructorOptions[]))] },
 			{ role: "windowMenu" },
@@ -124,14 +150,18 @@ function buildMenu(): void {
 function task<T>(taskId: string, work: (progress: (p: number, m: string) => void, signal: AbortSignal) => Promise<T>): Promise<T> {
 	const controller = new AbortController();
 	tasks.set(taskId, controller);
-	const progress = (p: number, message: string) => win?.webContents.send("task:progress", { taskId, progress: p, message });
+	// Every window hears it; only the one that started the task (it knows the id) shows it.
+	const progress = (p: number, message: string) => {
+		for (const w of BrowserWindow.getAllWindows()) w.webContents.send("task:progress", { taskId, progress: p, message });
+	};
 	return work(progress, controller.signal).finally(() => tasks.delete(taskId));
 }
 
 const VIDEO_FILTERS = [{ name: "Video", extensions: ["mp4", "mov", "m4v", "mkv", "webm", "avi", "flv", "ts"] }];
 
 function registerIpc(): void {
-	ipcMain.handle("app:info", () => ({
+	ipcMain.handle("app:info", (e) => ({
+		slot: slotOf(e.sender),
 		tools: { ffmpeg: Boolean(findTool("ffmpeg")), ffprobe: Boolean(findTool("ffprobe")), ytdlp: Boolean(findTool("yt-dlp")), uv: Boolean(findTool("uvx")) },
 		libraryDir: LIBRARY_DIR,
 		version: app.getVersion(),
@@ -149,7 +179,7 @@ function registerIpc(): void {
 	ipcMain.handle("settings:save", (_e, patch: Partial<Record<keyof Settings, string | number | boolean | null>>) => saveSettings(patch));
 
 	ipcMain.handle("media:open", async () => {
-		const res = await dialog.showOpenDialog(win!, { properties: ["openFile", "multiSelections"], filters: VIDEO_FILTERS });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile", "multiSelections"], filters: VIDEO_FILTERS });
 		if (res.canceled) return [];
 		return Promise.all(res.filePaths.map((p) => probe(p)));
 	});
@@ -164,25 +194,48 @@ function registerIpc(): void {
 			if (!isKvsVoice(voice)) return synthesizeLines(lines, voice, rate, p, s);
 			// A template without its saved sample gets one first, so every line (now and later) sounds the same.
 			const name = voice.startsWith("kvs-design:") ? voice.slice("kvs-design:".length) : null;
-			if (name && !presetVoice(name)) await makePresetVoice(loadSettings(), name, (v, m) => p(-1, `Preparing the voice "${name}" (once): ${m.replace(/^Voice engine: /, "")}`), s);
+			if (name && !presetVoice(name)) await presetFromKvsOrDesign(name, (v, m) => p(-1, `Preparing the voice "${name}" (once): ${m.replace(/^Voice engine: /, "")}`), s);
 			return speakWithKvs(loadSettings(), lines, voice, p, s);
 		}),
 	);
 	ipcMain.handle("voice:sample", (_e, voice: string, rate: number) => (isKvsVoice(voice) ? kvsSamplePath(voice) : instantSample(voice, rate)));
-	ipcMain.handle("task:presetVoice", (_e, taskId: string, name: string) => task(taskId, (p, s) => makePresetVoice(loadSettings(), name, p, s)));
+	ipcMain.handle("task:presetVoice", (_e, taskId: string, name: string) => task(taskId, (p, s) => presetFromKvsOrDesign(name, p, s)));
 	ipcMain.handle("kvs:status", () => kvsStatus(loadSettings()));
-	ipcMain.handle("kvs:voices", () => listKvsVoices());
+	// Every look at the library first brings over KVS's preset samples (at most every 20 s), so both apps sound the same.
+	let synced = 0;
+	ipcMain.handle("kvs:voices", async () => {
+		if (Date.now() - synced > 20_000) {
+			synced = Date.now();
+			await syncKvsPresets(kvsDir()).catch(() => 0);
+		}
+		return listKvsVoices();
+	});
 	// The KVS project folder: the saved setting, or the usual place next to this project.
-	const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "Documents", "PERSONAL", "PROJECTS", "KHMER.VOICE.STUDIO");
+	/** A template's sample: KVS's own when it has one (so both apps match), otherwise designed here once. */
+async function presetFromKvsOrDesign(name: string, p: (v: number, m: string) => void, s?: AbortSignal) {
+	await syncKvsPresets(kvsDir()).catch(() => 0);
+	return presetVoice(name) ?? makePresetVoice(loadSettings(), name, p, s);
+}
+
+const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "Documents", "PERSONAL", "PROJECTS", "KHMER.VOICE.STUDIO");
 	ipcMain.handle("kvs:importable", () => kvsImportable(kvsDir()));
 	ipcMain.handle("kvs:import", (_e, ids: number[]) => importKvsVoices(kvsDir(), ids));
 	ipcMain.handle("kvs:delete", (_e, id: string) => deleteKvsVoice(id));
 	ipcMain.handle("kvs:pickRecording", async () => {
-		const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters: [{ name: "Recording", extensions: ["wav", "mp3", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm"] }] });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: "Recording", extensions: ["wav", "mp3", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm"] }] });
 		return res.canceled ? null : res.filePaths[0];
 	});
 	ipcMain.handle("task:separate", (_e, taskId: string, path: string, duration: number, quality: SeparationQuality) => task(taskId, (p, s) => removeVoices(path, duration, quality, p, s)));
-	ipcMain.handle("task:clone", (_e, taskId: string, name: string, recording: string) => task(taskId, (p, s) => cloneVoice(loadSettings(), name, recording, p, s)));
+	ipcMain.handle("task:clone", (_e, taskId: string, name: string, recording: string, transcript?: string) => task(taskId, (p, s) => cloneVoice(loadSettings(), name, recording, p, s, transcript)));
+	ipcMain.handle("recording:save", (_e, bytes: Uint8Array) => saveRecording(bytes));
+	// macOS asks once for the microphone; afterwards it's on/off in System Settings → Privacy → Microphone.
+	ipcMain.handle("mic:access", async () => {
+		if (process.platform !== "darwin" || process.env.KROMA_SMOKE === "1") return "granted"; // tests use a fake microphone
+		const status = systemPreferences.getMediaAccessStatus("microphone");
+		if (status === "not-determined") return (await systemPreferences.askForMediaAccess("microphone")) ? "granted" : "denied";
+		return status;
+	});
+	ipcMain.handle("mic:settings", () => shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"));
 	ipcMain.handle("task:transcribe", (_e, taskId: string, path: string, duration: number, language: string) =>
 		task(taskId, (p, s) => transcribe(path, duration, language, loadSettings(), p, s)),
 	);
@@ -204,7 +257,7 @@ function registerIpc(): void {
 		const safe = name.replace(/[/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Kroma export";
 		if (settings.askExportPath) {
 			const filters = ext === "mp4" ? [{ name: "MP4 video", extensions: ["mp4"] }] : [{ name: "SubRip subtitles", extensions: ["srt"] }];
-			const res = await dialog.showSaveDialog(win!, { defaultPath: join(dir, `${safe}.${ext}`), filters });
+			const res = await dialog.showSaveDialog(focused(), { defaultPath: join(dir, `${safe}.${ext}`), filters });
 			return res.canceled || !res.filePath ? null : res.filePath;
 		}
 		let target = join(dir, `${safe}.${ext}`);
@@ -213,11 +266,11 @@ function registerIpc(): void {
 	};
 	ipcMain.handle("dialog:saveVideo", (_e, name: string) => exportTarget(name, "mp4"));
 	ipcMain.handle("dialog:pickImage", async () => {
-		const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
 		return res.canceled ? null : res.filePaths[0];
 	});
 	ipcMain.handle("dialog:chooseFolder", async (_e, current: string) => {
-		const res = await dialog.showOpenDialog(win!, { defaultPath: current || app.getPath("videos"), properties: ["openDirectory", "createDirectory"] });
+		const res = await dialog.showOpenDialog(focused(), { defaultPath: current || app.getPath("videos"), properties: ["openDirectory", "createDirectory"] });
 		return res.canceled ? null : res.filePaths[0];
 	});
 	ipcMain.handle("folders:defaults", () => ({ exportDir: defaultExportDir(), downloadDir: defaultDownloadDir(), libraryDir: LIBRARY_DIR }));
@@ -226,7 +279,7 @@ function registerIpc(): void {
 		void shell.openPath(dir);
 	});
 	ipcMain.handle("srt:import", async () => {
-		const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters: [{ name: "Subtitles", extensions: ["srt", "vtt"] }] });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: "Subtitles", extensions: ["srt", "vtt"] }] });
 		return res.canceled ? null : parseSubtitles(readFileSync(res.filePaths[0], "utf8"));
 	});
 	ipcMain.handle("srt:export", async (_e, name: string, content: string) => {
@@ -239,7 +292,7 @@ function registerIpc(): void {
 	ipcMain.handle("project:save", async (_e, project: Project, path: string | null) => {
 		let target = path;
 		if (!target) {
-			const res = await dialog.showSaveDialog(win!, { defaultPath: join(LIBRARY_DIR, `${project.name}.kroma`), filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
+			const res = await dialog.showSaveDialog(focused(), { defaultPath: join(LIBRARY_DIR, `${project.name}.kroma`), filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
 			if (res.canceled || !res.filePath) return null;
 			target = res.filePath;
 		}
@@ -247,18 +300,18 @@ function registerIpc(): void {
 		return target;
 	});
 	ipcMain.handle("project:open", async () => {
-		const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], defaultPath: LIBRARY_DIR, filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], defaultPath: LIBRARY_DIR, filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
 		if (res.canceled) return null;
 		const project = JSON.parse(readFileSync(res.filePaths[0], "utf8")) as Project;
 		return { project, path: res.filePaths[0] };
 	});
 
 	// Autosave: the editor writes the open project here a moment after every change, and reopens it at launch.
-	const autosaveFile = join(app.getPath("userData"), "autosave.json");
-	ipcMain.handle("autosave:write", (_e, project: Project, path: string | null) => writeFileSync(autosaveFile, JSON.stringify({ project, path })));
-	ipcMain.handle("autosave:read", () => {
+	// Each window has its own autosave file (see slots).
+	ipcMain.handle("autosave:write", (e, project: Project, path: string | null) => writeFileSync(autosavePath(slotOf(e.sender)), JSON.stringify({ project, path })));
+	ipcMain.handle("autosave:read", (e) => {
 		try {
-			return JSON.parse(readFileSync(autosaveFile, "utf8")) as { project: Project; path: string | null };
+			return JSON.parse(readFileSync(autosavePath(slotOf(e.sender)), "utf8")) as { project: Project; path: string | null };
 		} catch {
 			return null;
 		}
@@ -272,9 +325,15 @@ function registerIpc(): void {
 
 app.whenReady().then(() => {
 	protocol.handle("kroma", serveMedia);
+	// The editor may use the microphone (recording a voice to clone); nothing else (camera, screen, …).
+	const audioOnly = (permission: string, mediaTypes?: string[]) => permission === "media" && (mediaTypes ?? ["audio"]).every((t) => t === "audio");
+	session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => callback(audioOnly(permission, (details as { mediaTypes?: string[] }).mediaTypes)));
+	session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === "media");
 	registerIpc();
 	buildMenu();
 	createWindow();
+	// Right-click the Dock icon → New Window.
+	app.dock?.setMenu(Menu.buildFromTemplate([{ label: "New Window", click: () => createWindow() }]));
 	app.on("activate", () => {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});

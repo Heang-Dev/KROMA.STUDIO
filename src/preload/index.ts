@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice } from "@shared/types";
 
 const api = {
-	info: (): Promise<{ tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
+	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
 	getSettings: (): Promise<SettingsView> => ipcRenderer.invoke("settings:get"),
 	saveSettings: (patch: Partial<Record<keyof Settings, string | number | boolean | null>>): Promise<SettingsView> => ipcRenderer.invoke("settings:save", patch),
 
@@ -49,7 +49,10 @@ const api = {
 	removeVoices: (taskId: string, path: string, duration: number, quality: "fast" | "best"): Promise<string> => ipcRenderer.invoke("task:separate", taskId, path, duration, quality),
 	voiceSample: (voice: string, rate: number): Promise<string | null> => ipcRenderer.invoke("voice:sample", voice, rate),
 	makePresetVoice: (taskId: string, name: string): Promise<KvsVoice> => ipcRenderer.invoke("task:presetVoice", taskId, name),
-	cloneVoice: (taskId: string, name: string, recording: string): Promise<KvsVoice> => ipcRenderer.invoke("task:clone", taskId, name, recording),
+	cloneVoice: (taskId: string, name: string, recording: string, transcript?: string): Promise<KvsVoice> => ipcRenderer.invoke("task:clone", taskId, name, recording, transcript),
+	saveRecording: (bytes: Uint8Array): Promise<string> => ipcRenderer.invoke("recording:save", bytes),
+	micAccess: (): Promise<string> => ipcRenderer.invoke("mic:access"),
+	openMicSettings: (): Promise<void> => ipcRenderer.invoke("mic:settings"),
 	cancel: (taskId: string): Promise<void> => ipcRenderer.invoke("task:cancel", taskId),
 	onProgress: (listener: (p: TaskProgress) => void): (() => void) => {
 		const handler = (_e: unknown, p: TaskProgress) => listener(p);

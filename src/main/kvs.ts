@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { KvsStatus, KvsVoice, Settings, VoiceLine } from "@shared/types";
 import { LIBRARY_DIR } from "./download";
@@ -87,6 +87,32 @@ async function download(settings: Settings, id: string, name: string, to: string
 // Like KVS: each template is designed once into a ~10 s sample (its sentence picked by keyword), checked for the
 // right pitch, and then used as a reference, so the voice sounds the same in every job.
 const SAMPLE_SENTENCES: Record<string, string> = {
+	"emperor": "យើងបានស្ដាប់របាយការណ៍របស់អ្នករួចហើយ។ ពីថ្ងៃនេះតទៅ គ្មាននរណាម្នាក់អាចប្រើអំណាចតាមចិត្តបានទៀតទេ។ ចូរអនុវត្តតាមបញ្ជារបស់យើងភ្លាម។",
+	"concubine": "ព្រះករុណា ខ្ញុំម្ចាស់គ្រាន់តែបារម្ភពីសុខភាពព្រះអង្គប៉ុណ្ណោះ។ តែស្ត្រីម្នាក់នោះ ហ៊ានធ្វើពុតជាស្លូតបូត ខ្ញុំម្ចាស់មើលមិនចូលទាល់តែសោះ។",
+	"minister": "ទូលបង្គំសូមក្រាបទូល ឆ្នាំនេះទឹកជំនន់ធ្វើឱ្យស្រែចម្ការខូចខាតច្រើន។ សូមព្រះករុណាមេត្តាបើកឃ្លាំងស្រូវ ជួយប្រជារាស្ត្រផងព្រះអង្គ។",
+	"assassin": "ខ្ញុំមិនមានឈ្មោះទេ។ គេជួលខ្ញុំឱ្យមក ខ្ញុំក៏មក។ កុំព្យាយាមរត់អី វាគ្មានប្រយោជន៍ទេ។ ការងាររបស់ខ្ញុំ មិនដែលបរាជ័យឡើយ។",
+	"swordswoman": "កុំមើលងាយខ្ញុំ ព្រោះខ្ញុំជាស្ត្រី។ ដាវនេះបានការពារភូមិខ្ញុំអស់រយៈពេលដប់ឆ្នាំមកហើយ។ ចូលមក បើអ្នកហ៊ាន!",
+	"elder": "កាលពីជំនាន់ខ្ញុំនៅក្មេង ភូមិនេះមានតែផ្ទះប៉ុន្មានខ្នងប៉ុណ្ណោះ។ អ្នកភូមិក្រីក្រ តែស្រឡាញ់គ្នាណាស់។ ក្មេងជំនាន់ឥឡូវត្រូវចាំរឿងនេះទុក។",
+	"shopkeeper": "អញ្ជើញចូលមក អញ្ជើញ! ថ្ងៃនេះមានទំនិញថ្មីៗច្រើនណាស់។ ទិញពីរ ថែមមួយ! ថោកជាងនេះ រកលែងបានហើយបង។",
+	"young master": "អ្នកដឹងទេថាខ្ញុំជានរណា? ប៉ាខ្ញុំជាអ្នកមានជាងគេនៅក្នុងទីក្រុងនេះ។ លុយប៉ុណ្ណឹង ខ្ញុំអាចទិញហាងនេះទាំងមូលបាន។",
+	"ceo": "ខ្ញុំមិនចូលចិត្តនិយាយច្រើនទេ។ គម្រោងនេះត្រូវតែចប់មុនថ្ងៃសុក្រ។ បើធ្វើមិនបាន ចូរដាក់លិខិតលាឈប់មកលើតុខ្ញុំ។",
+	"secretary": "លោកប្រធាន កិច្ចប្រជុំជាមួយដៃគូនឹងចាប់ផ្ដើមនៅម៉ោងដប់ព្រឹកនេះ។ ខ្ញុំបានរៀបចំឯកសារទាំងអស់រួចហើយ ហើយបានកក់កន្លែងញ៉ាំអាហារថ្ងៃត្រង់ផងដែរ។",
+	"teenage boy": "ថ្ងៃនេះគ្រូឱ្យកិច្ចការផ្ទះច្រើនណាស់! ខ្ញុំចង់លេងហ្គេមជាមួយមិត្តភក្ដិ តែម៉ាក់ថាត្រូវធ្វើលំហាត់ឱ្យរួចសិន។ ធុញណាស់!",
+	"teenage girl": "ថ្ងៃនេះគ្រូឱ្យកិច្ចការផ្ទះច្រើនណាស់! ខ្ញុំចង់ទៅដើរលេងផ្សារជាមួយមិត្តភក្ដិ តែម៉ាក់ថាត្រូវធ្វើលំហាត់ឱ្យរួចសិន។ ធុញណាស់!",
+	"villainess": "អ្នកគិតថាគេពិតជាស្រឡាញ់អ្នកមែនទេ? គួរឱ្យអាណិតណាស់។ ចាំមើលចុះ ខ្ញុំនឹងធ្វើឱ្យអ្នកបាត់បង់អ្វីៗទាំងអស់។",
+	"princess": "ថ្ងៃនេះ ផ្កានៅក្នុងសួនច្បារវាំងរីកស្អាតណាស់។ ខ្ញុំចង់ដើរលេងបន្តិច ហើយស្ដាប់សំឡេងសត្វស្លាបច្រៀង។ សូមកុំប្រាប់ព្រះមាតាខ្ញុំណា។",
+	"prince": "បិតា ខ្ញុំសូមស្ម័គ្រចិត្តដឹកនាំទ័ពទៅការពារព្រំដែន។ ខ្ញុំមិនខ្លាចសត្រូវទេ។ ដរាបណាខ្ញុំនៅមានជីវិត ខ្ញុំនឹងមិនឱ្យនរណាម្នាក់ធ្វើបាបប្រជាជនរបស់យើងឡើយ។",
+	"king": "យើងជាស្ដេចនៃនគរនេះ។ អ្នកណាហ៊ានប្រឆាំងនឹងបញ្ជារបស់យើង នឹងត្រូវទទួលទោស។ ប៉ុន្តែប្រជារាស្ត្រដែលស្មោះត្រង់ យើងនឹងការពារពួកគេជានិច្ច។",
+	"queen": "ព្រះរាជវាំងនេះត្រូវការសេចក្ដីសុខ។ យើងមិនចង់ឃើញការឈ្លោះប្រកែកគ្នាទៀតទេ។ ចូរនាំគ្នាធ្វើការងាររបស់ខ្លួនឱ្យបានល្អ ហើយគោរពច្បាប់របស់វាំង។",
+	"dowager": "ក្នុងវាំងនេះ គ្មានអ្វីដែលយើងមិនដឹងនោះទេ។ កុំគិតថាអាចលាក់បាំងយើងបាន។ ចូរនិយាយការពិតមក មុនពេលយើងបាត់បង់ការអត់ធ្មត់។",
+	"general": "ទាហានទាំងអស់ ត្រៀមខ្លួន! សត្រូវកំពុងចូលមកជិតហើយ។ យើងត្រូវការពារទីក្រុងនេះរហូតដល់ដង្ហើមចុងក្រោយ។ ឆ្ពោះទៅមុខ!",
+	"eunuch": "សូមក្រាបបង្គំទូល ព្រះករុណា។ មានសំបុត្របន្ទាន់មកពីខេត្តភាគខាងត្បូង។ ទូលបង្គំមិនហ៊ានពន្យារពេលទេ ទើបប្រញាប់យកមកថ្វាយភ្លាម។",
+	"heroine": "អរគុណច្រើនណាស់ដែលបានជួយខ្ញុំ។ ខ្ញុំមិនដឹងថាត្រូវតបស្នងយ៉ាងម៉េចទេ។ បើថ្ងៃក្រោយអ្នកត្រូវការអ្វី សូមប្រាប់ខ្ញុំភ្លាមណា។",
+	"hero": "កុំបារម្ភអី ខ្ញុំនឹងជួយអ្នក។ ទោះបីផ្លូវនេះពិបាកយ៉ាងណាក៏ដោយ ក៏យើងនឹងឆ្លងកាត់វាជាមួយគ្នា។ ជឿលើខ្ញុំចុះ។",
+	"maid": "ម្ចាស់ សូមអភ័យទោស ខ្ញុំមិនមែនចេតនាទេ។ ខ្ញុំនឹងសម្អាតវាភ្លាមៗ។ សូមកុំដាក់ទោសខ្ញុំអី ខ្ញុំនឹងប្រយ័ត្នជាងនេះ។",
+	"monk": "កូនអើយ ចិត្តដែលស្ងប់ គឺជាទ្រព្យសម្បត្តិដ៏ធំបំផុត។ កុំខឹង កុំច្រណែន ហើយចេះអភ័យទោសឱ្យអ្នកដទៃ។ ធ្វើល្អ នឹងបានល្អ។",
+	"mother (": "កូនអើយ ញ៉ាំបាយសិនទៅ ម៉ាក់ធ្វើសម្លម្ជូរដែលកូនចូលចិត្ត។ ធ្វើការនឿយហត់ណាស់ហើយ ត្រូវថែរក្សាសុខភាពខ្លួនឯងផង។",
+	"father (": "កូនត្រូវខិតខំរៀនសូត្រ ហើយធ្វើជាមនុស្សល្អ។ ប៉ាមិនត្រូវការឱ្យកូនមានលុយច្រើនទេ ប៉ាគ្រាន់តែចង់ឃើញកូនមានអនាគតល្អ។",
 	storyteller: "កាលពីព្រេងនាយ មានភូមិតូចមួយនៅមាត់ទន្លេ។ អ្នកភូមិទាំងអស់រស់នៅយ៉ាងសុខសាន្ត ហើយតែងតែជួយគ្នាទៅវិញទៅមក។ ពេលល្ងាច ក្មេងៗតែងអង្គុយស្ដាប់ជីដូនជីតានិទានរឿង។",
 	narrator: "សូមស្វាគមន៍មកកាន់កម្មវិធីរបស់យើង។ ថ្ងៃនេះ យើងនឹងស្វែងយល់អំពីប្រវត្តិសាស្ត្រ និងវប្បធម៌ដ៏សម្បូរបែបរបស់ប្រទេសកម្ពុជា ចាប់ពីប្រាសាទអង្គរ រហូតដល់ទំនៀមទម្លាប់ដ៏ស្រស់ស្អាតរបស់ប្រជាជនខ្មែរ។",
 	news: "សួស្តីប្រិយមិត្តអ្នកទស្សនា។ អាកាសធាតុនៅរាជធានីភ្នំពេញថ្ងៃនេះ មានពពកច្រើន ហើយអាចមានភ្លៀងធ្លាក់បន្តិចនៅពេលល្ងាច។ សូមប្រិយមិត្តយកឆ័ត្រតាមខ្លួន និងប្រុងប្រយ័ត្នពេលធ្វើដំណើរ។",
@@ -108,6 +134,32 @@ const PRESET_PITCH: Record<string, [number, number]> = {
 	"Young boy": [230, 320],
 	"Young girl": [230, 420],
 	"Villain (dark, slow)": [65, 150],
+	"King (majestic)": [75, 145],
+	"Queen (elegant)": [170, 270],
+	"Empress dowager (stern)": [160, 260],
+	"Prince (young noble)": [95, 165],
+	"Princess (gentle)": [190, 300],
+	"General (bold warrior)": [80, 150],
+	"Eunuch (palace servant)": [140, 230],
+	"Young man (hero)": [95, 165],
+	"Young woman (heroine)": [180, 290],
+	"Maid (timid servant)": [200, 310],
+	"Old monk (wise)": [75, 145],
+	"Mother (caring)": [165, 260],
+	"Father (strict)": [85, 150],
+	"Emperor (cold)": [90, 160],
+	"Concubine (scheming)": [190, 300],
+	"Minister (old official)": [80, 150],
+	"Assassin (cold killer)": [75, 140],
+	"Swordswoman (fierce)": [170, 280],
+	"Old man (village elder)": [80, 150],
+	"Shopkeeper (cheerful)": [90, 160],
+	"Rich young master (arrogant)": [95, 165],
+	"CEO (cold boss)": [80, 145],
+	"Secretary (office woman)": [180, 290],
+	"Teenage boy (cheeky)": [130, 220],
+	"Teenage girl (cheerful)": [200, 320],
+	"Villainess (cruel)": [160, 260],
 };
 
 const sampleFor = (presetName: string) => {
@@ -172,14 +224,22 @@ export function deleteKvsVoice(id: string): void {
 }
 
 /** Cleans a recording into a clone reference on the engine (trimmed, normalised, ≤ 20 s) and writes down what it says. */
-export async function cloneVoice(settings: Settings, name: string, recording: string, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<KvsVoice> {
-	const job = await submit(settings, "prepare_voice", { transcribe: true, language: "Khmer" }, { media: recording }, signal);
+export async function cloneVoice(
+	settings: Settings,
+	name: string,
+	recording: string,
+	onProgress: (p: number, m: string) => void,
+	signal?: AbortSignal,
+	/** What the recording says, when it was read from a known text (then the engine needn't write it down). */
+	knownTranscript?: string,
+): Promise<KvsVoice> {
+	const job = await submit(settings, "prepare_voice", { transcribe: !knownTranscript, language: "Khmer" }, { media: recording }, signal);
 	const done = await follow(settings, job.id, onProgress, signal);
 	const id = `${Date.now()}`;
 	const dir = join(VOICES_DIR, id);
 	mkdirSync(dir, { recursive: true });
 	await download(settings, done.id, "ref.wav", join(dir, "ref.wav"));
-	const voice = { name: name.trim() || "My voice", transcript: done.result?.transcript ?? "", seconds: done.result?.seconds ?? 0, created: Date.now() };
+	const voice = { name: name.trim() || "My voice", transcript: knownTranscript?.trim() || done.result?.transcript || "", seconds: done.result?.seconds ?? 0, created: Date.now() };
 	writeFileSync(join(dir, "voice.json"), JSON.stringify(voice, null, "\t"));
 	await call(settings, `/jobs/${done.id}`, { method: "DELETE" }).catch(() => undefined);
 	return { id, ...voice };
@@ -277,6 +337,21 @@ export interface KvsImportable {
 	imported: boolean;
 }
 
+const hashes = new Map<string, { mtime: number; hash: string }>();
+/** A recording's fingerprint (cached until the file changes). */
+function fileHash(path: string): string {
+	try {
+		const mtime = statSync(path).mtimeMs;
+		const cached = hashes.get(path);
+		if (cached?.mtime === mtime) return cached.hash;
+		const hash = createHash("sha1").update(readFileSync(path)).digest("hex");
+		hashes.set(path, { mtime, hash });
+		return hash;
+	} catch {
+		return "";
+	}
+}
+
 /** KVS keeps voices in its Postgres database (names, transcripts) and storage/app/private (the recordings). */
 async function kvsDashboardVoices(projectDir: string): Promise<(KvsImportable & { file: string })[]> {
 	const env = readFileSync(join(projectDir, ".env"), "utf8");
@@ -299,7 +374,9 @@ async function kvsDashboardVoices(projectDir: string): Promise<(KvsImportable & 
 			const [id, name, source, isPreset, seconds, refPath, transcript] = row.split("\t");
 			const kind: "preset" | "clone" = source === "design" && isPreset === "t" ? "preset" : "clone";
 			const file = join(projectDir, "storage", "app", "private", refPath);
-			const imported = mine.some((v) => v.kvsId === Number(id) || (kind === "preset" && v.preset === name));
+			// Imported only when Kroma has this exact recording: a sample Kroma designed itself, or one KVS has since made
+			// again (same id, new recording), sounds different.
+			const imported = mine.some((v) => v.kvsId === Number(id) && v.path && fileHash(v.path) === fileHash(file));
 			return { kvsId: Number(id), name, kind, seconds: Number(seconds), transcript, imported, file };
 		})
 		.filter((v) => existsSync(v.file));
@@ -314,6 +391,8 @@ export async function importKvsVoices(projectDir: string, ids: number[]): Promis
 	const all = await kvsDashboardVoices(projectDir);
 	let count = 0;
 	for (const v of all.filter((x) => ids.includes(x.kvsId) && !x.imported)) {
+		// KVS's sample replaces any other sample of the same preset (or an older copy of this voice), so both apps match.
+		for (const old of listKvsVoices().filter((x) => x.kvsId === v.kvsId || (v.kind === "preset" && x.preset === v.name))) deleteKvsVoice(old.id);
 		const id = `${Date.now()}${count}`;
 		const dir = join(VOICES_DIR, id);
 		mkdirSync(dir, { recursive: true });
@@ -323,4 +402,28 @@ export async function importKvsVoices(projectDir: string, ids: number[]): Promis
 		count++;
 	}
 	return count;
+}
+
+/** Brings over KVS's preset samples that Kroma doesn't have yet (or has a different one of). Presets need no consent. */
+export async function syncKvsPresets(projectDir: string): Promise<number> {
+	if (!existsSync(join(projectDir, ".env"))) return 0;
+	const all = await kvsDashboardVoices(projectDir);
+	const missing = all.filter((v) => v.kind === "preset" && !v.imported).map((v) => v.kvsId);
+	return missing.length ? importKvsVoices(projectDir, missing) : 0;
+}
+
+/** Saves a recording made in the app (webm from the microphone) as a WAV the engine and players read. */
+export async function saveRecording(bytes: Uint8Array): Promise<string> {
+	const dir = join(LIBRARY_DIR, "recordings");
+	mkdirSync(dir, { recursive: true });
+	const stamp = Date.now();
+	const raw = join(dir, `rec-${stamp}.webm`);
+	const wav = join(dir, `rec-${stamp}.wav`);
+	writeFileSync(raw, bytes);
+	try {
+		await run(requireTool("ffmpeg"), ["-y", "-v", "error", "-i", raw, "-ac", "1", "-ar", "48000", "-c:a", "pcm_s16le", wav]);
+	} finally {
+		rmSync(raw, { force: true });
+	}
+	return wav;
 }

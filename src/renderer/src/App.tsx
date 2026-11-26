@@ -47,13 +47,25 @@ export function App() {
 	useEffect(() => subscribeProgress(), []);
 	useEffect(() => {
 		let stop: (() => void) | undefined;
-		void window.kroma.info().then(({ e2e }) => {
+		// An extra window (New Window) asks before closing when its project isn't saved to a file.
+		const guard = (event: BeforeUnloadEvent) => {
+			const s = useEditor.getState();
+			if (s.project.clips.length && (s.dirty || !s.projectPath)) {
+				event.preventDefault();
+				event.returnValue = "";
+			}
+		};
+		void window.kroma.info().then(({ e2e, slot }) => {
+			if (slot > 1) window.addEventListener("beforeunload", guard);
 			if (e2e) return; // end-to-end test runs leave your autosaved project alone
 			void restoreAutosave().finally(() => {
 				stop = startAutosave();
 			});
 		});
-		return () => stop?.();
+		return () => {
+			stop?.();
+			window.removeEventListener("beforeunload", guard);
+		};
 	}, []);
 	useEffect(() => {
 		void window.kroma.info().then(({ tools, smoke }) => {
@@ -92,58 +104,74 @@ export function App() {
 				)}
 				{view === "settings" ? (
 					<SettingsPage />
-				) : view === "voices" ? (
-					<VoicesPage />
 				) : (
 					<>
 						<div className="flex min-h-0 flex-1">
-							<nav className="flex w-[60px] shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-2" aria-label="Tools">
-								{PANELS.map((p) => (
-									<button
-										key={p.id}
-										type="button"
-										onClick={() => useEditor.getState().setPanel(p.id)}
-										aria-current={panel === p.id ? "page" : undefined}
-										className={cn(
-											"flex w-12 flex-col items-center gap-1 rounded-md py-2 text-[10px] transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-4",
-											panel === p.id ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-foreground/5 hover:text-sidebar-foreground",
-										)}
-									>
-										{p.icon}
-										{p.label}
-									</button>
-								))}
-								<div className="mt-auto flex flex-col items-center gap-1">
-									<IconButton label="My voices" onClick={() => useEditor.getState().openVoices()}>
-										<Library />
-									</IconButton>
-									<IconButton label="Settings" shortcut="⌘," onClick={() => useEditor.getState().openSettings()}>
-										<Settings />
-									</IconButton>
-								</div>
-							</nav>
-							<div className="relative shrink-0 border-r bg-sidebar" style={{ width: leftWidth }}>
-								<aside className="@container h-full divide-y overflow-y-auto">
-									{panel === "media" && <MediaPanel />}
-									{panel === "ai" && <AIPanel />}
-									{panel === "voice" && <VoicePanel />}
-									{panel === "style" && <StylePanel />}
-									{panel === "objects" && <ObjectsPanel />}
-									{panel === "post" && <PostPanel />}
-								</aside>
-								<ResizeHandle panel="left" edge="right" label="Resize the tools panel" />
-							</div>
-							<main className="flex min-w-0 flex-1 flex-col bg-background">
-								<Preview />
-							</main>
-							<SubtitleList />
+							<Rail panel={view === "voices" ? null : panel} voices={view === "voices"} />
+							{view === "voices" ? (
+								<VoicesPage />
+							) : (
+								<>
+									<div className="relative shrink-0 border-r bg-sidebar" style={{ width: leftWidth }}>
+										<aside className="@container h-full divide-y overflow-y-auto">
+											{panel === "media" && <MediaPanel />}
+											{panel === "ai" && <AIPanel />}
+											{panel === "voice" && <VoicePanel />}
+											{panel === "style" && <StylePanel />}
+											{panel === "objects" && <ObjectsPanel />}
+											{panel === "post" && <PostPanel />}
+										</aside>
+										<ResizeHandle panel="left" edge="right" label="Resize the tools panel" />
+									</div>
+									<main className="flex min-w-0 flex-1 flex-col bg-background">
+										<Preview />
+									</main>
+									<SubtitleList />
+								</>
+							)}
 						</div>
-						<Timeline />
+						{view !== "voices" && <Timeline />}
 					</>
 				)}
 				<AppToaster />
 			</div>
 		</TooltipProvider>
+	);
+}
+
+/** The left menu: the editor's tools, then the libraries (Voices), then Settings. */
+function Rail({ panel, voices }: { panel: Panel | null; voices: boolean }) {
+	const item = (key: string, label: string, icon: ReactNode, active: boolean, onClick: () => void) => (
+		<button
+			key={key}
+			type="button"
+			onClick={onClick}
+			aria-current={active ? "page" : undefined}
+			className={cn(
+				"flex w-12 flex-col items-center gap-1 rounded-md py-2 text-[10px] transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-4",
+				active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-foreground/5 hover:text-sidebar-foreground",
+			)}
+		>
+			{icon}
+			{label}
+		</button>
+	);
+	const openPanel = (id: Panel) => {
+		const s = useEditor.getState();
+		if (s.view.name !== "editor") s.closeVoices();
+		s.setPanel(id);
+	};
+	return (
+		<nav className="flex w-[60px] shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-2" aria-label="Menu">
+			{PANELS.map((p) => item(p.id, p.label, p.icon, panel === p.id, () => openPanel(p.id)))}
+			<div className="my-1 h-px w-8 bg-border" />
+			{item("voices", "Voices", <Library />, voices, () => useEditor.getState().openVoices())}
+			<div className="mt-auto">
+				<IconButton label="Settings" shortcut="⌘," onClick={() => useEditor.getState().openSettings()}>
+					<Settings />
+				</IconButton>
+			</div>
+		</nav>
 	);
 }
 
@@ -246,7 +274,7 @@ function useShortcuts(): void {
 			} else if (mod && e.key.toLowerCase() === "s") {
 				e.preventDefault();
 				void saveProject(e.shiftKey);
-			} else if (mod && e.key.toLowerCase() === "n") {
+			} else if (mod && !e.shiftKey && e.key.toLowerCase() === "n") {
 				e.preventDefault();
 				startNewProject();
 			} else if (mod && e.key.toLowerCase() === "o") {

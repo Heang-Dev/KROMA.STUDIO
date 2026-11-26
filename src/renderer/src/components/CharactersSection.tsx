@@ -1,5 +1,5 @@
 import { Loader2, Plus, Trash2, Users } from "lucide-react";
-import { KHMER_VOICES, KVS_TEMPLATES, type KvsVoice } from "@shared/types";
+import { KHMER_VOICES, KVS_TEMPLATES, type KvsVoice, groupTemplates } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addCharacter, findCharacters, removeCharacter, renameCharacter, setCharacterVoice, voiceSettings } from "@/lib/actions";
@@ -70,14 +70,16 @@ export function VoiceSelect({ value, clones, onChange, label }: { value: string;
 				<SelectValue />
 			</SelectTrigger>
 			<SelectContent>
-				<SelectGroup>
-					<SelectLabel>Designed (KVS)</SelectLabel>
-					{KVS_TEMPLATES.map((t) => (
-						<SelectItem key={t.name} value={`kvs-design:${t.name}`}>
-							{t.name}
-						</SelectItem>
-					))}
-				</SelectGroup>
+				{groupTemplates(KVS_TEMPLATES).map((g) => (
+					<SelectGroup key={g.title}>
+						<SelectLabel>{g.title}</SelectLabel>
+						{g.items.map((t) => (
+							<SelectItem key={t.name} value={`kvs-design:${t.name}`}>
+								{t.name}
+							</SelectItem>
+						))}
+					</SelectGroup>
+				))}
 				{clones.length > 0 && (
 					<SelectGroup>
 						<SelectLabel>Your voices</SelectLabel>

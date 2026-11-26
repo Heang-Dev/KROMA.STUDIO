@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CircleCheck, Download, Loader2, Mic, MoreHorizontal, Plus, Sparkles, Star, Trash2, Wand2 } from "lucide-react";
-import { KHMER_VOICES, KVS_TEMPLATES, type KvsStatus, type KvsVoice } from "@shared/types";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { CircleCheck, Download, Loader2, Mic, MoreHorizontal, Plus, Sparkles, Star, Trash2, Wand2 } from "lucide-react";
+import { KHMER_VOICES, KVS_TEMPLATES, groupTemplates, type KvsStatus, type KvsVoice } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,9 +19,15 @@ export function VoicesPage() {
 	const [status, setStatus] = useState<KvsStatus | null>(null);
 	const [cloneOpen, setCloneOpen] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
+	const [waiting, setWaiting] = useState<string[]>([]);
 	const refresh = useCallback(() => {
 		void window.kroma.kvsVoices().then(setVoices);
 		void window.kroma.kvsStatus().then(setStatus);
+		// Your cloned voices still in KVS only (each needs your consent to bring over).
+		void window.kroma
+			.kvsImportable()
+			.then((list) => setWaiting(list.filter((v) => v.kind === "clone" && !v.imported).map((v) => v.name)))
+			.catch(() => setWaiting([]));
 	}, []);
 	useEffect(refresh, [refresh]);
 
@@ -33,14 +39,7 @@ export function VoicesPage() {
 	};
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col bg-background">
-			<header className="flex h-12 shrink-0 items-center gap-2 border-b px-5 text-[13px]">
-				<Button variant="ghost" size="sm" className="-ml-2 gap-2 font-normal text-muted-foreground" onClick={() => useEditor.getState().closeVoices()}>
-					<ArrowLeft /> Back to app
-				</Button>
-				<span className="text-muted-foreground">/</span>
-				<span>My voices</span>
-			</header>
+		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
 			<div className="min-h-0 flex-1 overflow-y-auto">
 				<div className="mx-auto w-full max-w-6xl space-y-6 px-8 pt-6 pb-24">
 					<div className="flex flex-wrap items-start justify-between gap-4">
@@ -59,8 +58,18 @@ export function VoicesPage() {
 					</div>
 
 					<LibrarySection icon={<Mic className="size-4" />} title="Your voices" description="Voices you cloned or imported. Only use voices you have permission to use.">
+						{waiting.length > 0 && (
+							<div className="col-span-full flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2.5 text-xs">
+								<span>
+									In Khmer Voice Studio, not here yet: <span className="font-medium">{waiting.join(", ")}</span>
+								</span>
+								<Button variant="outline" size="xs" onClick={() => setImportOpen(true)}>
+									<Download /> Import
+								</Button>
+							</div>
+						)}
 						{clones.length === 0 ? (
-							<p className="text-xs text-muted-foreground">No cloned voices yet. Clone one, or import your voices from Khmer Voice Studio.</p>
+							<p className="col-span-full text-xs text-muted-foreground">No cloned voices yet. Clone one, or import your voices from Khmer Voice Studio.</p>
 						) : (
 							clones.map((v) => (
 								<VoiceCard
@@ -79,24 +88,29 @@ export function VoicesPage() {
 						)}
 					</LibrarySection>
 
-					<LibrarySection icon={<Star className="size-4" />} title="Preset voices" description="Voice templates from your KVS engine. Each is made once into a sample, so it sounds the same in every video.">
-						{templates.map((t) => {
-							const saved = voices.find((v) => v.preset === t.name);
-							return (
-								<VoiceCard
-									key={t.name}
-									icon={<Star className="size-3.5" />}
-									title={t.name}
-									meta={saved ? `${saved.seconds.toFixed(1)} s` : "no sample yet"}
-									ready={Boolean(saved)}
-									transcript={saved?.transcript ?? t.description}
-									player={saved ? <WaveformPlayer path={saved.path} /> : <MakeSampleButton name={t.name} offline={!status?.online} onMade={refresh} />}
-									onUse={() => use(`kvs-design:${t.name}`, t.name)}
-									onDelete={saved ? () => void window.kroma.kvsDelete(saved.id).then(refresh) : undefined}
-									deleteLabel="Delete the sample"
-								/>
-							);
-						})}
+					<LibrarySection icon={<Star className="size-4" />} title="Preset voices" description="The same voices as Khmer Voice Studio, for every kind of character. Each is a saved sample, so it sounds the same in every video.">
+						{groupTemplates(templates).map((g) => (
+							<Fragment key={g.title}>
+								<h3 className="col-span-full mt-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase first:mt-0">{g.title}</h3>
+								{g.items.map((t) => {
+									const saved = voices.find((v) => v.preset === t.name);
+									return (
+										<VoiceCard
+											key={t.name}
+											icon={<Star className="size-3.5" />}
+											title={t.name}
+											meta={saved ? `${saved.seconds.toFixed(1)} s` : "no sample yet"}
+											ready={Boolean(saved)}
+											transcript={saved?.transcript ?? t.description}
+											player={saved ? <WaveformPlayer path={saved.path} /> : <MakeSampleButton name={t.name} offline={!status?.online} onMade={refresh} />}
+											onUse={() => use(`kvs-design:${t.name}`, t.name)}
+											onDelete={saved ? () => void window.kroma.kvsDelete(saved.id).then(refresh) : undefined}
+											deleteLabel="Delete the sample"
+										/>
+									);
+								})}
+							</Fragment>
+						))}
 					</LibrarySection>
 
 					<LibrarySection icon={<Sparkles className="size-4" />} title="Instant voices" description="Microsoft's free Khmer voices: ready in seconds, good for drafts.">
@@ -237,6 +251,7 @@ function ImportDialog({ open, onOpenChange, onImported }: { open: boolean; onOpe
 			.then((l) => {
 				setList(l);
 				setChosen(l.filter((v) => v.kind === "preset" && !v.imported).map((v) => v.kvsId));
+				l.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "clone" ? -1 : 1));
 			})
 			.catch((e: Error) => setError(e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "")));
 	}, [open]);
@@ -249,7 +264,7 @@ function ImportDialog({ open, onOpenChange, onImported }: { open: boolean; onOpe
 			<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Import from Khmer Voice Studio</DialogTitle>
-					<DialogDescription>Copies voices from your KVS dashboard into Kroma, so you don't have to make them again.</DialogDescription>
+					<DialogDescription>Copies voices from your KVS dashboard into Kroma. Preset voices come over by themselves; tick the cloned voices you want.</DialogDescription>
 				</DialogHeader>
 				{error && <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">{error}</p>}
 				{!list && !error && (

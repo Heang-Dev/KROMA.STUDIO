@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { linesNeedingVoice, makeVoiceOver, removeOriginalVoices, setVoice, voiceSettings } from "@/lib/actions";
 import { runTask, useEditor } from "@/state/store";
 import { CharactersSection } from "./CharactersSection";
+import { VoiceRecorder } from "./VoiceRecorder";
 import { mediaUrl } from "./Preview";
 import { Card, ProgressBar, Row, Section, Segmented, SliderField, SwitchRow, TaskProgress, useBusy } from "./common";
 
@@ -67,11 +68,6 @@ export function VoicePanel() {
 			<Section
 				title={voice.cast?.length ? "Default voice" : "Khmer voice-over"}
 				hint="Reads the Khmer subtitles aloud, timed to each line, over the original sound turned down."
-				action={
-					<Button variant="outline" size="xs" onClick={() => useEditor.getState().openVoices()}>
-						My voices
-					</Button>
-				}
 			>
 				<Segmented<Source>
 					label="Voice type"
@@ -358,6 +354,8 @@ function VoiceRow({ selected, title, subtitle, onSelect, sample }: { selected: b
 export function CloneDialog({ open, onOpenChange, onCloned }: { open: boolean; onOpenChange: (open: boolean) => void; onCloned: (voice: KvsVoice) => void }) {
 	const [name, setName] = useState("");
 	const [file, setFile] = useState<string | null>(null);
+	const [recorded, setRecorded] = useState<{ path: string; transcript: string } | null>(null);
+	const [mode, setMode] = useState<"record" | "file">("record");
 	const [consent, setConsent] = useState(false);
 	const cloning = useBusy("clone");
 
@@ -365,13 +363,17 @@ export function CloneDialog({ open, onOpenChange, onCloned }: { open: boolean; o
 		if (open) {
 			setName("");
 			setFile(null);
+			setRecorded(null);
 			setConsent(false);
 		}
 	}, [open]);
 
+	// A recording made here knows its text; a file is written down by the engine.
+	const source = mode === "record" ? recorded : file ? { path: file, transcript: undefined } : null;
+
 	const clone = async () => {
-		if (!file) return;
-		const voice = await runTask(`clone-${Date.now()}`, "Clone voice", (id) => window.kroma.cloneVoice(id, name, file));
+		if (!source) return;
+		const voice = await runTask(`clone-${Date.now()}`, "Clone voice", (id) => window.kroma.cloneVoice(id, name, source.path, source.transcript));
 		if (voice) {
 			useEditor.getState().showToast(`Voice "${voice.name}" is ready.`);
 			onCloned(voice);
@@ -381,21 +383,34 @@ export function CloneDialog({ open, onOpenChange, onCloned }: { open: boolean; o
 
 	return (
 		<Dialog open={open} onOpenChange={(next) => !cloning && onOpenChange(next)}>
-			<DialogContent className="sm:max-w-md">
+			<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Clone a voice</DialogTitle>
-					<DialogDescription>Use 5–20 seconds of one person speaking clearly in Khmer, with no music. The engine cleans it and writes down what was said.</DialogDescription>
+					<DialogDescription>Record yourself reading a short text, or use 5–20 seconds of one person speaking clearly in Khmer, with no music.</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-4">
 					<div className="space-y-1.5">
 						<Label htmlFor="clone-name">Name</Label>
 						<Input id="clone-name" placeholder="e.g. My voice" value={name} onChange={(e) => setName(e.target.value)} />
 					</div>
-					<div className="space-y-1.5">
-						<Label>Recording</Label>
-						<Button variant="outline" className="w-full justify-start" onClick={() => void window.kroma.kvsPickRecording().then((p) => p && setFile(p))}>
-							<FileAudio /> <span className="truncate">{file ? file.split("/").pop() : "Choose an audio or video file…"}</span>
-						</Button>
+					<div className="space-y-2">
+						<Segmented<"record" | "file">
+							label="Recording"
+							equalWidth
+							value={mode}
+							options={[
+								{ value: "record", label: "Record now" },
+								{ value: "file", label: "Use a file" },
+							]}
+							onChange={setMode}
+						/>
+						{mode === "record" ? (
+							<VoiceRecorder onChange={setRecorded} />
+						) : (
+							<Button variant="outline" className="w-full justify-start" onClick={() => void window.kroma.kvsPickRecording().then((p) => p && setFile(p))}>
+								<FileAudio /> <span className="truncate">{file ? file.split("/").pop() : "Choose an audio or video file…"}</span>
+							</Button>
+						)}
 					</div>
 					<label className="flex items-start gap-2.5 text-xs leading-relaxed">
 						<Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
@@ -407,7 +422,7 @@ export function CloneDialog({ open, onOpenChange, onCloned }: { open: boolean; o
 					<Button variant="outline" disabled={cloning} onClick={() => onOpenChange(false)}>
 						Cancel
 					</Button>
-					<Button disabled={!file || !consent || cloning} onClick={() => void clone()}>
+					<Button disabled={!source || !consent || cloning} onClick={() => void clone()}>
 						{cloning ? "Cloning…" : "Clone voice"}
 					</Button>
 				</DialogFooter>
