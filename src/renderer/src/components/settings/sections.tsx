@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { AudioLines, CircleCheck, CircleX, Download, RefreshCw, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette } from "lucide-react";
-import { type Appearance, type KvsStatus, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
+import { AudioLines, CircleCheck, CircleX, Download, RefreshCw, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
+import { type Appearance, type KvsStatus, type PostAccount, type PostProfile, type PublishPlatform, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
 	{ id: "translation", group: "AI services", title: "Translation", icon: Languages, keywords: "gemini google translate free claude anthropic api key model khmer translate opus sonnet haiku flash", component: TranslationSection },
 	{ id: "speech", group: "AI services", title: "Speech to Text", icon: Mic, keywords: "gemini groq openai whisper transcribe speech api key endpoint", component: SpeechSection },
 	{ id: "voice-engine", group: "AI services", title: "Voice Engine", icon: AudioLines, keywords: "kvs khmer voice studio clone design voxcpm colab gpu token engine", component: VoiceEngineSection },
+	{ id: "posting", group: "Social", title: "Posting", icon: Send, keywords: "upload post youtube facebook tiktok social connect accounts api key publish auto", component: PostingSection },
 	{ id: "downloads", group: "Media", title: "Downloads", icon: Download, keywords: "yt-dlp cookies browser login bilibili douyin youtube 1080p", component: DownloadsSection },
 	{ id: "folders", group: "Media", title: "Folders", icon: HardDrive, keywords: "export folder save location downloads library finder path", component: FoldersSection },
 	{ id: "appearance", group: "Interface", title: "Appearance", icon: Palette, keywords: "theme dark light system mac zoom size scale bigger smaller interface", component: AppearanceSection },
@@ -221,6 +222,139 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 					<Row label="On this Mac (slower)" description={<span>In the KHMER.VOICE.STUDIO folder run <span className="font-mono">make engine</span>. The first time downloads the voice model (about 5 GB).</span>} />
 				</Card>
 			</Group>
+		</>
+	);
+}
+
+const PLATFORMS: { id: PublishPlatform; name: string }[] = [
+	{ id: "youtube", name: "YouTube" },
+	{ id: "facebook", name: "Facebook" },
+	{ id: "tiktok", name: "TikTok" },
+];
+
+/** Upload-Post: connect YouTube, Facebook and TikTok once, then the Post panel posts to them in one click. */
+function PostingSection({ settings, save }: SectionProps) {
+	const [account, setAccount] = useState<PostAccount | null>(null);
+	const [profiles, setProfiles] = useState<PostProfile[]>([]);
+	const [pages, setPages] = useState<{ id: string; name: string }[]>([]);
+	const [error, setError] = useState<string | null>(null);
+	const [busy, setBusy] = useState(false);
+	const clean = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, "");
+
+	const refresh = () => {
+		if (!settings.hasPostKey) return;
+		setBusy(true);
+		setError(null);
+		void Promise.all([window.kroma.postAccount(), window.kroma.postProfiles()])
+			.then(([a, p]) => {
+				setAccount(a);
+				setProfiles(p);
+				if (!settings.postProfile && p[0]) void save({ postProfile: p[0].username });
+			})
+			.catch((e) => setError(clean(e)))
+			.finally(() => setBusy(false));
+		void window.kroma.facebookPages().then(setPages).catch(() => setPages([]));
+	};
+	useEffect(refresh, [settings.hasPostKey, settings.postProfile]);
+	// Coming back from the browser after connecting: show the new accounts.
+	useEffect(() => {
+		window.addEventListener("focus", refresh);
+		return () => window.removeEventListener("focus", refresh);
+	});
+
+	const profile = profiles.find((p) => p.username === settings.postProfile) ?? profiles[0];
+	return (
+		<>
+			<Group
+				title="Upload-Post"
+				description="Kroma posts through Upload-Post (upload-post.com), which is already approved by YouTube, Facebook and TikTok, so your posts go out publicly. Connect your accounts once; after that the Post panel posts in one click."
+			>
+				<Card>
+					<KeyRow label="API key" saved={settings.hasPostKey} placeholder="From app.upload-post.com → API Keys" keyUrl="https://app.upload-post.com/api-keys" onSave={(v) => save({ postKey: v })} />
+					{settings.hasPostKey && (
+						<Row
+							label="Account"
+							description={error ?? (account ? `${account.email}${account.plan ? ` · ${account.plan} plan` : ""}` : busy ? "Checking…" : "")}
+							control={
+								<span className="flex items-center gap-2">
+									{account && !error ? <CircleCheck className="size-4 text-success" /> : error ? <CircleX className="size-4 text-destructive" /> : null}
+									<Button variant="outline" size="sm" disabled={busy} onClick={refresh}>
+										<RefreshCw className={busy ? "animate-spin" : ""} /> Check
+									</Button>
+								</span>
+							}
+						/>
+					)}
+				</Card>
+			</Group>
+
+			{settings.hasPostKey && !error && (
+				<Group title="Your accounts" description="Press Connect, sign in to each platform in your browser and allow access, then come back here.">
+					<Card>
+						{profiles.length > 1 && (
+							<Row
+								label="Profile"
+								description="Each Upload-Post profile has its own set of accounts."
+								control={<AppSelect label="Profile" value={profile?.username ?? ""} options={profiles.map((p) => ({ value: p.username, label: p.displayName }))} onChange={(v) => void save({ postProfile: v })} />}
+							/>
+						)}
+						{PLATFORMS.map((pl) => {
+							const a = profile?.accounts[pl.id];
+							return (
+								<Row
+									key={pl.id}
+									label={pl.name}
+									description={a ? `${a.name}${a.handle && a.handle !== a.name ? ` (@${a.handle.replace(/^@/, "")})` : ""}${a.needsReconnect ? " · sign-in expired: press Connect" : ""}` : "Not connected"}
+									control={a && !a.needsReconnect ? <CircleCheck className="size-4 text-success" /> : <CircleX className="size-4 text-muted-foreground" />}
+								/>
+							);
+						})}
+						{profile?.accounts.facebook && (
+							<Row
+								label="Facebook Page"
+								description="Videos are posted to this Page (Facebook doesn't allow apps to post to personal profiles)."
+								control={
+									pages.length ? (
+										<AppSelect label="Facebook Page" value={settings.facebookPageId || pages[0].id} options={pages.map((p) => ({ value: p.id, label: p.name }))} onChange={(v) => void save({ facebookPageId: v })} />
+									) : (
+										<span className="text-xs text-muted-foreground">No Pages found</span>
+									)
+								}
+							/>
+						)}
+						<Row
+							label="Connect accounts"
+							description="Opens a secure Upload-Post page in your browser. TikTok needs Upload-Post's Basic plan; YouTube and Facebook work on the free plan (10 posts a month)."
+							control={
+								<Button
+									size="sm"
+									disabled={busy}
+									onClick={() =>
+										void window.kroma
+											.postConnect()
+											.then((p) => {
+												if (p !== settings.postProfile) void save({ postProfile: p });
+											})
+											.catch((e) => setError(clean(e)))
+									}
+								>
+									<ExternalLink /> Connect
+								</Button>
+							}
+						/>
+					</Card>
+				</Group>
+			)}
+
+			{!settings.hasPostKey && (
+				<Group title="Getting started">
+					<Card>
+						<Row label="1. Make a free account" description="Sign up at upload-post.com." control={<Button variant="outline" size="sm" onClick={() => void window.kroma.openExternal("https://app.upload-post.com/")}><ExternalLink /> Open</Button>} />
+						<Row label="2. Copy your API key" description="In Upload-Post: API Keys → create a key, then paste it above." />
+						<Row label="3. Connect your accounts" description="Press Connect here, and sign in to YouTube, Facebook and TikTok." />
+					</Card>
+				</Group>
+			)}
 		</>
 	);
 }

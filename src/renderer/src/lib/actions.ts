@@ -1,7 +1,7 @@
 import { extractShareTitle } from "@shared/links";
 import { toSrt } from "@shared/srt";
 import { languageOf, languageOfVoice } from "@shared/languages";
-import { ASPECT_SIZE, type Cue, type ExportQuality, DEFAULT_VOICE, type ExportRequest, KHMER_VOICES, KVS_TEMPLATES, isKvsVoice, type MediaItem, type Project, type SourceCue, type VoiceCue, type VoiceSettings } from "@shared/types";
+import { ASPECT_SIZE, type Cue, type ExportQuality, type PlatformCaption, type PublishPlatform, type PublishRequest, type PublishResult, DEFAULT_VOICE, type ExportRequest, KHMER_VOICES, KVS_TEMPLATES, isKvsVoice, type MediaItem, type Project, type SourceCue, type VoiceCue, type VoiceSettings } from "@shared/types";
 import { newProject, runTask, useEditor } from "@/state/store";
 import { objectsForExport } from "./objects";
 import { ensureFonts, renderBandPng, subtitleBand } from "./subtitleRender";
@@ -116,13 +116,17 @@ export async function autoKhmer(language: string): Promise<void> {
 	if (ok) await translateCues(false);
 }
 
-export async function exportVideo(quality: ExportQuality): Promise<void> {
-	if (!state().project.clips.length) return state().showToast("The timeline is empty.", "error");
+/** Exports the video; returns the file (null when cancelled or failed). `quiet` skips revealing it in Finder (posting). */
+export async function exportVideo(quality: ExportQuality, quiet = false): Promise<string | null> {
+	if (!state().project.clips.length) {
+		state().showToast("The timeline is empty.", "error");
+		return null;
+	}
 	// A voice-over made before voices were removed automatically: remove them now, so no original speech is heard.
 	if (voiceCues(state().project).length) await removeVoicesUnlessOff();
 	const { project } = state();
 	const outPath = await window.kroma.saveVideoDialog(`${project.name} (${project.aspect.replace(":", "x")})`);
-	if (!outPath) return;
+	if (!outPath) return null;
 	const frame = ASPECT_SIZE[project.aspect];
 	const band = subtitleBand(project.style, frame);
 
@@ -162,11 +166,22 @@ export async function exportVideo(quality: ExportQuality): Promise<void> {
 			voice: voiceLines.length ? { lines: voiceLines, originalVolume: replacing ? (voice.backgroundVolume ?? 1) : voice.originalVolume } : undefined,
 		});
 	});
-	if (result) {
+	if (!result) return null;
+	// Remember it, so posting can reuse this file while nothing in the video changes.
+	state().update((p) => ({ ...p, lastExport: { path: result, fingerprint: videoFingerprint(project) } }), false);
+	if (!quiet) {
 		state().showToast("Export finished", "info", result.replace(/^\/Users\/[^/]+/, "~"));
 		void window.kroma.showInFolder(result);
 	}
-	return;
+	return result;
+}
+
+/** Changes whenever anything that ends up in the exported video changes (not the posts or notes). */
+export function videoFingerprint(p: Project): string {
+	const text = JSON.stringify([p.aspect, p.fit, p.media.map((m) => m.path), p.clips, p.cues, p.style, p.objects, p.voice]);
+	let h = 5381;
+	for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+	return `${text.length}:${(h >>> 0).toString(36)}`;
 }
 
 export async function exportSrt(which: "khmer" | "source"): Promise<void> {
@@ -460,3 +475,89 @@ export function replaceInLines(find: string, replace: string, remember: boolean)
 	});
 	return count;
 }
+
+// ── Posting ──
+
+/** Writes the YouTube, Facebook and TikTok posts with AI and keeps them in the project. */
+export async function writePosts(): Promise<boolean> {
+	const { project } = state();
+	const transcript = project.cues.map((c) => c.text.trim()).filter(Boolean).join("\n");
+	if (!transcript) {
+		state().showToast(`Make the ${languageOf(project.language).name} subtitles first.`, "error");
+		return false;
+	}
+	const posts = await runTask(`captions-${Date.now()}`, "Write posts", (id) => window.kroma.captions(id, { transcript, title: project.name, context: project.context, language: project.language }));
+	if (!posts) return false;
+	state().update((p) => ({ ...p, posts }));
+	return true;
+}
+
+export function updatePost(platform: PlatformCaption["platform"], patch: Partial<PlatformCaption>): void {
+	state().update((p) => ({ ...p, posts: (p.posts ?? []).map((x) => (x.platform === platform ? { ...x, ...patch } : x)) }), false);
+}
+
+export interface PublishOptions {
+	platforms: PublishPlatform[];
+	youtubePrivacy: "public" | "unlisted" | "private";
+	tiktokMode: "post" | "draft";
+	quality: ExportQuality;
+}
+
+/**
+ * One click: writes the posts if needed, exports the video (or reuses the last export when nothing changed), uploads
+ * it to every chosen platform through Upload-Post, and records where it went.
+ */
+export async function publishVideo(options: PublishOptions): Promise<void> {
+	const settings = await window.kroma.getSettings();
+	if (!settings.hasPostKey) {
+		state().showToast("Connect your accounts first", "error", "Add your Upload-Post key in Settings → Posting.");
+		state().openSettings("posting");
+		return;
+	}
+	if (!options.platforms.length) return state().showToast("Choose where to post.", "error");
+	if (!state().project.posts?.length && !(await writePosts())) return;
+
+	let pageId = settings.facebookPageId;
+	if (options.platforms.includes("facebook") && !pageId) {
+		const pages = await window.kroma.facebookPages().catch(() => []);
+		if (pages.length !== 1) {
+			state().showToast("Choose your Facebook Page", "error", "Pick the Page to post to in Settings → Posting.");
+			state().openSettings("posting");
+			return;
+		}
+		pageId = pages[0].id;
+	}
+
+	// The same video as last time? Post that file instead of exporting again.
+	const project = state().project;
+	const last = project.lastExport;
+	const reuse = last && last.fingerprint === videoFingerprint(project) && (await window.kroma.fileExists(last.path));
+	const video = reuse ? last.path : await exportVideo(options.quality, true);
+	if (!video) return;
+
+	const posts = state().project.posts ?? [];
+	const post = (name: PlatformCaption["platform"]) => posts.find((p) => p.platform === name) ?? { platform: name, title: project.name, description: "", hashtags: [] };
+	const yt = post("YouTube");
+	const fb = post("Facebook");
+	const tt = post("TikTok");
+	const duration = totalDuration(project.clips);
+	const req: PublishRequest = {
+		video,
+		profile: settings.postProfile,
+		platforms: options.platforms,
+		youtube: { title: yt.title, description: yt.description, tags: yt.hashtags, privacy: options.youtubePrivacy },
+		// Reels must be vertical and at most 90 s; anything else goes up as a normal Page video.
+		facebook: { title: fb.title, description: fb.description, tags: fb.hashtags, pageId, mediaType: project.aspect === "9:16" && duration <= 90 ? "REELS" : "VIDEO" },
+		tiktok: { caption: [tt.title, tt.description].filter(Boolean).join("\n").slice(0, 1800), tags: tt.hashtags, mode: options.tiktokMode },
+		idempotencyKey: `${videoFingerprint(project)}-${Date.now()}`,
+	};
+	const results = await runTask(`publish-${Date.now()}`, "Post", (id) => window.kroma.publish(id, req));
+	if (!results) return;
+	state().update((p) => ({ ...p, published: [...(p.published ?? []), { at: Date.now(), results }] }), false);
+	const failed = results.filter((r) => r.state === "failed");
+	const names = (rs: PublishResult[]) => rs.map((r) => PLATFORM_NAMES[r.platform]).join(", ");
+	if (failed.length) state().showToast(`Not posted to ${names(failed)}`, "error", failed[0].message ?? "See the Post panel for details.");
+	else state().showToast(`Posted to ${names(results)}`, "info", options.tiktokMode === "draft" && options.platforms.includes("tiktok") ? "TikTok: open the app and post it from your drafts." : undefined);
+}
+
+export const PLATFORM_NAMES: Record<PublishPlatform, string> = { youtube: "YouTube", facebook: "Facebook", tiktok: "TikTok" };

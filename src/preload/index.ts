@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice } from "@shared/types";
+import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, PostAccount, PostProfile, PublishRequest, PublishResult } from "@shared/types";
 
 const api = {
 	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
@@ -30,6 +30,12 @@ const api = {
 		ipcRenderer.invoke("task:transcribe", taskId, path, duration, language),
 	translate: (taskId: string, lines: { id: string; text: string; seconds?: number }[], notes: string, language?: string): Promise<{ translations: Record<string, string>; fallback: number }> =>
 		ipcRenderer.invoke("task:translate", taskId, lines, notes, language),
+	fileExists: (path: string): Promise<boolean> => ipcRenderer.invoke("file:exists", path),
+	postAccount: (): Promise<PostAccount> => ipcRenderer.invoke("post:account"),
+	postProfiles: (): Promise<PostProfile[]> => ipcRenderer.invoke("post:profiles"),
+	postConnect: (): Promise<string> => ipcRenderer.invoke("post:connect"),
+	facebookPages: (): Promise<{ id: string; name: string }[]> => ipcRenderer.invoke("post:facebookPages"),
+	publish: (taskId: string, req: PublishRequest): Promise<PublishResult[]> => ipcRenderer.invoke("task:publish", taskId, req),
 	captions: (taskId: string, req: CaptionRequest): Promise<PlatformCaption[]> => ipcRenderer.invoke("task:captions", taskId, req),
 	exportVideo: (taskId: string, req: ExportRequest): Promise<string> => ipcRenderer.invoke("task:export", taskId, req),
 	findCharacters: (

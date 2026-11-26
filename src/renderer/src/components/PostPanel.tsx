@@ -1,56 +1,221 @@
-import { useState } from "react";
-import { Check, Copy, FileDown, WandSparkles } from "lucide-react";
-import type { PlatformCaption } from "@shared/types";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import { Check, CircleCheck, CircleX, Copy, ExternalLink, FileDown, Loader2, Send, Settings, WandSparkles } from "lucide-react";
+import type { ExportQuality, PlatformCaption, PostProfile, PublishPlatform } from "@shared/types";
+import { languageOf } from "@shared/languages";
 import { Button } from "@/components/ui/button";
-import { exportSrt } from "@/lib/actions";
-import { runTask, useEditor } from "@/state/store";
-import { Card, Section, TaskProgress, useBusy } from "./common";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { PLATFORM_NAMES, exportSrt, publishVideo, updatePost, videoFingerprint, writePosts } from "@/lib/actions";
+import { cn } from "@/lib/utils";
+import { useEditor } from "@/state/store";
+import { Card, Row, Section, Segmented, TaskProgress, useBusy } from "./common";
+
+// Post: the AI writes each platform's title, text and hashtags (kept in the project, editable), then one click
+// exports the video and posts it to YouTube, Facebook and TikTok through Upload-Post (Settings → Posting).
+
+const ORDER: { id: PublishPlatform; caption: PlatformCaption["platform"] }[] = [
+	{ id: "youtube", caption: "YouTube" },
+	{ id: "facebook", caption: "Facebook" },
+	{ id: "tiktok", caption: "TikTok" },
+];
 
 export function PostPanel() {
 	const project = useEditor((s) => s.project);
-	const [posts, setPosts] = useState<PlatformCaption[]>([]);
-	const busy = useBusy("captions");
+	const writing = useBusy("captions");
+	const posting = useBusy("publish");
+	const exporting = useBusy("export");
+	const lang = languageOf(project.language);
 	const translated = project.cues.filter((c) => c.text.trim());
+	const posts = project.posts ?? [];
 
-	const generate = async () => {
-		const transcript = translated.map((c) => c.text).join("\n");
-		const result = await runTask(`captions-${Date.now()}`, "Write posts", (id) => window.kroma.captions(id, { transcript, title: project.name, context: project.context, language: project.language }));
-		if (result) setPosts(result);
-	};
+	const [hasKey, setHasKey] = useState<boolean | null>(null);
+	const [profile, setProfile] = useState<PostProfile | null>(null);
+	const [chosen, setChosen] = useState<PublishPlatform[] | null>(null);
+	const [privacy, setPrivacy] = useState<"public" | "unlisted" | "private">("public");
+	const [tiktokMode, setTiktokMode] = useState<"post" | "draft">("post");
+	const [quality, setQuality] = useState<ExportQuality>("standard");
+
+	// Which accounts are connected (Settings → Posting), refreshed when the window comes back into focus.
+	useEffect(() => {
+		const load = () =>
+			void window.kroma.getSettings().then((s) => {
+				setHasKey(s.hasPostKey);
+				if (!s.hasPostKey) return;
+				void window.kroma
+					.postProfiles()
+					.then((list) => {
+						const p = list.find((x) => x.username === s.postProfile) ?? list[0] ?? null;
+						setProfile(p);
+						setChosen((c) => c ?? ORDER.map((o) => o.id).filter((id) => p?.accounts[id] && !p.accounts[id]?.needsReconnect));
+					})
+					.catch(() => setProfile(null));
+			});
+		load();
+		window.addEventListener("focus", load);
+		return () => window.removeEventListener("focus", load);
+	}, []);
+
+	const selected = (chosen ?? []).filter((id) => profile?.accounts[id]);
+	const reuse = project.lastExport && project.lastExport.fingerprint === videoFingerprint(project);
+	const busy = posting || exporting;
 
 	return (
 		<>
-			<Section title="Social posts" hint="AI (Gemini or Claude) reads the Khmer subtitles and writes a title, description and hashtags in Khmer for YouTube, Facebook and TikTok.">
-				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!translated.length || busy} onClick={() => void generate()}>
-					<WandSparkles /> Write the posts
+			<Section
+				title="1 · Posts"
+				hint={`The AI reads the ${lang.name} subtitles and writes a title, text and hashtags for each platform. Edit anything before posting; it's saved with the project.`}
+			>
+				<Button variant={posts.length ? "outline" : "default"} className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!translated.length || writing} onClick={() => void writePosts()}>
+					{writing ? <Loader2 className="animate-spin" /> : <WandSparkles />} {posts.length ? "Write them again" : "Write the posts"}
 				</Button>
-				{!translated.length && <p className="text-xs text-muted-foreground">Make the Khmer subtitles first.</p>}
+				{!translated.length && <p className="text-xs text-muted-foreground">Make the {lang.name} subtitles first.</p>}
 				<TaskProgress prefix="captions" />
+				{ORDER.map(({ caption }) => {
+					const post = posts.find((p) => p.platform === caption);
+					return post ? <PostEditor key={caption} post={post} /> : null;
+				})}
 			</Section>
 
-			{posts.map((post) => (
-				<Section key={post.platform} title={post.platform} action={<CopyButton text={`${post.title}\n\n${post.description}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`} />}>
-					<Card className="py-3" >
-						<div lang="km" className="space-y-2">
-							<p className="text-sm font-semibold select-text">{post.title}</p>
-							<p className="text-xs whitespace-pre-line text-muted-foreground select-text">{post.description}</p>
-							<div className="flex flex-wrap gap-1 pt-1">
-								{post.hashtags.map((h) => (
-									<Badge key={h} variant="secondary" className="font-normal select-text">
-										#{h}
-									</Badge>
+			<Section title="2 · Post to" hint="Exports the video and posts it everywhere you tick, in one go.">
+				{hasKey === false ? (
+					<div className="rounded-lg border border-dashed p-3 text-xs leading-relaxed">
+						<p className="mb-2">Connect YouTube, Facebook and TikTok once, and posting is one click from here.</p>
+						<Button size="sm" onClick={() => useEditor.getState().openSettings("posting")}>
+							<Settings /> Connect accounts
+						</Button>
+					</div>
+				) : (
+					<>
+						<Card className="px-0">
+							{ORDER.map(({ id }) => {
+								const account = profile?.accounts[id];
+								const on = selected.includes(id);
+								return (
+									<label key={id} className={cn("flex items-center gap-3 px-3 py-2.5", !account && "opacity-60")}>
+										<Checkbox
+											checked={on}
+											disabled={!account || busy}
+											onCheckedChange={(v) => setChosen((c) => (v === true ? [...(c ?? []), id] : (c ?? []).filter((x) => x !== id)))}
+										/>
+										<span className="min-w-0 flex-1">
+											<span className="block text-[13px] font-medium">{PLATFORM_NAMES[id]}</span>
+											<span className="block truncate text-[11px] text-muted-foreground">
+												{account ? `${account.name}${account.needsReconnect ? " · sign-in expired" : ""}` : profile ? "Not connected" : "Checking…"}
+											</span>
+										</span>
+										{!account && profile && (
+											<Button variant="ghost" size="xs" onClick={() => useEditor.getState().openSettings("posting")}>
+												Connect
+											</Button>
+										)}
+									</label>
+								);
+							})}
+						</Card>
+						<Card>
+							{selected.includes("youtube") && (
+								<Row
+									label="YouTube"
+									control={
+										<Segmented
+											label="YouTube visibility"
+											size="sm"
+											value={privacy}
+											options={[
+												{ value: "public", label: "Public" },
+												{ value: "unlisted", label: "Unlisted" },
+												{ value: "private", label: "Private" },
+											]}
+											onChange={setPrivacy}
+										/>
+									}
+								/>
+							)}
+							{selected.includes("tiktok") && (
+								<Row
+									label="TikTok"
+									description={tiktokMode === "draft" ? "Goes to your TikTok drafts: add music or effects in the app, then post." : undefined}
+									control={
+										<Segmented
+											label="TikTok"
+											size="sm"
+											value={tiktokMode}
+											options={[
+												{ value: "post", label: "Post now" },
+												{ value: "draft", label: "To drafts" },
+											]}
+											onChange={setTiktokMode}
+										/>
+									}
+								/>
+							)}
+							<Row
+								label="Video"
+								description={reuse ? "Uses your last export (nothing changed since)." : "Exported now, at this size."}
+								control={
+									reuse ? (
+										<CircleCheck className="size-4 text-success" />
+									) : (
+										<Segmented
+											label="Export size"
+											size="sm"
+											value={quality}
+											options={[
+												{ value: "small", label: "Small" },
+												{ value: "standard", label: "Standard" },
+												{ value: "high", label: "High" },
+											]}
+											onChange={setQuality}
+										/>
+									)
+								}
+							/>
+						</Card>
+						<Button
+							className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug"
+							disabled={!project.clips.length || !selected.length || busy || !translated.length}
+							onClick={() => void publishVideo({ platforms: selected, youtubePrivacy: privacy, tiktokMode, quality })}
+						>
+							{busy ? <Loader2 className="animate-spin" /> : <Send />}{" "}
+							{selected.length ? `Post to ${selected.map((s) => PLATFORM_NAMES[s]).join(", ")}` : "Choose where to post"}
+						</Button>
+						<TaskProgress prefix="export" />
+						<TaskProgress prefix="publish" />
+					</>
+				)}
+			</Section>
+
+			{(project.published ?? []).length > 0 && (
+				<Section title="Posted">
+					<Card className="px-0">
+						{[...(project.published ?? [])].reverse().map((record) => (
+							<div key={record.at} className="space-y-1 px-3 py-2.5">
+								<p className="text-[11px] text-muted-foreground">{new Date(record.at).toLocaleString()}</p>
+								{record.results.map((r) => (
+									<div key={r.platform} className="flex items-center gap-2 text-xs">
+										{r.state === "done" ? <CircleCheck className="size-3.5 text-success" /> : r.state === "failed" ? <CircleX className="size-3.5 text-destructive" /> : <Loader2 className="size-3.5 text-muted-foreground" />}
+										<span className="w-16 font-medium">{PLATFORM_NAMES[r.platform]}</span>
+										<span className="min-w-0 flex-1 truncate text-muted-foreground" title={r.message}>
+											{r.state === "failed" ? r.message : r.state === "working" ? (r.message ?? "Still processing") : r.url ? "" : (r.message ?? "Posted")}
+										</span>
+										{r.url && (
+											<Button variant="ghost" size="xs" onClick={() => void window.kroma.openExternal(r.url!)}>
+												<ExternalLink /> Open
+											</Button>
+										)}
+									</div>
 								))}
 							</div>
-						</div>
+						))}
 					</Card>
 				</Section>
-			))}
+			)}
 
 			<Section title="Subtitle files" hint="For YouTube's subtitle upload, or to keep a copy.">
 				<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-2">
 					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!translated.length} onClick={() => void exportSrt("khmer")}>
-						<FileDown /> Khmer .srt
+						<FileDown /> {lang.name} .srt
 					</Button>
 					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!project.cues.length} onClick={() => void exportSrt("source")}>
 						<FileDown /> Original .srt
@@ -59,6 +224,38 @@ export function PostPanel() {
 			</Section>
 		</>
 	);
+}
+
+/** One platform's post, editable in place (saved with the project). */
+function PostEditor({ post }: { post: PlatformCaption }) {
+	const begin = () => useEditor.getState().checkpoint();
+	const text = `${post.title}\n\n${post.description}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`;
+	return (
+		<Card className="space-y-2 py-3">
+			<div className="flex items-center justify-between">
+				<span className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{post.platform}</span>
+				<CopyButton text={text} />
+			</div>
+			<Input lang="km" aria-label={`${post.platform} title`} className="font-khmer text-[13px] font-medium" value={post.title} onFocus={begin} onChange={(e) => updatePost(post.platform, { title: e.target.value })} />
+			<Textarea lang="km" aria-label={`${post.platform} text`} className="min-h-20 font-khmer text-xs" value={post.description} onFocus={begin} onChange={(e) => updatePost(post.platform, { description: e.target.value })} />
+			<HashtagInput post={post} />
+		</Card>
+	);
+}
+
+/** Hashtags are typed freely ("#food #fyp") and saved when the field is left. */
+function HashtagInput({ post }: { post: PlatformCaption }) {
+	const joined = post.hashtags.map((h) => `#${h}`).join(" ");
+	const [draft, setDraft] = useState(joined);
+	useEffect(() => setDraft(joined), [joined]);
+	const commit = () => {
+		const tags = draft.split(/[\s,]+/).map((h) => h.replace(/^#+/, "")).filter(Boolean);
+		if (tags.join(" ") !== post.hashtags.join(" ")) {
+			useEditor.getState().checkpoint();
+			updatePost(post.platform, { hashtags: tags });
+		}
+	};
+	return <Input aria-label={`${post.platform} hashtags`} className="text-xs" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />;
 }
 
 function CopyButton({ text }: { text: string }) {

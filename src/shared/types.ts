@@ -73,6 +73,12 @@ export interface Project {
 	objects?: VideoObject[];
 	/** The language the subtitles are translated into (see shared/languages). Khmer when missing. */
 	language?: string;
+	/** The social posts written for this video (kept so they can be edited and posted later). */
+	posts?: PlatformCaption[];
+	/** Where this video was posted, newest last. */
+	published?: PublishRecord[];
+	/** The last export, reused for posting while the project hasn't changed since. */
+	lastExport?: { path: string; fingerprint: string };
 }
 
 /**
@@ -229,6 +235,12 @@ export interface Settings {
 	theme: Appearance;
 	/** Interface zoom, like a browser's ⌘+ / ⌘−: 1 = 100 %. */
 	uiZoom: number;
+	/** Upload-Post (upload-post.com) API key, for posting to YouTube, Facebook and TikTok in one click. */
+	postKey: string;
+	/** The Upload-Post profile whose connected accounts Kroma posts to. */
+	postProfile: string;
+	/** The Facebook Page videos are posted to. */
+	facebookPageId: string;
 }
 
 export type Appearance = "system" | "light" | "dark";
@@ -259,7 +271,8 @@ export interface KvsVoice {
 	kvsId?: number;
 }
 
-export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey" | "geminiKey" | "kvsToken"> {
+export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey" | "geminiKey" | "kvsToken" | "postKey"> {
+	hasPostKey: boolean;
 	hasKvsToken: boolean;
 	hasAnthropicKey: boolean;
 	hasGeminiKey: boolean;
@@ -363,7 +376,9 @@ export const DEFAULT_SETTINGS: Settings = {
 	kvsProjectDir: "",
 	kvsToken: "",
 	theme: "dark",
-	uiZoom: 0.9,
+	uiZoom: 0.9,	postKey: "",
+	postProfile: "",
+	facebookPageId: "",
 };
 
 export const UI_ZOOM_STEPS = [0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.4] as const;
@@ -408,4 +423,43 @@ export function exportMbps(quality: ExportQuality, height: number): number {
 export function estimateSize(quality: ExportQuality, height: number, seconds: number): string {
 	const mb = (exportMbps(quality, height) * seconds) / 8;
 	return mb >= 1000 ? `about ${(mb / 1000).toFixed(1)} GB` : `about ${Math.max(1, Math.round(mb / 5) * 5)} MB`;
+}
+
+// ── Posting (Upload-Post) ──
+
+export type PublishPlatform = "youtube" | "facebook" | "tiktok";
+
+export interface PostAccount {
+	email: string;
+	plan: string;
+}
+
+export interface PostProfile {
+	username: string;
+	displayName: string;
+	/** The connected accounts on this profile, by platform. */
+	accounts: Partial<Record<PublishPlatform, { name: string; handle?: string; needsReconnect?: boolean }>>;
+}
+
+export interface PublishRequest {
+	video: string;
+	profile: string;
+	platforms: PublishPlatform[];
+	youtube?: { title: string; description: string; tags: string[]; privacy: "public" | "unlisted" | "private" };
+	facebook?: { title: string; description: string; tags: string[]; pageId?: string; mediaType: "REELS" | "VIDEO" };
+	tiktok?: { caption: string; tags: string[]; mode: "post" | "draft" };
+	/** The same key for a retry, so a post never goes out twice. */
+	idempotencyKey: string;
+}
+
+export interface PublishResult {
+	platform: PublishPlatform;
+	state: "working" | "done" | "failed";
+	url?: string;
+	message?: string;
+}
+
+export interface PublishRecord {
+	at: number;
+	results: PublishResult[];
 }

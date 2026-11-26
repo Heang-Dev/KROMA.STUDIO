@@ -3,7 +3,7 @@ import { extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, session, shell, systemPreferences } from "electron";
 import { parseSubtitles } from "@shared/srt";
-import { type CaptionRequest, type ExportRequest, type Project, type Settings, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
+import { type CaptionRequest, type ExportRequest, type Project, type PublishRequest, type Settings, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
 import { fallbackCount, translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
 import { defaultDownloadDir, downloadLink, LIBRARY_DIR } from "./download";
 
@@ -19,6 +19,7 @@ import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePa
 import { removeVoices, type SeparationQuality } from "./separate";
 import { instantSample, synthesizeLines } from "./voice";
 import { type CharacterLine, type VoiceChoice, findCharacters } from "./characters";
+import { connectLink, ensureProfile, facebookPages, postAccount, postProfiles, publish } from "./publish";
 
 // Media files are streamed to the editor through kroma://media/<path>, with Range support so long videos seek instantly.
 // The automated smoke test gets its own settings and autosave, so it never touches yours.
@@ -246,6 +247,21 @@ const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "
 		}),
 	);
 	ipcMain.handle("task:characters", (_e, taskId: string, lines: CharacterLine[], voices: VoiceChoice[], notes: string) => task(taskId, (p, s) => findCharacters(lines, voices, notes, loadSettings(), p, s)));
+	// Posting through Upload-Post (key and profile from Settings → Posting).
+	ipcMain.handle("post:account", () => postAccount(loadSettings().postKey));
+	ipcMain.handle("post:profiles", () => postProfiles(loadSettings().postKey));
+	ipcMain.handle("post:connect", async () => {
+		const s = loadSettings();
+		const profile = await ensureProfile(s.postKey, s.postProfile);
+		if (profile !== s.postProfile) saveSettings({ postProfile: profile });
+		await shell.openExternal(await connectLink(s.postKey, profile));
+		return profile;
+	});
+	ipcMain.handle("post:facebookPages", () => {
+		const s = loadSettings();
+		return s.postProfile ? facebookPages(s.postKey, s.postProfile) : [];
+	});
+	ipcMain.handle("task:publish", (_e, taskId: string, req: PublishRequest) => task(taskId, (p, s) => publish(loadSettings().postKey, req, p, s)));
 	ipcMain.handle("task:captions", (_e, taskId: string, req: CaptionRequest) => task(taskId, (_p, s) => writeCaptions(req, loadSettings(), s)));
 	ipcMain.handle("task:export", (_e, taskId: string, req: ExportRequest) => task(taskId, (p, s) => exportVideo(req, p, s)));
 
@@ -317,6 +333,7 @@ const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "
 		}
 	});
 
+	ipcMain.handle("file:exists", (_e, path: string) => existsSync(path));
 	ipcMain.handle("shell:show", (_e, path: string) => shell.showItemInFolder(path));
 	ipcMain.handle("shell:open", (_e, url: string) => {
 		if (/^https:\/\//.test(url)) void shell.openExternal(url);
