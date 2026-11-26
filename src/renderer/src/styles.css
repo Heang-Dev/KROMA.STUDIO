@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+	--font-sans: "Inter Variable", "Kantumruy Pro Variable", system-ui, sans-serif;
+	--font-khmer: "Kantumruy Pro Variable", "Khmer Sangam MN", sans-serif;
+
+	--color-bg: #0e0f12;
+	--color-panel: #16181d;
+	--color-panel-2: #1d2027;
+	--color-line: #2a2e37;
+	--color-line-strong: #3a3f4b;
+	--color-fg: #e8e9ec;
+	--color-muted: #9097a3;
+	--color-dim: #5f6673;
+	--color-accent: #e9b949;
+	--color-accent-strong: #f5c95c;
+	--color-accent-ink: #1a1405;
+	--color-clip: #2f6f73;
+	--color-clip-strong: #3f9196;
+	--color-cue: #5b4a9e;
+	--color-cue-strong: #7b67c9;
+	--color-danger: #ef5d5d;
+	--color-ok: #57c785;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--color-bg);
+	color: var(--color-fg);
+	font-family: var(--font-sans);
+	font-size: 13px;
+	-webkit-font-smoothing: antialiased;
+	user-select: none;
+	overflow: hidden;
+}
+
+input,
+textarea,
+select {
+	user-select: text;
+}
+
+.drag {
+	-webkit-app-region: drag;
+}
+.no-drag {
+	-webkit-app-region: no-drag;
+}
+
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--color-line-strong);
+	border-radius: 8px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.cue-row {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 88px;
+}
+
+:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 1px;
+}

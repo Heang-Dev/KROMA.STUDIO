@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d2027"/>
+      <stop offset="1" stop-color="#0e0f12"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7d27a"/>
+      <stop offset="1" stop-color="#d99a2b"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="190" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="190" fill="none" stroke="#2f333d" stroke-width="6"/>
+  <text x="512" y="610" text-anchor="middle" font-family="Khmer Sangam MN" font-weight="700" font-size="430" fill="url(#gold)">ក</text>
+  <rect x="300" y="720" width="424" height="44" rx="22" fill="url(#gold)" opacity="0.9"/>
+  <rect x="360" y="790" width="304" height="30" rx="15" fill="#e9b949" opacity="0.45"/>
+</svg>
