@@ -1,17 +1,17 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { CircleCheck, CircleX, Download, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette } from "lucide-react";
-import { type Appearance, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
+import { AudioLines, CircleCheck, CircleX, Download, RefreshCw, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette } from "lucide-react";
+import { type Appearance, type KvsStatus, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { applyAppearance } from "@/lib/appearance";
 import { useEditor } from "@/state/store";
-import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented } from "../common";
+import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented, SwitchRow } from "../common";
 
 // The settings registry. Each entry is one page in the settings nav; add a page by adding an entry here.
 
-export type SettingsPatch = Partial<Record<keyof Settings, string | number | null>>;
+export type SettingsPatch = Partial<Record<keyof Settings, string | number | boolean | null>>;
 
 export interface SectionProps {
 	settings: SettingsView;
@@ -31,8 +31,9 @@ export interface SettingsSectionDef {
 export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
 	{ id: "translation", group: "AI services", title: "Translation", icon: Languages, keywords: "gemini google translate free claude anthropic api key model khmer translate opus sonnet haiku flash", component: TranslationSection },
 	{ id: "speech", group: "AI services", title: "Speech to Text", icon: Mic, keywords: "gemini groq openai whisper transcribe speech api key endpoint", component: SpeechSection },
+	{ id: "voice-engine", group: "AI services", title: "Voice Engine", icon: AudioLines, keywords: "kvs khmer voice studio clone design voxcpm colab gpu token engine", component: VoiceEngineSection },
 	{ id: "downloads", group: "Media", title: "Downloads", icon: Download, keywords: "yt-dlp cookies browser login bilibili douyin youtube 1080p", component: DownloadsSection },
-	{ id: "storage", group: "Media", title: "Storage", icon: HardDrive, keywords: "library folder movies voice cache downloads finder", component: StorageSection },
+	{ id: "folders", group: "Media", title: "Folders", icon: HardDrive, keywords: "export folder save location downloads library finder path", component: FoldersSection },
 	{ id: "appearance", group: "Interface", title: "Appearance", icon: Palette, keywords: "theme dark light system mac zoom size scale bigger smaller interface", component: AppearanceSection },
 	{ id: "shortcuts", group: "Interface", title: "Shortcuts", icon: Keyboard, keywords: "keyboard keys split undo play", component: ShortcutsSection },
 	{ id: "about", group: "Kroma", title: "About", icon: Info, keywords: "version ffmpeg yt-dlp tools", component: AboutSection },
@@ -176,6 +177,54 @@ function SpeechSection({ settings, save }: SectionProps) {
 	);
 }
 
+function VoiceEngineSection({ settings, save }: SectionProps) {
+	const [status, setStatus] = useState<KvsStatus | null>(null);
+	const [checking, setChecking] = useState(false);
+	const check = () => {
+		setChecking(true);
+		void window.kroma
+			.kvsStatus()
+			.then(setStatus)
+			.finally(() => setChecking(false));
+	};
+	useEffect(check, [settings.kvsUrl, settings.hasKvsToken]);
+
+	return (
+		<>
+			<Group title="Khmer Voice Studio engine" description="Your KVS engine gives Kroma cloned voices (from a short recording) and designed voices (storyteller, news anchor, children…). It needs a GPU to be quick: run it on a free Google Colab GPU, or on this Mac if you don't mind waiting.">
+				<Card>
+					<Row
+						label="Status"
+						description={
+							status === null
+								? "Checking…"
+								: status.online
+									? `Online · ${status.device === "cuda" ? "GPU" : status.device === "mps" ? "this Mac (slower)" : (status.device ?? "")} · ${status.presets.length} designed voices${status.busy ? ` · ${status.busy} job(s) running` : ""}`
+									: status.error
+						}
+						control={
+							<span className="flex items-center gap-2">
+								{status?.online ? <CircleCheck className="size-4 text-success" /> : status ? <CircleX className="size-4 text-destructive" /> : null}
+								<Button variant="outline" size="sm" disabled={checking} onClick={check}>
+									<RefreshCw className={checking ? "animate-spin" : ""} /> Check
+								</Button>
+							</span>
+						}
+					/>
+					<Row label="Engine address" description="On this Mac it's http://127.0.0.1:7861. Colab prints an https://….trycloudflare.com address." control={<DraftInput className="w-72" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />} />
+					<KeyRow label="Token" saved={settings.hasKvsToken} placeholder="Only needed for Colab" onSave={(v) => save({ kvsToken: v })} />
+				</Card>
+			</Group>
+			<Group title="Starting the engine">
+				<Card>
+					<Row label="On a free Colab GPU (fast)" description="Open KHMER.VOICE.STUDIO/engine/colab/KhmerVoiceStudio_Colab.ipynb in Google Colab, choose a T4 GPU, run the cells, then paste the address and token it prints here." />
+					<Row label="On this Mac (slower)" description={<span>In the KHMER.VOICE.STUDIO folder run <span className="font-mono">make engine</span>. The first time downloads the voice model (about 5 GB).</span>} />
+				</Card>
+			</Group>
+		</>
+	);
+}
+
 const BROWSERS = [
 	{ value: "", label: "None · public videos only" },
 	{ value: "chrome", label: "Chrome" },
@@ -199,25 +248,69 @@ function DownloadsSection({ settings, save }: SectionProps) {
 	);
 }
 
-function StorageSection() {
-	const [dir, setDir] = useState("");
+function FoldersSection({ settings, save }: SectionProps) {
+	const [defaults, setDefaults] = useState<{ exportDir: string; downloadDir: string; libraryDir: string } | null>(null);
 	useEffect(() => {
-		void window.kroma.info().then((i) => setDir(i.libraryDir));
+		void window.kroma.folderDefaults().then(setDefaults);
 	}, []);
+	if (!defaults) return null;
+	const exportDir = settings.exportDir || defaults.exportDir;
+	const downloadDir = settings.downloadDir || defaults.downloadDir;
+	const choose = async (key: "exportDir" | "downloadDir", current: string) => {
+		const picked = await window.kroma.chooseFolder(current);
+		if (picked) await save({ [key]: picked });
+	};
+
 	return (
-		<Group title="Library" description="Downloads, the voice-over cache and saved projects live here.">
-			<Card>
-				<Row
-					label="Library folder"
-					description={<span className="font-mono">{dir}</span>}
-					control={
-						<Button variant="outline" size="sm" onClick={() => void window.kroma.showInFolder(`${dir}/downloads`)}>
-							<FolderOpen /> Show in Finder
+		<>
+			<Group title="Exports" description="Finished videos and subtitle files.">
+				<Card>
+					<FolderRow label="Export folder" path={exportDir} isDefault={!settings.exportDir} onChoose={() => void choose("exportDir", exportDir)} onReset={() => void save({ exportDir: "" })} />
+					<SwitchRow label="Ask where to save each time" description="Off: Export saves straight into the folder (a new name, never overwriting) and shows the file." checked={settings.askExportPath} onChange={(v) => void save({ askExportPath: v })} />
+				</Card>
+			</Group>
+			<Group title="Downloads" description="Videos downloaded from links, each in its own folder with the site's subtitles.">
+				<Card>
+					<FolderRow label="Download folder" path={downloadDir} isDefault={!settings.downloadDir} onChoose={() => void choose("downloadDir", downloadDir)} onReset={() => void save({ downloadDir: "" })} />
+				</Card>
+			</Group>
+			<Group title="Library" description="Voice clips, cloned voices, timeline pictures and saved projects.">
+				<Card>
+					<FolderRow label="Library folder" path={defaults.libraryDir} isDefault />
+				</Card>
+			</Group>
+		</>
+	);
+}
+
+function FolderRow({ label, path, isDefault, onChoose, onReset }: { label: string; path: string; isDefault: boolean; onChoose?: () => void; onReset?: () => void }) {
+	return (
+		<Row
+			label={label}
+			description={
+				<span className="block font-mono break-all">
+					{path.replace(/^\/Users\/[^/]+/, "~")}
+					{isDefault && onChoose && <span className="font-sans text-muted-foreground"> · default</span>}
+				</span>
+			}
+			control={
+				<span className="flex gap-1.5">
+					<Button variant="outline" size="sm" onClick={() => void window.kroma.openFolder(path)}>
+						<FolderOpen /> Open
+					</Button>
+					{onChoose && (
+						<Button variant="outline" size="sm" onClick={onChoose}>
+							Change…
 						</Button>
-					}
-				/>
-			</Card>
-		</Group>
+					)}
+					{onReset && !isDefault && (
+						<Button variant="ghost" size="sm" onClick={onReset}>
+							Reset
+						</Button>
+					)}
+				</span>
+			}
+		/>
 	);
 }
 

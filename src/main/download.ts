@@ -11,15 +11,18 @@ export const LIBRARY_DIR = join(homedir(), "Movies", "Kroma Studio");
 // Chinese first (Bilibili's AI subtitles are "ai-zh"), then English as a fallback source.
 const SUB_LANGS = "zh-Hans,zh-Hant,zh,zh-CN,zh-TW,ai-zh,en";
 
+export const defaultDownloadDir = () => join(LIBRARY_DIR, "downloads");
+
 export async function downloadLink(
 	pasted: string,
 	cookiesBrowser: string,
+	downloadDir: string,
 	onProgress: (progress: number, message: string) => void,
 	signal?: AbortSignal,
 ): Promise<DownloadResult> {
 	const ytdlp = requireTool("yt-dlp");
 	const url = normalizeLink(pasted);
-	const dir = join(LIBRARY_DIR, "downloads", String(Date.now()));
+	const dir = join(downloadDir || defaultDownloadDir(), String(Date.now()));
 	mkdirSync(dir, { recursive: true });
 
 	const baseArgs = [

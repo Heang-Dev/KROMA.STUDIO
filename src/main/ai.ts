@@ -25,7 +25,8 @@ Rules:
 - Keep names consistent across the whole video. Write foreign names in Khmer script by sound, unless the notes give a spelling.
 - Use pronouns and politeness that fit who is speaking to whom (e.g. បង/អូន, លោក, ព្រះករុណា for royalty in historical dramas).
 - Write numbers with Khmer or Arabic digits as reads naturally. No quotes, no notes, no romanisation.
-- If a line is only a sound or music, return an empty string for it.`;
+- If a line is only a sound or music, return an empty string for it.
+- The Khmer is also read aloud as a voice-over. Each line shows how long it's on screen, like [2.1s]: keep the Khmer short enough to say naturally in about that time (roughly 5 Khmer syllables per second). Shorten wordy phrasing, keep the meaning. Never put the [time] in your answer.`;
 
 const TranslationSchema = z.object({
 	lines: z.array(z.object({ n: z.number().int(), km: z.string() })),
@@ -34,6 +35,8 @@ const TranslationSchema = z.object({
 export interface TranslateLine {
 	id: string;
 	text: string;
+	/** How long the line is on screen, in seconds; the Khmer is written to be spoken in about that time. */
+	seconds?: number;
 }
 
 export async function translateToKhmer(
@@ -67,7 +70,7 @@ export async function translateToKhmer(
 			notes.trim() ? `Notes about this video:\n${notes.trim()}\n` : "",
 			before.length ? `Earlier lines (context only):\n${before.map((l) => l.text).join("\n")}\n` : "",
 			"Translate these lines:",
-			...items.map((l, k) => `${k + 1}. ${l.text}`),
+			...items.map((l, k) => `${k + 1}. ${l.seconds ? `[${l.seconds.toFixed(1)}s] ` : ""}${l.text}`),
 		]
 			.filter(Boolean)
 			.join("\n");

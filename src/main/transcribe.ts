@@ -13,7 +13,7 @@ const GEMINI_CHUNK_SECONDS = 120;
 const MAX_CUE_SECONDS = 7;
 
 // Lines Whisper is known to invent over silence or music in Chinese videos.
-const HALLUCINATIONS = [/请不吝点赞/, /订阅.*频道/, /字幕由.*提供/, /明镜与点点/, /感谢观看/, /^谢谢大家?[。！]?$/, /Amara\.org/i];
+const HALLUCINATIONS = [/普通话的句子/, /请不吝点赞/, /订阅.*频道/, /字幕由.*提供/, /明镜与点点/, /感谢观看/, /^谢谢大家?[。！]?$/, /Amara\.org/i];
 
 interface Segment {
 	start: number;
@@ -143,7 +143,8 @@ export function clean(segments: Segment[]): SourceCue[] {
 
 export function splitLong(cue: SourceCue): SourceCue[] {
 	const length = cue.end - cue.start;
-	if (length <= MAX_CUE_SECONDS) return [cue];
+	// A subtitle should be one readable sentence: split long or wordy lines at their punctuation.
+	if (length <= MAX_CUE_SECONDS && !(length > 3.5 && [...cue.text].length > 18)) return [cue];
 	const pieces = cue.text.split(/(?<=[。！？，,.!?；;])/).filter((p) => p.trim());
 	if (pieces.length < 2) return [cue];
 	const total = pieces.reduce((n, p) => n + p.length, 0);

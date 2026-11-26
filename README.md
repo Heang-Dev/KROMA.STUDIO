@@ -7,11 +7,11 @@ The heavy work runs in the cloud, so long movies are fast on any Mac:
 | Step | How |
 | --- | --- |
 | Download | `yt-dlp` from YouTube, Bilibili, Douyin, Youku, iQiyi and 1,000+ sites, with the site's own subtitles when it has them |
-| Speech to text | Cloud Whisper (Groq by default, or OpenAI): audio is cut into 10-minute parts sent in parallel |
+| Speech to text | Groq Whisper large-v3 (whole movie in seconds), OpenAI, or Gemini with your Gemini key (2-minute parts, exact mode) |
 | Translate to Khmer | Your choice in Settings: **Gemini** (free tier, default), **Google Translate** (free, no key, basic) or **Claude** (paid, best). Gemini and Claude work in batches of 60 lines with your notes (names, tone) |
 | Edit | CapCut-style editor: preview, timeline (split, trim, ripple), subtitle list, styles, 16:9 / 9:16 / 1:1 |
 | Export | ffmpeg with the Mac's hardware encoder. Subtitles are drawn by Chromium (correct Khmer shaping) and laid over the video, so the export matches the preview |
-| Voice-over | Microsoft's neural Khmer voices (Sreymom, Piseth) through the free Edge read-aloud service; each line is sped up (max 1.6x) to fit before the next, mixed over the original sound turned down |
+| Voice-over | **Instant**: Microsoft's neural Khmer voices (Sreymom, Piseth) through the free Edge read-aloud service. **Designed / Cloned**: your Khmer Voice Studio engine (VoxCPM2) on a free Colab GPU or this Mac, all lines in one story job then cut per line; each line is sped up (max 1.6x) to fit before the next, mixed over the original sound turned down |
 | Post | Gemini or Claude writes the YouTube / Facebook / TikTok title, description and hashtags in Khmer |
 
 Also: downloads can use your browser's logins (Settings → Downloads) for 1080p Bilibili and members-only videos; the open project autosaves and reopens at launch; drag clips on the timeline to reorder them (their subtitles move with them).

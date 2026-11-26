@@ -1,11 +1,13 @@
-import { createReadStream, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, shell } from "electron";
 import { parseSubtitles } from "@shared/srt";
-import { type CaptionRequest, type ExportRequest, type Project, type Settings, UI_ZOOM_STEPS } from "@shared/types";
+import { type CaptionRequest, type ExportRequest, type Project, type Settings, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
 import { fallbackCount, translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
-import { downloadLink, LIBRARY_DIR } from "./download";
+import { defaultDownloadDir, downloadLink, LIBRARY_DIR } from "./download";
+
+const defaultExportDir = () => join(LIBRARY_DIR, "Exports");
 import { exportVideo } from "./export";
 import { listGeminiModels } from "./gemini";
 import { probe } from "./media";
@@ -13,6 +15,8 @@ import { mediaVisuals } from "./visuals";
 import { loadSettings, saveSettings, viewOf } from "./settings";
 import { findTool } from "./tools";
 import { transcribe } from "./transcribe";
+import { cloneVoice, deleteKvsVoice, kvsStatus, listKvsVoices, speakWithKvs } from "./kvs";
+import { removeVoices, type SeparationQuality } from "./separate";
 import { synthesizeLines } from "./voice";
 
 // Media files are streamed to the editor through kroma://media/<path>, with Range support so long videos seek instantly.
@@ -127,7 +131,7 @@ const VIDEO_FILTERS = [{ name: "Video", extensions: ["mp4", "mov", "m4v", "mkv",
 
 function registerIpc(): void {
 	ipcMain.handle("app:info", () => ({
-		tools: { ffmpeg: Boolean(findTool("ffmpeg")), ffprobe: Boolean(findTool("ffprobe")), ytdlp: Boolean(findTool("yt-dlp")) },
+		tools: { ffmpeg: Boolean(findTool("ffmpeg")), ffprobe: Boolean(findTool("ffprobe")), ytdlp: Boolean(findTool("yt-dlp")), uv: Boolean(findTool("uvx")) },
 		libraryDir: LIBRARY_DIR,
 		version: app.getVersion(),
 		smoke: process.env.KROMA_SMOKE === "1" || process.env.KROMA_E2E === "1",
@@ -141,7 +145,7 @@ function registerIpc(): void {
 		return key ? listGeminiModels(key) : [];
 	});
 	ipcMain.handle("zoom:set", (_e, zoom: number) => setZoom(zoom));
-	ipcMain.handle("settings:save", (_e, patch: Partial<Record<keyof Settings, string | number | null>>) => saveSettings(patch));
+	ipcMain.handle("settings:save", (_e, patch: Partial<Record<keyof Settings, string | number | boolean | null>>) => saveSettings(patch));
 
 	ipcMain.handle("media:open", async () => {
 		const res = await dialog.showOpenDialog(win!, { properties: ["openFile", "multiSelections"], filters: VIDEO_FILTERS });
@@ -153,10 +157,19 @@ function registerIpc(): void {
 	ipcMain.handle("media:readSubtitles", (_e, path: string) => parseSubtitles(readFileSync(path, "utf8")));
 
 	ipcMain.handle("task:cancel", (_e, taskId: string) => tasks.get(taskId)?.abort());
-	ipcMain.handle("task:download", (_e, taskId: string, url: string) => task(taskId, (p, s) => downloadLink(url, loadSettings().cookiesBrowser, p, s)));
+	ipcMain.handle("task:download", (_e, taskId: string, url: string) => task(taskId, (p, s) => downloadLink(url, loadSettings().cookiesBrowser, loadSettings().downloadDir, p, s)));
 	ipcMain.handle("task:voice", (_e, taskId: string, lines: { id: string; text: string }[], voice: string, rate: number) =>
-		task(taskId, (p, s) => synthesizeLines(lines, voice, rate, p, s)),
+		task(taskId, (p, s) => (isKvsVoice(voice) ? speakWithKvs(loadSettings(), lines, voice, p, s) : synthesizeLines(lines, voice, rate, p, s))),
 	);
+	ipcMain.handle("kvs:status", () => kvsStatus(loadSettings()));
+	ipcMain.handle("kvs:voices", () => listKvsVoices());
+	ipcMain.handle("kvs:delete", (_e, id: string) => deleteKvsVoice(id));
+	ipcMain.handle("kvs:pickRecording", async () => {
+		const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters: [{ name: "Recording", extensions: ["wav", "mp3", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm"] }] });
+		return res.canceled ? null : res.filePaths[0];
+	});
+	ipcMain.handle("task:separate", (_e, taskId: string, path: string, duration: number, quality: SeparationQuality) => task(taskId, (p, s) => removeVoices(path, duration, quality, p, s)));
+	ipcMain.handle("task:clone", (_e, taskId: string, name: string, recording: string) => task(taskId, (p, s) => cloneVoice(loadSettings(), name, recording, p, s)));
 	ipcMain.handle("task:transcribe", (_e, taskId: string, path: string, duration: number, language: string) =>
 		task(taskId, (p, s) => transcribe(path, duration, language, loadSettings(), p, s)),
 	);
@@ -169,19 +182,40 @@ function registerIpc(): void {
 	ipcMain.handle("task:captions", (_e, taskId: string, req: CaptionRequest) => task(taskId, (_p, s) => writeCaptions(req, loadSettings(), s)));
 	ipcMain.handle("task:export", (_e, taskId: string, req: ExportRequest) => task(taskId, (p, s) => exportVideo(req, p, s)));
 
-	ipcMain.handle("dialog:saveVideo", async (_e, name: string) => {
-		const res = await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), `${name}.mp4`), filters: [{ name: "MP4 video", extensions: ["mp4"] }] });
-		return res.canceled ? null : res.filePath;
+	// Exports go straight into the export folder (a free name, never overwriting), or through the Save dialog when asked.
+	const exportTarget = async (name: string, ext: "mp4" | "srt"): Promise<string | null> => {
+		const settings = loadSettings();
+		const dir = settings.exportDir || defaultExportDir();
+		mkdirSync(dir, { recursive: true });
+		const safe = name.replace(/[/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Kroma export";
+		if (settings.askExportPath) {
+			const filters = ext === "mp4" ? [{ name: "MP4 video", extensions: ["mp4"] }] : [{ name: "SubRip subtitles", extensions: ["srt"] }];
+			const res = await dialog.showSaveDialog(win!, { defaultPath: join(dir, `${safe}.${ext}`), filters });
+			return res.canceled || !res.filePath ? null : res.filePath;
+		}
+		let target = join(dir, `${safe}.${ext}`);
+		for (let n = 2; existsSync(target); n++) target = join(dir, `${safe} (${n}).${ext}`);
+		return target;
+	};
+	ipcMain.handle("dialog:saveVideo", (_e, name: string) => exportTarget(name, "mp4"));
+	ipcMain.handle("dialog:chooseFolder", async (_e, current: string) => {
+		const res = await dialog.showOpenDialog(win!, { defaultPath: current || app.getPath("videos"), properties: ["openDirectory", "createDirectory"] });
+		return res.canceled ? null : res.filePaths[0];
+	});
+	ipcMain.handle("folders:defaults", () => ({ exportDir: defaultExportDir(), downloadDir: defaultDownloadDir(), libraryDir: LIBRARY_DIR }));
+	ipcMain.handle("shell:openFolder", (_e, dir: string) => {
+		mkdirSync(dir, { recursive: true });
+		void shell.openPath(dir);
 	});
 	ipcMain.handle("srt:import", async () => {
 		const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters: [{ name: "Subtitles", extensions: ["srt", "vtt"] }] });
 		return res.canceled ? null : parseSubtitles(readFileSync(res.filePaths[0], "utf8"));
 	});
 	ipcMain.handle("srt:export", async (_e, name: string, content: string) => {
-		const res = await dialog.showSaveDialog(win!, { defaultPath: join(app.getPath("videos"), `${name}.srt`), filters: [{ name: "SubRip subtitles", extensions: ["srt"] }] });
-		if (res.canceled || !res.filePath) return null;
-		writeFileSync(res.filePath, content);
-		return res.filePath;
+		const target = await exportTarget(name, "srt");
+		if (!target) return null;
+		writeFileSync(target, content);
+		return target;
 	});
 
 	ipcMain.handle("project:save", async (_e, project: Project, path: string | null) => {

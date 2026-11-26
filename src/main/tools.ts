@@ -5,7 +5,7 @@ import { delimiter, join } from "node:path";
 // Apps opened from Finder don't get the shell's PATH, so look in the usual install places too.
 const EXTRA_DIRS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
 
-export function findTool(name: "ffmpeg" | "ffprobe" | "yt-dlp"): string | null {
+export function findTool(name: "ffmpeg" | "ffprobe" | "yt-dlp" | "uvx"): string | null {
 	const dirs = [...(process.env.PATH ?? "").split(delimiter), ...EXTRA_DIRS];
 	for (const dir of dirs) {
 		const candidate = join(dir, name);

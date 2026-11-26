@@ -19,6 +19,7 @@ import { Separator } from "./components/ui/separator";
 import { TooltipProvider } from "./components/ui/tooltip";
 import * as actions from "./lib/actions";
 import { exportVideo, openProject, restoreAutosave, saveProject, startAutosave, startNewProject } from "./lib/actions";
+import { planVoice } from "@shared/voice";
 import { applyAppearance } from "./lib/appearance";
 import { ensureFonts, renderBandPng, subtitleBand } from "./lib/subtitleRender";
 import { cn } from "./lib/utils";
@@ -53,8 +54,8 @@ export function App() {
 	useEffect(() => {
 		void window.kroma.info().then(({ tools, smoke }) => {
 			// The automated smoke test (scripts/smoke.mjs) drives the editor through this handle.
-			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, applyAppearance, toast, render: { ensureFonts, renderBandPng, subtitleBand } } });
-			setMissingTools(Object.entries(tools).filter(([, ok]) => !ok).map(([name]) => (name === "ytdlp" ? "yt-dlp" : name)));
+			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, applyAppearance, toast, planVoice, render: { ensureFonts, renderBandPng, subtitleBand } } });
+			setMissingTools(Object.entries(tools).filter(([name, ok]) => !ok && name !== "uv").map(([name]) => (name === "ytdlp" ? "yt-dlp" : name)));
 		});
 		void window.kroma.getSettings().then((s) => {
 			applyAppearance(s.theme);

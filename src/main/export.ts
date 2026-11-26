@@ -24,18 +24,25 @@ export async function exportVideo(
 	try {
 		const args: string[] = ["-y", "-hide_banner", "-nostats", "-progress", "pipe:1"];
 		const filters: string[] = [];
+		// Inputs: every clip's video first, then any separate clip sounds (voice-free backgrounds), so indexes are predictable.
+		req.clips.forEach((clip) => args.push("-ss", clip.in.toFixed(3), "-t", (clip.out - clip.in).toFixed(3), "-i", clip.path));
+		let nextInput = req.clips.length;
 		req.clips.forEach((clip, i) => {
-			args.push("-ss", clip.in.toFixed(3), "-t", (clip.out - clip.in).toFixed(3), "-i", clip.path);
 			filters.push(videoChain(`[${i}:v]`, `[v${i}]`, req.width, req.height, req.fit, i));
 			const length = (clip.out - clip.in).toFixed(3);
+			let source = clip.hasAudio ? `[${i}:a]` : "";
+			if (clip.audioPath) {
+				args.push("-ss", clip.in.toFixed(3), "-t", length, "-i", clip.audioPath);
+				source = `[${nextInput++}:a]`;
+			}
 			filters.push(
-				clip.hasAudio
-					? `[${i}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=0:${length},asetpts=PTS-STARTPTS[a${i}]`
+				source
+					? `${source}aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=0:${length},asetpts=PTS-STARTPTS[a${i}]`
 					: `anullsrc=r=48000:cl=stereo,atrim=0:${length},aformat=sample_fmts=fltp[a${i}]`,
 			);
 		});
-		const n = req.clips.length;
-		filters.push(`${req.clips.map((_, i) => `[v${i}][a${i}]`).join("")}concat=n=${n}:v=1:a=1[vc][aout]`);
+		const n = nextInput; // index of the next input (subtitle images, then the voice track)
+		filters.push(`${req.clips.map((_, i) => `[v${i}][a${i}]`).join("")}concat=n=${req.clips.length}:v=1:a=1[vc][aout]`);
 
 		let videoOut = "[vc]";
 		if (req.overlays.length) {

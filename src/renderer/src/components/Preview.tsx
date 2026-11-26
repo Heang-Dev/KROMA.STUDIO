@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { ASPECT_SIZE } from "@shared/types";
-import { voiceTempo } from "@shared/voice";
+import { planVoice } from "@shared/voice";
 import { voiceCues, voiceSettings } from "@/lib/actions";
 import { drawCue } from "@/lib/subtitleRender";
 import { type PlacedClip, cueAt, formatTime, placeClips, totalDuration } from "@/lib/timeline";
@@ -197,35 +197,74 @@ function SubtitleCanvas({ width, height }: { width: number; height: number }) {
 function VoicePlayer({ videoRef }: { videoRef: React.RefObject<HTMLVideoElement | null> }) {
 	const playing = useEditor((s) => s.playing);
 	const project = useEditor((s) => s.project);
-	const activeId = useEditor((s) => {
-		const i = cueAt(s.project.cues, s.time);
-		return i >= 0 ? s.project.cues[i].id : null;
+	// Which voice line is playing now, by the planned timing (a long line may start a little after its subtitle).
+	const lines = useMemo(() => voiceCues(project), [project]);
+	const plan = useMemo(() => planVoice(lines), [lines]);
+	const activeIndex = useEditor((s) => {
+		const t = s.time;
+		for (let i = 0; i < plan.length; i++) if (t >= plan[i].start && t < plan[i].end) return i;
+		return -1;
 	});
 	const audio = useRef<HTMLAudioElement | null>(null);
 	const voice = voiceSettings(project);
 	const enabled = voice.enabled && Object.keys(voice.lines).length > 0;
 
+	// With "Remove the original voices", the video is muted and its voice-free background plays in step with it.
+	const replacing = voice.enabled && Boolean(voice.removeVoices);
+	const background = useRef<HTMLAudioElement | null>(null);
 	useEffect(() => {
-		if (videoRef.current) videoRef.current.volume = enabled ? voice.originalVolume : 1;
+		const video = videoRef.current;
+		if (!video) return;
+		video.muted = replacing;
+		if (!replacing) video.volume = enabled ? voice.originalVolume : 1;
 	});
+	useEffect(() => {
+		const video = videoRef.current;
+		if (!video || !replacing) {
+			background.current?.pause();
+			return;
+		}
+		const sync = () => {
+			const src = video.dataset.src ?? "";
+			const media = useEditor.getState().project.media.find((m) => mediaUrl(m.path) === src);
+			const path = media ? voiceSettings(useEditor.getState().project).backgrounds?.[media.id] : undefined;
+			if (!path) return background.current?.pause();
+			const el = background.current ?? (background.current = new Audio());
+			const url = mediaUrl(path);
+			if (el.dataset.src !== url) {
+				el.dataset.src = url;
+				el.src = url;
+			}
+			el.volume = Math.min(1, voiceSettings(useEditor.getState().project).backgroundVolume ?? 1);
+			if (Math.abs(el.currentTime - video.currentTime) > 0.25) el.currentTime = video.currentTime;
+			if (video.paused) el.pause();
+			else if (el.paused) void el.play().catch(() => undefined);
+		};
+		const events = ["play", "pause", "seeked", "timeupdate", "loadedmetadata"] as const;
+		events.forEach((e) => video.addEventListener(e, sync));
+		sync();
+		return () => {
+			events.forEach((e) => video.removeEventListener(e, sync));
+			background.current?.pause();
+		};
+	}, [replacing, videoRef]);
 
 	useEffect(() => {
 		if (!playing || !enabled) {
 			audio.current?.pause();
 			return;
 		}
-		if (!activeId) return; // let the last line finish into the gap
-		const line = voiceCues(project).find((v) => v.id === activeId);
-		if (!line) return;
+		if (activeIndex < 0) return; // between lines: let the last one finish
+		const line = lines[activeIndex];
+		const { start, tempo } = plan[activeIndex];
 		audio.current?.pause();
 		const el = new Audio(mediaUrl(line.path));
-		const tempo = voiceTempo(line.duration, line.start, line.slotEnd);
 		el.playbackRate = tempo;
-		el.currentTime = Math.max(0, useEditor.getState().time - line.start) * tempo;
+		el.currentTime = Math.max(0, useEditor.getState().time - start) * tempo;
 		audio.current = el;
 		void el.play().catch(() => undefined);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeId, playing, enabled]);
+	}, [activeIndex, playing, enabled]);
 
 	useEffect(() => () => audio.current?.pause(), []);
 	return null;

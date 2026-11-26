@@ -80,7 +80,7 @@ export function Timeline() {
 	const scrubStart = (e: ReactPointerEvent) => {
 		(e.target as Element).setPointerCapture(e.pointerId);
 		useEditor.getState().seek(timeFromEvent(e.clientX));
-		useEditor.getState().select(null);
+		if (!(e.target as Element).closest('[aria-label="Playhead"]')) useEditor.getState().select(null);
 		const move = (ev: PointerEvent) => useEditor.getState().seek(timeFromEvent(ev.clientX));
 		const up = () => {
 			window.removeEventListener("pointermove", move);
@@ -177,7 +177,7 @@ export function Timeline() {
 							))}
 							{dropAt !== null && <div className="pointer-events-none absolute top-0 bottom-0 z-20 w-[3px] -translate-x-1/2 rounded-none bg-primary" style={{ left: PAD + dropAt * zoom }} />}
 						</div>
-						<Playhead zoom={zoom} scrollRef={scrollRef} />
+						<Playhead zoom={zoom} scrollRef={scrollRef} onScrub={scrubStart} />
 					</div>
 				</div>
 			</div>
@@ -263,6 +263,9 @@ const ClipBlock = memo(function ClipBlock({
 			style={{ left, width }}
 			onPointerDown={(e) => {
 				e.stopPropagation();
+				// Like CapCut: clicking a clip selects it and puts the playhead (and the preview) on that moment.
+				const rect = e.currentTarget.getBoundingClientRect();
+				useEditor.getState().seek(clip.start + (e.clientX - rect.left) / zoom);
 				useEditor.getState().select({ kind: "clip", id: clip.id });
 				onReorder(e, clip.id);
 			}}
@@ -357,6 +360,8 @@ const CueBlock = memo(function CueBlock({ cue, zoom, selected }: { cue: Cue; zoo
 			style={{ left: PAD + cue.start * zoom, width: Math.max(2, width) }}
 			title={cue.text || cue.source}
 			onPointerDown={(e) => {
+				const rect = e.currentTarget.getBoundingClientRect();
+				useEditor.getState().seek(cue.start + (e.clientX - rect.left) / zoom);
 				useEditor.getState().select({ kind: "cue", id: cue.id });
 				move(e);
 			}}
@@ -372,7 +377,7 @@ const CueBlock = memo(function CueBlock({ cue, zoom, selected }: { cue: Cue; zoo
 	);
 });
 
-function Playhead({ zoom, scrollRef }: { zoom: number; scrollRef: React.RefObject<HTMLDivElement | null> }) {
+function Playhead({ zoom, scrollRef, onScrub }: { zoom: number; scrollRef: React.RefObject<HTMLDivElement | null>; onScrub: (e: ReactPointerEvent) => void }) {
 	const time = useEditor((s) => s.time);
 	const playing = useEditor((s) => s.playing);
 	const x = PAD + time * zoom;
@@ -386,7 +391,19 @@ function Playhead({ zoom, scrollRef }: { zoom: number; scrollRef: React.RefObjec
 
 	return (
 		<div className="pointer-events-none absolute top-0 bottom-0 z-10 w-px bg-primary" style={{ left: x }}>
-			<div className="absolute -top-px -left-[5px] h-2.5 w-[11px] rounded-b-sm bg-primary" />
+			{/* The knob drags the playhead (scrub); a wider invisible grip makes it easy to catch. */}
+			<div
+				role="slider"
+				aria-label="Playhead"
+				aria-valuenow={Math.round(useEditor.getState().time)}
+				className="pointer-events-auto absolute -top-px -left-[7px] flex h-4 w-[15px] cursor-ew-resize justify-center"
+				onPointerDown={(e) => {
+					e.stopPropagation();
+					onScrub(e);
+				}}
+			>
+				<div className="h-2.5 w-[11px] rounded-b-sm bg-primary" />
+			</div>
 		</div>
 	);
 }

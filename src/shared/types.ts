@@ -92,12 +92,22 @@ export interface VoiceSettings {
 	/** Original audio volume under the voice, 0..1. */
 	originalVolume: number;
 	lines: Record<string, VoiceLine>;
+	/** Replace the original voices: their sound minus the speech (music and effects) goes under the Khmer voice. */
+	removeVoices?: boolean;
+	separation?: "fast" | "best";
+	/** Music & effects volume when the voices are removed, 0..1. */
+	backgroundVolume?: number;
+	/** Voice-free sound per media id (made by removeVoices). */
+	backgrounds?: Record<string, string>;
 }
 
+/** Microsoft's instant Khmer voices. Other voice ids: "kvs-design:<preset>" and "kvs-clone:<id>" (KVS engine). */
 export const KHMER_VOICES = [
 	{ id: "km-KH-SreymomNeural", label: "Sreymom (female)" },
 	{ id: "km-KH-PisethNeural", label: "Piseth (male)" },
 ] as const;
+
+export const isKvsVoice = (voice: string) => voice.startsWith("kvs-");
 
 export const DEFAULT_VOICE: VoiceSettings = { enabled: false, voice: "km-KH-SreymomNeural", rate: 10, originalVolume: 0.15, lines: {} };
 
@@ -118,6 +128,15 @@ export interface Settings {
 	concurrency: number;
 	/** Browser whose logins yt-dlp may use (chrome, safari, firefox, edge, brave), or "" for none. */
 	cookiesBrowser: string;
+	/** Where finished videos and subtitle files go ("" = Movies/Kroma Studio/Exports). */
+	exportDir: string;
+	/** Show the Save dialog for every export instead of saving straight into exportDir. */
+	askExportPath: boolean;
+	/** Where videos downloaded from links go ("" = Movies/Kroma Studio/downloads). */
+	downloadDir: string;
+	/** Khmer Voice Studio engine (cloned / designed voices): its address and optional token. */
+	kvsUrl: string;
+	kvsToken: string;
 	/** Light, dark, or follow the Mac. */
 	theme: Appearance;
 	/** Interface zoom, like a browser's ⌘+ / ⌘−: 1 = 100 %. */
@@ -129,7 +148,25 @@ export type Appearance = "system" | "light" | "dark";
 export type TranslateProvider = "gemini" | "google" | "claude";
 export type AsrProvider = "gemini" | "whisper";
 
-export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey" | "geminiKey"> {
+export interface KvsStatus {
+	online: boolean;
+	device?: string;
+	busy?: number;
+	error?: string;
+	presets: { name: string; description: string }[];
+}
+
+/** A cloned voice kept on this Mac for the KVS engine. */
+export interface KvsVoice {
+	id: string;
+	name: string;
+	transcript: string;
+	seconds: number;
+	created: number;
+}
+
+export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey" | "geminiKey" | "kvsToken"> {
+	hasKvsToken: boolean;
 	hasAnthropicKey: boolean;
 	hasGeminiKey: boolean;
 	hasAsrKey: boolean;
@@ -171,7 +208,8 @@ export interface ExportRequest {
 	width: number;
 	height: number;
 	fit: FitMode;
-	clips: { path: string; in: number; out: number; hasAudio: boolean }[];
+	/** audioPath: a separate sound for the clip (its voice-free background), timed like the video. */
+	clips: { path: string; in: number; out: number; hasAudio: boolean; audioPath?: string }[];
 	/** Subtitle images, already drawn by the editor: PNG bytes of a band, shown from start to end. */
 	overlays: { start: number; end: number; png: Uint8Array }[];
 	/** Height and top of the subtitle band in output pixels. */
@@ -217,6 +255,11 @@ export const DEFAULT_SETTINGS: Settings = {
 	asrModel: "whisper-large-v3",
 	concurrency: 4,
 	cookiesBrowser: "",
+	exportDir: "",
+	askExportPath: false,
+	downloadDir: "",
+	kvsUrl: "http://127.0.0.1:7861",
+	kvsToken: "",
 	theme: "dark",
 	uiZoom: 0.9,
 };

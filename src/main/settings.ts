@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, type Settings, type SettingsView } from "@shared/type
 
 // API keys are encrypted with the OS keychain (safeStorage) before they touch the disk.
 const file = () => join(app.getPath("userData"), "settings.json");
-const SECRET_KEYS = ["anthropicKey", "asrKey", "geminiKey"] as const;
+const SECRET_KEYS = ["anthropicKey", "asrKey", "geminiKey", "kvsToken"] as const;
 
 function encrypt(value: string): string {
 	if (!value) return "";
@@ -34,10 +34,10 @@ export function loadSettings(): Settings {
 }
 
 /** Saves the given fields. An empty secret field keeps the stored key; pass null to clear it. */
-export function saveSettings(patch: Partial<Record<keyof Settings, string | number | null>>): SettingsView {
+export function saveSettings(patch: Partial<Record<keyof Settings, string | number | boolean | null>>): SettingsView {
 	const current = loadSettings();
 	const next: Settings = { ...current };
-	for (const [key, value] of Object.entries(patch) as [keyof Settings, string | number | null][]) {
+	for (const [key, value] of Object.entries(patch) as [keyof Settings, string | number | boolean | null][]) {
 		if ((SECRET_KEYS as readonly string[]).includes(key)) {
 			if (value === null) (next as unknown as Record<string, unknown>)[key] = "";
 			else if (typeof value === "string" && value.trim()) (next as unknown as Record<string, unknown>)[key] = value.trim();
@@ -52,6 +52,6 @@ export function saveSettings(patch: Partial<Record<keyof Settings, string | numb
 }
 
 export function viewOf(settings: Settings): SettingsView {
-	const { anthropicKey, asrKey, geminiKey, ...rest } = settings;
-	return { ...rest, hasAnthropicKey: Boolean(anthropicKey), hasAsrKey: Boolean(asrKey), hasGeminiKey: Boolean(geminiKey) };
+	const { anthropicKey, asrKey, geminiKey, kvsToken, ...rest } = settings;
+	return { ...rest, hasAnthropicKey: Boolean(anthropicKey), hasAsrKey: Boolean(asrKey), hasGeminiKey: Boolean(geminiKey), hasKvsToken: Boolean(kvsToken) };
 }

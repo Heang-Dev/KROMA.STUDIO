@@ -3,7 +3,7 @@ import { closeSync, existsSync, mkdirSync, openSync, statSync, writeFileSync, wr
 import { join } from "node:path";
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 import type { VoiceCue, VoiceLine } from "@shared/types";
-import { voiceTempo } from "@shared/voice";
+import { planVoice } from "@shared/voice";
 import { LIBRARY_DIR } from "./download";
 import { mapLimit, requireTool, runBuffer } from "./tools";
 
@@ -80,16 +80,17 @@ async function speak(tts: MsEdgeTTS, text: string, rate: number): Promise<Buffer
 const escapeXml = (s: string) => s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c] ?? c);
 
 /**
- * Builds one mono WAV holding every voice line at its time, each sped up (at most 1.6x) to finish before the next line.
- * Written in order, so a 2-hour movie never needs the whole track in memory.
+ * Builds one mono WAV holding every voice line at its planned time (see planVoice), written in order so a 2-hour
+ * movie never needs the whole track in memory.
  */
 export async function buildVoiceTrack(lines: VoiceCue[], total: number, outPath: string, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<void> {
 	const ffmpeg = requireTool("ffmpeg");
 	const sorted = [...lines].sort((a, b) => a.start - b.start);
+	// Every line is spoken in full: planVoice moves a long line's neighbour a little later instead of cutting it.
+	const plan = planVoice(sorted);
 	let decoded = 0;
-	const pcm = await mapLimit(sorted, 6, async (line) => {
-		const tempo = voiceTempo(line.duration, line.start, line.slotEnd);
-		const data = await runBuffer(ffmpeg, ["-v", "error", "-i", line.path, "-filter:a", `atempo=${tempo.toFixed(3)}`, "-ac", "1", "-ar", String(SAMPLE_RATE), "-f", "s16le", "pipe:1"], signal);
+	const pcm = await mapLimit(sorted, 6, async (line, i) => {
+		const data = await runBuffer(ffmpeg, ["-v", "error", "-i", line.path, "-filter:a", tempoFilter(plan[i].tempo), "-ac", "1", "-ar", String(SAMPLE_RATE), "-f", "s16le", "pipe:1"], signal);
 		decoded += 1;
 		if (decoded % 20 === 0) onProgress(decoded / sorted.length, `Preparing the voice-over ${decoded}/${sorted.length}`);
 		return data;
@@ -108,15 +109,11 @@ export async function buildVoiceTrack(lines: VoiceCue[], total: number, outPath:
 				cursor += n;
 			}
 		};
-		sorted.forEach((line, i) => {
-			const startSample = Math.round(line.start * SAMPLE_RATE);
+		sorted.forEach((_, i) => {
+			const startSample = Math.round(plan[i].start * SAMPLE_RATE);
 			if (startSample > cursor) writeSilence(startSample - cursor);
-			// Never run into the next line: cut what doesn't fit (rare after the speed-up).
-			const nextStart = sorted[i + 1] ? Math.round(sorted[i + 1].start * SAMPLE_RATE) : Number.POSITIVE_INFINITY;
-			const room = Math.max(0, nextStart - cursor);
-			const data = pcm[i].subarray(0, Math.min(pcm[i].length, room * 2) & ~1);
-			writeSync(fd, data);
-			cursor += data.length / 2;
+			writeSync(fd, pcm[i]);
+			cursor += pcm[i].length / 2;
 		});
 		const end = Math.round(total * SAMPLE_RATE);
 		if (end > cursor) writeSilence(end - cursor);
@@ -124,6 +121,12 @@ export async function buildVoiceTrack(lines: VoiceCue[], total: number, outPath:
 	} finally {
 		closeSync(fd);
 	}
+}
+
+/** ffmpeg's atempo takes 0.5–2 per filter; chain two for anything above 2 (not expected, but safe). */
+function tempoFilter(tempo: number): string {
+	if (tempo <= 2) return `atempo=${tempo.toFixed(3)}`;
+	return `atempo=2,atempo=${(tempo / 2).toFixed(3)}`;
 }
 
 function wavHeader(dataBytes: number): Buffer {

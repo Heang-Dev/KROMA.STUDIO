@@ -79,7 +79,7 @@ export async function getSubtitles(media: MediaItem, source: { kind: "site"; pat
 
 export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 	const { project } = state();
-	const lines = project.cues.filter((c) => c.source.trim() && (!onlyMissing || !c.text.trim())).map((c) => ({ id: c.id, text: c.source }));
+	const lines = project.cues.filter((c) => c.source.trim() && (!onlyMissing || !c.text.trim())).map((c) => ({ id: c.id, text: c.source, seconds: c.end - c.start }));
 	if (!lines.length) {
 		state().showToast(onlyMissing ? "Every line is already translated." : "There are no lines to translate yet.", "error");
 		return false;
@@ -126,9 +126,12 @@ export async function exportVideo(quality: "fast" | "high"): Promise<void> {
 			if (i % 25 === 0) useEditor.getState().setTask({ id, label: "Export", progress: -1, message: `Drawing subtitles ${i}/${visible.length}`, status: "running" });
 		}
 		const mediaById = new Map(project.media.map((m) => [m.id, m]));
+		const voiceNow = voiceSettings(project);
+		const replacing = voiceNow.enabled && voiceNow.removeVoices;
 		const clips = project.clips.map((c) => {
 			const m = mediaById.get(c.mediaId)!;
-			return { path: m.path, in: c.in, out: c.out, hasAudio: m.hasAudio };
+			// With "Remove the original voices", the clip's sound is its voice-free background.
+			return { path: m.path, in: c.in, out: c.out, hasAudio: m.hasAudio, audioPath: replacing ? voiceNow.backgrounds?.[m.id] : undefined };
 		});
 		const voice = voiceSettings(project);
 		const voiceLines = voice.enabled ? voiceCues(project) : [];
@@ -144,11 +147,11 @@ export async function exportVideo(quality: "fast" | "high"): Promise<void> {
 			bandTop: band.top,
 			bandHeight: band.height,
 			quality,
-			voice: voiceLines.length ? { lines: voiceLines, originalVolume: voice.originalVolume } : undefined,
+			voice: voiceLines.length ? { lines: voiceLines, originalVolume: replacing ? (voice.backgroundVolume ?? 1) : voice.originalVolume } : undefined,
 		});
 	});
 	if (result) {
-		state().showToast("Export finished.");
+		state().showToast("Export finished", "info", result.replace(/^\/Users\/[^/]+/, "~"));
 		void window.kroma.showInFolder(result);
 	}
 	return;
@@ -158,7 +161,10 @@ export async function exportSrt(which: "khmer" | "source"): Promise<void> {
 	const { project } = state();
 	const content = toSrt(project.cues.map((c) => ({ start: c.start, end: c.end, text: which === "khmer" ? c.text : c.source })));
 	const path = await window.kroma.exportSrt(`${project.name}${which === "khmer" ? ".km" : ""}`, content);
-	if (path) state().showToast("Subtitles saved.");
+	if (path) {
+		state().showToast("Subtitles saved", "info", path.replace(/^\/Users\/[^/]+/, "~"));
+		void window.kroma.showInFolder(path);
+	}
 }
 
 export async function importSrt(): Promise<void> {
@@ -212,9 +218,28 @@ export function setVoice(patch: Partial<VoiceSettings>): void {
 	state().update((p) => {
 		const current = voiceSettings(p);
 		// A different voice or speed means every line must be spoken again.
-		const reset = (patch.voice && patch.voice !== current.voice) || (patch.rate !== undefined && patch.rate !== current.rate);
+		const reset = (patch.voice !== undefined && patch.voice !== current.voice) || (patch.rate !== undefined && patch.rate !== current.rate);
 		return { ...p, voice: { ...current, ...patch, lines: reset ? {} : (patch.lines ?? current.lines) } };
 	});
+}
+
+/** Makes the voice-free background (music and effects) of every video on the timeline, then switches it on. */
+export async function removeOriginalVoices(quality: "fast" | "best"): Promise<boolean> {
+	const { project } = state();
+	const used = project.media.filter((m) => m.hasAudio && project.clips.some((c) => c.mediaId === m.id));
+	if (!used.length) {
+		state().showToast("Add a video with sound first.", "error");
+		return false;
+	}
+	const backgrounds: Record<string, string> = { ...(voiceSettings(project).backgrounds ?? {}) };
+	for (const media of used) {
+		const path = await runTask(`separate-${Date.now()}`, "Remove voices", (id) => window.kroma.removeVoices(id, media.path, media.duration, quality));
+		if (!path) return false;
+		backgrounds[media.id] = path;
+	}
+	state().update((p) => ({ ...p, voice: { ...voiceSettings(p), removeVoices: true, separation: quality, backgrounds, enabled: true } }));
+	state().showToast("Original voices removed", "info", "The Khmer voice now plays over the music and effects only.");
+	return true;
 }
 
 export async function makeVoiceOver(): Promise<void> {
