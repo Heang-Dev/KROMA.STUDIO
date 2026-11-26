@@ -103,7 +103,13 @@ export interface Settings {
 	concurrency: number;
 	/** Browser whose logins yt-dlp may use (chrome, safari, firefox, edge, brave), or "" for none. */
 	cookiesBrowser: string;
+	/** Light, dark, or follow the Mac. */
+	theme: Appearance;
+	/** Interface zoom, like a browser's ⌘+ / ⌘−: 1 = 100 %. */
+	uiZoom: number;
 }
+
+export type Appearance = "system" | "light" | "dark";
 
 export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey"> {
 	hasAnthropicKey: boolean;
@@ -187,7 +193,11 @@ export const DEFAULT_SETTINGS: Settings = {
 	asrModel: "whisper-large-v3",
 	concurrency: 4,
 	cookiesBrowser: "",
+	theme: "dark",
+	uiZoom: 0.9,
 };
+
+export const UI_ZOOM_STEPS = [0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.4] as const;
 
 export const ASPECT_SIZE: Record<Aspect, { width: number; height: number }> = {
 	"16:9": { width: 1920, height: 1080 },

@@ -1,13 +1,17 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { FileArrowUp, MagnifyingGlass, Plus, Trash } from "@phosphor-icons/react";
+import { FileUp, Plus, Search, Trash2 } from "lucide-react";
 import type { Cue } from "@shared/types";
 import { importSrt } from "@/lib/actions";
 import { cueAt, formatTime, totalDuration, uid } from "@/lib/timeline";
+import { useLayout } from "@/state/layout";
 import { useEditor } from "@/state/store";
-import { IconButton, inputClass } from "./ui";
+import { ResizeHandle } from "./ResizeHandle";
+import { Input } from "@/components/ui/input";
+import { IconButton } from "./common";
 
 export function SubtitleList() {
 	const cues = useEditor((s) => s.project.cues);
+	const width = useLayout((s) => s.sizes.right);
 	const active = useEditor((s) => cueAt(s.project.cues, s.time));
 	const playing = useEditor((s) => s.playing);
 	const selectedId = useEditor((s) => (s.selection?.kind === "cue" ? s.selection.id : null));
@@ -43,32 +47,33 @@ export function SubtitleList() {
 	};
 
 	return (
-		<aside className="flex w-[380px] shrink-0 flex-col border-l border-line bg-panel">
-			<header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-line px-4">
+		<aside className="relative flex shrink-0 flex-col border-l border-border bg-card" style={{ width }}>
+			<ResizeHandle panel="right" edge="left" label="Resize the subtitles panel" />
+			<header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
 				<div>
 					<h2 className="text-[13px] font-semibold">Subtitles</h2>
-					<p className="text-[11px] text-dim">{cues.length ? `${cues.length} lines · ${translated} in Khmer` : "None yet"}</p>
+					<p className="text-[11px] text-muted-foreground">{cues.length ? `${cues.length} lines · ${translated} in Khmer` : "None yet"}</p>
 				</div>
 				<div className="flex">
 					<IconButton label="Import an .srt file" onClick={() => void importSrt()}>
-						<FileArrowUp size={16} />
+						<FileUp className="size-4" />
 					</IconButton>
 					<IconButton label="Add a line at the playhead" onClick={addLine}>
-						<Plus size={16} />
+						<Plus className="size-4" />
 					</IconButton>
 				</div>
 			</header>
 			{cues.length > 0 && (
-				<div className="relative border-b border-line px-3 py-2">
-					<MagnifyingGlass size={14} className="absolute top-1/2 left-5.5 -translate-y-1/2 text-dim" />
-					<input className={`${inputClass} pl-8`} placeholder="Find in subtitles" value={query} onChange={(e) => setQuery(e.target.value)} />
+				<div className="relative border-b border-border px-3 py-2">
+					<Search className="absolute top-1/2 left-5.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+					<Input className="pl-8" aria-label="Find in subtitles" placeholder="Find in subtitles" value={query} onChange={(e) => setQuery(e.target.value)} />
 				</div>
 			)}
 			<div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
 				{visible.map((cue) => (
 					<CueRow key={cue.id} cue={cue} active={cues[active]?.id === cue.id} selected={selectedId === cue.id} />
 				))}
-				{cues.length === 0 && <p className="px-4 py-6 text-xs leading-relaxed text-dim">Subtitles appear here after "Make Khmer subtitles". You can fix any line by typing in it.</p>}
+				{cues.length === 0 && <p className="px-4 py-6 text-xs leading-relaxed text-muted-foreground">Subtitles appear here after "Make Khmer subtitles". You can fix any line by typing in it.</p>}
 			</div>
 		</aside>
 	);
@@ -87,30 +92,30 @@ const CueRow = memo(function CueRow({ cue, active, selected }: { cue: Cue; activ
 	return (
 		<div
 			data-cue={cue.id}
-			className={`cue-row group border-b border-line/60 px-4 py-2.5 ${active ? "bg-accent/[0.07]" : ""} ${selected ? "shadow-[inset_3px_0_0_var(--color-accent)]" : ""}`}
+			className={`cue-row group border-b border-border/60 px-4 py-2.5 ${active ? "bg-primary/5" : ""} ${selected ? "shadow-[inset_3px_0_0_var(--primary)]" : ""}`}
 		>
 			<div className="mb-1 flex items-center justify-between">
-				<button type="button" className="font-mono text-[11px] tabular-nums text-dim hover:text-accent" onClick={focus}>
+				<button type="button" className="font-mono text-[11px] tabular-nums text-muted-foreground hover:text-primary" onClick={focus}>
 					{formatTime(cue.start, true)} → {formatTime(cue.end, true)}
 				</button>
 				<button
 					type="button"
 					aria-label="Delete line"
 					title="Delete line"
-					className="text-dim opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
+					className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
 					onClick={() => update((p) => ({ ...p, cues: p.cues.filter((c) => c.id !== cue.id) }))}
 				>
-					<Trash size={14} />
+					<Trash2 className="size-3.5" />
 				</button>
 			</div>
-			{cue.source && <p className="mb-1 text-[12.5px] leading-snug text-muted select-text">{cue.source}</p>}
+			{cue.source && <p className="mb-1 text-[12.5px] leading-snug text-muted-foreground select-text">{cue.source}</p>}
 			<textarea
 				rows={1}
 				value={cue.text}
 				placeholder={cue.source ? "Not translated yet" : "Type the Khmer line"}
 				onFocus={focus}
 				onChange={(e) => setText(e.target.value)}
-				className="field-sizing-content w-full resize-none rounded border border-transparent bg-transparent px-1.5 py-1 font-khmer text-[15px] leading-relaxed text-fg placeholder:text-dim hover:border-line focus:border-accent focus:bg-bg focus:outline-none"
+				className="field-sizing-content w-full resize-none rounded-none border border-transparent bg-transparent px-1.5 py-1 font-khmer text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground hover:border-border focus:border-primary focus:bg-background focus:outline-none"
 			/>
 		</div>
 	);

@@ -36,6 +36,17 @@ bun run build && node scripts/smoke.mjs <video.mp4> <out-dir> [--download]   # l
 KROMA_APP="dist/mac-arm64/Kroma Studio.app/Contents/MacOS/Kroma Studio" node scripts/smoke.mjs ...      # same, against the packaged app
 ```
 
+## Design
+
+Follows Orca's look (github.com/stablyai/orca, MIT): shadcn/ui new-york on Radix, Lucide icons, Orca's neutral tokens
+(`src/renderer/src/styles.css`), 0.625rem radius and a monospace app font (Geist Mono; Kantumruy Pro for Khmer).
+`components/ui/` is stock shadcn (`bunx --bun shadcn@latest add <name>`); Orca-style building blocks (Section, Card, Row,
+SwitchRow, NavRow, Segmented, ChoiceTiles, AppSelect, SliderField, Group) live in `components/common.tsx`.
+
+Settings is a full page (`components/settings/`), laid out like Orca's: nav with search on the left, breadcrumb and a
+column of cards on the right, saving as you change things. Add a page by adding an entry to `SETTINGS_SECTIONS` in
+`components/settings/sections.tsx`.
+
 ## Layout
 
 - `src/main/`: Electron main process: `download.ts` (yt-dlp), `transcribe.ts` (cloud Whisper), `ai.ts` (Claude), `voice.ts` (Khmer voice-over), `export.ts` (ffmpeg), `settings.ts` (keys encrypted with the keychain), `index.ts` (window, `kroma://` media protocol with Range support, IPC)

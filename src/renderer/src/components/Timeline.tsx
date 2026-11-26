@@ -1,9 +1,12 @@
 import { memo, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowsHorizontal, MagnifyingGlassMinus, MagnifyingGlassPlus, Scissors, Trash } from "@phosphor-icons/react";
+import { MoveHorizontal, Scissors, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import type { Cue, Project } from "@shared/types";
 import { type PlacedClip, deleteClip, formatTime, moveClip, placeClips, splitAt, totalDuration, trimClip } from "@/lib/timeline";
+import { useLayout } from "@/state/layout";
 import { useEditor } from "@/state/store";
-import { IconButton } from "./ui";
+import { ResizeHandle } from "./ResizeHandle";
+import { Slider } from "@/components/ui/slider";
+import { IconButton } from "./common";
 
 const PAD = 16;
 const RULER = 26;
@@ -27,6 +30,7 @@ export function deleteSelection(): void {
 export function Timeline() {
 	const project = useEditor((s) => s.project);
 	const zoom = useEditor((s) => s.zoom);
+	const height = useLayout((s) => s.sizes.timeline);
 	const setZoom = useEditor((s) => s.setZoom);
 	const selection = useEditor((s) => s.selection);
 	const scrollRef = useRef<HTMLDivElement>(null);
@@ -127,32 +131,33 @@ export function Timeline() {
 	const visibleCues = project.cues.filter((c) => c.end >= visibleStart && c.start <= visibleEnd);
 
 	return (
-		<section className="flex h-[210px] shrink-0 flex-col border-t border-line bg-panel">
-			<div className="flex h-10 shrink-0 items-center gap-1 border-b border-line px-2">
+		<section className="relative flex shrink-0 flex-col border-t border-border bg-card" style={{ height }}>
+			<ResizeHandle panel="timeline" edge="top" label="Resize the timeline" />
+			<div className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-2">
 				<IconButton label="Split at the playhead (S)" onClick={splitAtPlayhead} disabled={!total}>
-					<Scissors size={16} />
+					<Scissors className="size-4" />
 				</IconButton>
 				<IconButton label="Delete the selection (Delete)" onClick={deleteSelection} disabled={!selection}>
-					<Trash size={16} />
+					<Trash2 className="size-4" />
 				</IconButton>
-				<div className="mx-2 h-5 w-px bg-line" />
-				<span className="text-[11px] text-dim">{selection?.kind === "clip" ? "Video clip selected · drag to reorder, edges to trim" : selection?.kind === "cue" ? "Subtitle selected · drag to move, edges to retime" : ""}</span>
+				<div className="mx-2 h-5 w-px bg-border" />
+				<span className="text-[11px] text-muted-foreground">{selection?.kind === "clip" ? "Video clip selected · drag to reorder, edges to trim" : selection?.kind === "cue" ? "Subtitle selected · drag to move, edges to retime" : ""}</span>
 				<div className="ml-auto flex items-center gap-1">
 					<IconButton label="Zoom out" onClick={() => setZoom(zoom / 1.5)}>
-						<MagnifyingGlassMinus size={16} />
+						<ZoomOut className="size-4" />
 					</IconButton>
-					<input type="range" min={0} max={1} step={0.001} value={Math.log(zoom / 0.5) / Math.log(800)} onChange={(e) => setZoom(0.5 * 800 ** Number(e.target.value))} className="w-28 accent-[var(--color-accent)]" aria-label="Zoom" />
+					<div className="w-28 px-1"><Slider min={0} max={1} step={0.001} value={[Math.log(zoom / 0.5) / Math.log(800)]} onValueChange={(v) => setZoom(0.5 * 800 ** (Array.isArray(v) ? v[0] : v))} aria-label="Zoom" /></div>
 					<IconButton label="Zoom in" onClick={() => setZoom(zoom * 1.5)}>
-						<MagnifyingGlassPlus size={16} />
+						<ZoomIn className="size-4" />
 					</IconButton>
 					<IconButton label="Fit the whole video" onClick={fit} disabled={!total}>
-						<ArrowsHorizontal size={16} />
+						<MoveHorizontal className="size-4" />
 					</IconButton>
 				</div>
 			</div>
 
 			<div className="flex min-h-0 flex-1">
-				<div className="w-[72px] shrink-0 border-r border-line text-[11px] text-dim" style={{ paddingTop: RULER }}>
+				<div className="w-[72px] shrink-0 border-r border-border text-[11px] text-muted-foreground" style={{ paddingTop: RULER }}>
 					<div className="flex items-center px-3" style={{ height: SUB_TRACK }}>Subtitles</div>
 					<div className="flex items-center px-3" style={{ height: VIDEO_TRACK }}>Video</div>
 				</div>
@@ -168,7 +173,7 @@ export function Timeline() {
 							{placed.map((clip) => (
 								<ClipBlock key={clip.id} clip={clip} zoom={zoom} name={project.media.find((m) => m.id === clip.mediaId)?.name ?? ""} selected={selection?.kind === "clip" && selection.id === clip.id} onReorder={reorderStart} />
 							))}
-							{dropAt !== null && <div className="pointer-events-none absolute top-0 bottom-0 z-20 w-[3px] -translate-x-1/2 rounded bg-accent" style={{ left: PAD + dropAt * zoom }} />}
+							{dropAt !== null && <div className="pointer-events-none absolute top-0 bottom-0 z-20 w-[3px] -translate-x-1/2 rounded-none bg-primary" style={{ left: PAD + dropAt * zoom }} />}
 						</div>
 						<Playhead zoom={zoom} scrollRef={scrollRef} />
 					</div>
@@ -187,9 +192,9 @@ function Ruler({ zoom, total, view, onPointerDown }: { zoom: number; total: numb
 	const ticks: number[] = [];
 	for (let t = first; t <= last; t += step) ticks.push(t);
 	return (
-		<div className="absolute top-0 right-0 left-0 cursor-col-resize border-b border-line" style={{ height: RULER }} onPointerDown={onPointerDown}>
+		<div className="absolute top-0 right-0 left-0 cursor-col-resize border-b border-border" style={{ height: RULER }} onPointerDown={onPointerDown}>
 			{ticks.map((t) => (
-				<div key={t} className="absolute top-0 h-full border-l border-line-strong pl-1 text-[10px] leading-[22px] text-dim" style={{ left: PAD + t * zoom }}>
+				<div key={t} className="absolute top-0 h-full border-l border-input pl-1 text-[10px] leading-[22px] text-muted-foreground" style={{ left: PAD + t * zoom }}>
 					{formatTime(t)}
 				</div>
 			))}
@@ -231,7 +236,7 @@ const ClipBlock = memo(function ClipBlock({ clip, zoom, name, selected, onReorde
 	const trimOut = trim("out");
 	return (
 		<div
-			className={`absolute top-1.5 bottom-1.5 cursor-grab overflow-hidden rounded-md border active:cursor-grabbing ${selected ? "border-accent bg-clip-strong" : "border-clip-strong/60 bg-clip hover:border-clip-strong"}`}
+			className={`absolute top-1.5 bottom-1.5 cursor-grab overflow-hidden rounded-none border active:cursor-grabbing ${selected ? "border-primary bg-track-video" : "border-track-video/50 bg-track-video/70 hover:border-track-video"}`}
 			style={{ left: PAD + clip.start * zoom, width: Math.max(2, (clip.end - clip.start) * zoom) }}
 			onPointerDown={(e) => {
 				e.stopPropagation();
@@ -270,7 +275,7 @@ const CueBlock = memo(function CueBlock({ cue, zoom, selected }: { cue: Cue; zoo
 	const width = (cue.end - cue.start) * zoom;
 	return (
 		<div
-			className={`absolute top-1.5 bottom-1.5 cursor-grab overflow-hidden rounded border active:cursor-grabbing ${selected ? "border-accent bg-cue-strong" : cue.text ? "border-cue-strong/60 bg-cue" : "border-line-strong bg-panel-2"}`}
+			className={`absolute top-1.5 bottom-1.5 cursor-grab overflow-hidden rounded-none border active:cursor-grabbing ${selected ? "border-primary bg-track-subtitle" : cue.text ? "border-track-subtitle/50 bg-track-subtitle/70" : "border-input bg-muted"}`}
 			style={{ left: PAD + cue.start * zoom, width: Math.max(2, width) }}
 			title={cue.text || cue.source}
 			onPointerDown={(e) => {
@@ -302,8 +307,8 @@ function Playhead({ zoom, scrollRef }: { zoom: number; scrollRef: React.RefObjec
 	}, [x, playing, scrollRef]);
 
 	return (
-		<div className="pointer-events-none absolute top-0 bottom-0 z-10 w-px bg-accent" style={{ left: x }}>
-			<div className="absolute -top-px -left-[5px] h-2.5 w-[11px] rounded-b-sm bg-accent" />
+		<div className="pointer-events-none absolute top-0 bottom-0 z-10 w-px bg-primary" style={{ left: x }}>
+			<div className="absolute -top-px -left-[5px] h-2.5 w-[11px] rounded-b-sm bg-primary" />
 		</div>
 	);
 }

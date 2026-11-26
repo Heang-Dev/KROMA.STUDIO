@@ -1,9 +1,9 @@
 import { createReadStream, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { Readable } from "node:stream";
-import { BrowserWindow, app, dialog, ipcMain, protocol, shell } from "electron";
+import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, shell } from "electron";
 import { parseSubtitles } from "@shared/srt";
-import type { CaptionRequest, ExportRequest, Project, Settings } from "@shared/types";
+import { type CaptionRequest, type ExportRequest, type Project, type Settings, UI_ZOOM_STEPS } from "@shared/types";
 import { translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
 import { downloadLink, LIBRARY_DIR } from "./download";
 import { exportVideo } from "./export";
@@ -57,17 +57,60 @@ function createWindow(): void {
 		minHeight: 700,
 		backgroundColor: "#0e0f12",
 		titleBarStyle: "hiddenInset",
-		trafficLightPosition: { x: 14, y: 14 },
+		// Centred in the 44px title bar, which keeps its size at every interface zoom (see .title-bar in styles.css).
+		trafficLightPosition: { x: 16, y: 16 },
 		show: false,
 		webPreferences: { preload: join(__dirname, "../preload/index.js"), sandbox: true, contextIsolation: true },
 	});
+	// The saved interface size, applied before the window shows and again after every reload.
+	win.webContents.on("did-finish-load", () => win?.webContents.setZoomFactor(loadSettings().uiZoom));
 	win.once("ready-to-show", () => win?.show());
+	// Full screen hides the traffic lights, so the title bar drops the space it keeps for them.
+	win.on("enter-full-screen", () => win?.webContents.send("fullscreen:changed", true));
+	win.on("leave-full-screen", () => win?.webContents.send("fullscreen:changed", false));
 	win.webContents.setWindowOpenHandler(({ url }) => {
 		void shell.openExternal(url);
 		return { action: "deny" };
 	});
 	if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
 	else void win.loadFile(join(__dirname, "../renderer/index.html"));
+}
+
+// ── Interface size (⌘+ / ⌘− / ⌘0, like a browser) ──
+
+function setZoom(zoom: number): number {
+	const value = Math.round(Math.min(UI_ZOOM_STEPS[UI_ZOOM_STEPS.length - 1], Math.max(UI_ZOOM_STEPS[0], zoom)) * 100) / 100;
+	saveSettings({ uiZoom: value });
+	win?.webContents.setZoomFactor(value);
+	win?.webContents.send("zoom:changed", value);
+	return value;
+}
+
+function stepZoom(direction: 1 | -1 | 0): number {
+	if (direction === 0) return setZoom(1);
+	const current = loadSettings().uiZoom;
+	const steps = [...UI_ZOOM_STEPS];
+	const next = direction > 0 ? steps.find((z) => z > current + 0.001) : [...steps].reverse().find((z) => z < current - 0.001);
+	return setZoom(next ?? current);
+}
+
+/** App menu: the standard macOS menus, with View's zoom items wired to the saved interface size. */
+function buildMenu(): void {
+	const zoomItems: Electron.MenuItemConstructorOptions[] = [
+		{ label: "Actual Size", accelerator: "CmdOrCtrl+0", click: () => stepZoom(0) },
+		{ label: "Zoom In", accelerator: "CmdOrCtrl+=", click: () => stepZoom(1) },
+		{ label: "Zoom In", accelerator: "CmdOrCtrl+Plus", visible: false, acceleratorWorksWhenHidden: true, click: () => stepZoom(1) },
+		{ label: "Zoom Out", accelerator: "CmdOrCtrl+-", click: () => stepZoom(-1) },
+	];
+	Menu.setApplicationMenu(
+		Menu.buildFromTemplate([
+			{ role: "appMenu" },
+			{ role: "fileMenu" },
+			{ role: "editMenu" },
+			{ label: "View", submenu: [...zoomItems, { type: "separator" }, { role: "togglefullscreen" }, ...(app.isPackaged ? [] : ([{ type: "separator" }, { role: "reload" }, { role: "toggleDevTools" }] as Electron.MenuItemConstructorOptions[]))] },
+			{ role: "windowMenu" },
+		]),
+	);
 }
 
 /** Runs a long task with progress events and cancellation by task id. */
@@ -84,10 +127,12 @@ function registerIpc(): void {
 	ipcMain.handle("app:info", () => ({
 		tools: { ffmpeg: Boolean(findTool("ffmpeg")), ffprobe: Boolean(findTool("ffprobe")), ytdlp: Boolean(findTool("yt-dlp")) },
 		libraryDir: LIBRARY_DIR,
+		version: app.getVersion(),
 		smoke: process.env.KROMA_SMOKE === "1",
 	}));
 
 	ipcMain.handle("settings:get", () => viewOf(loadSettings()));
+	ipcMain.handle("zoom:set", (_e, zoom: number) => setZoom(zoom));
 	ipcMain.handle("settings:save", (_e, patch: Partial<Record<keyof Settings, string | number | null>>) => saveSettings(patch));
 
 	ipcMain.handle("media:open", async () => {
@@ -164,6 +209,7 @@ function registerIpc(): void {
 app.whenReady().then(() => {
 	protocol.handle("kroma", serveMedia);
 	registerIpc();
+	buildMenu();
 	createWindow();
 	app.on("activate", () => {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();

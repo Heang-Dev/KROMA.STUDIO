@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { ASPECT_SIZE } from "@shared/types";
 import { voiceTempo } from "@shared/voice";
 import { voiceCues, voiceSettings } from "@/lib/actions";
 import { drawCue } from "@/lib/subtitleRender";
 import { type PlacedClip, cueAt, formatTime, placeClips, totalDuration } from "@/lib/timeline";
 import { useEditor } from "@/state/store";
-import { IconButton } from "./ui";
+import { IconButton } from "./common";
 
 export const mediaUrl = (path: string) => `kroma://media${path.split("/").map(encodeURIComponent).join("/")}`;
 
@@ -235,18 +235,18 @@ function Transport({ total, playing, onToggle }: { total: number; playing: boole
 	const time = useEditor((s) => s.time);
 	const seek = useEditor((s) => s.seek);
 	return (
-		<div className="flex h-11 shrink-0 items-center justify-center gap-1 border-t border-line">
-			<span className="w-28 text-right font-mono text-xs tabular-nums text-fg">{formatTime(time, true)}</span>
+		<div className="flex h-11 shrink-0 items-center justify-center gap-1 border-t border-border">
+			<span className="w-28 text-right font-mono text-xs tabular-nums text-foreground">{formatTime(time, true)}</span>
 			<IconButton label="Back 5 seconds (Shift + ←)" onClick={() => seek(time - 5)} disabled={!total}>
-				<SkipBack size={16} weight="fill" />
+				<SkipBack className="size-4" />
 			</IconButton>
-			<IconButton label={playing ? "Pause (Space)" : "Play (Space)"} onClick={onToggle} disabled={!total} className="size-9 text-fg">
-				{playing ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+			<IconButton label={playing ? "Pause (Space)" : "Play (Space)"} onClick={onToggle} disabled={!total} className="size-9 text-foreground">
+				{playing ? <Pause className="size-5" /> : <Play className="size-5" />}
 			</IconButton>
 			<IconButton label="Forward 5 seconds (Shift + →)" onClick={() => seek(time + 5)} disabled={!total}>
-				<SkipForward size={16} weight="fill" />
+				<SkipForward className="size-4" />
 			</IconButton>
-			<span className="w-28 font-mono text-xs tabular-nums text-dim">{formatTime(total, true)}</span>
+			<span className="w-28 font-mono text-xs tabular-nums text-muted-foreground">{formatTime(total, true)}</span>
 		</div>
 	);
 }
@@ -254,8 +254,8 @@ function Transport({ total, playing, onToggle }: { total: number; playing: boole
 function EmptyState() {
 	return (
 		<div className="max-w-sm text-center">
-			<p className="font-khmer text-2xl font-semibold text-fg">សូមស្វាគមន៍</p>
-			<p className="mt-2 text-sm text-muted">Paste a video link or import a file on the left. Then press <span className="text-accent">Make Khmer subtitles</span>.</p>
+			<p className="font-khmer text-2xl font-semibold text-foreground">សូមស្វាគមន៍</p>
+			<p className="mt-2 text-sm text-muted-foreground">Paste a video link or import a file on the left. Then press <span className="text-primary">Make Khmer subtitles</span>.</p>
 		</div>
 	);
 }

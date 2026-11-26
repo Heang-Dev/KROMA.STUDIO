@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { DownloadSimple, FilmStrip, FolderOpen, Plus, Subtitles } from "@phosphor-icons/react";
+import { Captions, Download, Film, FolderOpen, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { appendToTimeline, downloadFromLink, importFiles } from "@/lib/actions";
 import { formatTime } from "@/lib/timeline";
 import { useEditor } from "@/state/store";
-import { Button, IconButton, Section, TaskProgress, inputClass, useBusy } from "./ui";
+import { Card, IconButton, Section, TaskProgress, useBusy } from "./common";
 
 export function MediaPanel() {
 	const media = useEditor((s) => s.project.media);
@@ -18,47 +21,61 @@ export function MediaPanel() {
 
 	return (
 		<>
-			<Section title="Download from a link" hint="YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook, TikTok and 1,000+ more sites. The site's own subtitles come too when it has them.">
+			<Section title="Download from a link" hint="YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook, TikTok and 1,000+ more. The site's own subtitles come too.">
 				<form
-					className="flex gap-2"
+					className="flex gap-1.5"
 					onSubmit={(e) => {
 						e.preventDefault();
 						void submit();
 					}}
 				>
-					<input className={inputClass} placeholder="https://www.bilibili.com/video/…" value={url} onChange={(e) => setUrl(e.target.value)} disabled={downloading} />
-					<Button type="submit" variant="primary" disabled={downloading || !url.trim()} aria-label="Download">
-						<DownloadSimple size={16} weight="bold" />
+					<Input className="h-8 text-xs" placeholder="https://www.bilibili.com/video/…" value={url} onChange={(e) => setUrl(e.target.value)} disabled={downloading} aria-label="Video link" />
+					<Button type="submit" size="sm" disabled={downloading || !url.trim()}>
+						<Download /> Get
 					</Button>
 				</form>
 				<TaskProgress prefix="download" />
 			</Section>
 
-			<Section title="Media" action={<Button onClick={() => void importFiles()}><FolderOpen size={15} /> Import</Button>}>
+			<Section
+				title="Media"
+				action={
+					<Button variant="outline" size="xs" onClick={() => void importFiles()}>
+						<FolderOpen /> Import
+					</Button>
+				}
+			>
 				{media.length === 0 ? (
-					<p className="text-xs text-dim">No videos yet. Download one or import a file from your Mac.</p>
+					<p className="text-xs text-muted-foreground">No videos yet. Download one or import a file from your Mac.</p>
 				) : (
-					<ul className="space-y-1.5">
-						{media.map((m) => (
-							<li key={m.id} className="group flex items-center gap-2.5 rounded-md border border-line bg-bg px-2.5 py-2">
-								<FilmStrip size={18} className="shrink-0 text-dim" />
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-[13px]" title={m.name}>{m.name}</p>
-									<p className="flex items-center gap-2 text-[11px] text-dim">
-										{formatTime(m.duration)} · {m.width}×{m.height}
-										{Object.keys(m.siteSubtitles ?? {}).length > 0 && (
-											<span className="inline-flex items-center gap-0.5 text-accent" title="This video came with subtitles from the site">
-												<Subtitles size={12} /> {Object.keys(m.siteSubtitles ?? {}).join(", ")}
-											</span>
-										)}
-									</p>
+					<Card className="px-0 [&>*+*]:border-t">
+						{media.map((m) => {
+							const subs = Object.keys(m.siteSubtitles ?? {});
+							return (
+								<div key={m.id} className="flex items-center gap-2.5 px-3 py-2.5">
+									<span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+										<Film className="size-4" />
+									</span>
+									<div className="min-w-0 flex-1">
+										<p className="truncate text-[13px]" title={m.name}>
+											{m.name}
+										</p>
+										<p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+											<span className="tabular-nums">{formatTime(m.duration)}</span>· {m.width}×{m.height}
+											{subs.length > 0 && (
+												<Badge variant="secondary" className="h-4 gap-1 px-1.5 text-[10px]" title="This video came with subtitles from the site">
+													<Captions className="size-3" /> {subs.join(", ")}
+												</Badge>
+											)}
+										</p>
+									</div>
+									<IconButton label="Add to the end of the timeline" size="icon-xs" onClick={() => appendToTimeline(m)}>
+										<Plus />
+									</IconButton>
 								</div>
-								<IconButton label="Add to the end of the timeline" onClick={() => appendToTimeline(m)}>
-									<Plus size={15} />
-								</IconButton>
-							</li>
-						))}
-					</ul>
+							);
+						})}
+					</Card>
 				)}
 			</Section>
 		</>

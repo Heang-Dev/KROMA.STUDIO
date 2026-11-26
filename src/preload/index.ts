@@ -2,9 +2,22 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine } from "@shared/types";
 
 const api = {
-	info: (): Promise<{ tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean }; libraryDir: string; smoke: boolean }> => ipcRenderer.invoke("app:info"),
+	info: (): Promise<{ tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean }; libraryDir: string; version: string; smoke: boolean }> => ipcRenderer.invoke("app:info"),
 	getSettings: (): Promise<SettingsView> => ipcRenderer.invoke("settings:get"),
 	saveSettings: (patch: Partial<Record<keyof Settings, string | number | null>>): Promise<SettingsView> => ipcRenderer.invoke("settings:save", patch),
+
+	setZoom: (zoom: number): Promise<number> => ipcRenderer.invoke("zoom:set", zoom),
+	onZoomChanged: (listener: (zoom: number) => void): (() => void) => {
+		const handler = (_e: unknown, zoom: number) => listener(zoom);
+		ipcRenderer.on("zoom:changed", handler);
+		return () => ipcRenderer.off("zoom:changed", handler);
+	},
+
+	onFullscreenChanged: (listener: (fullscreen: boolean) => void): (() => void) => {
+		const handler = (_e: unknown, fullscreen: boolean) => listener(fullscreen);
+		ipcRenderer.on("fullscreen:changed", handler);
+		return () => ipcRenderer.off("fullscreen:changed", handler);
+	},
 
 	openMedia: (): Promise<MediaItem[]> => ipcRenderer.invoke("media:open"),
 	probe: (path: string): Promise<MediaItem> => ipcRenderer.invoke("media:probe", path),

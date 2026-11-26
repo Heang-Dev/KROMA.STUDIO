@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Check, Copy, MagicWand } from "@phosphor-icons/react";
+import { Check, Copy, FileDown, WandSparkles } from "lucide-react";
 import type { PlatformCaption } from "@shared/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { exportSrt } from "@/lib/actions";
 import { runTask, useEditor } from "@/state/store";
-import { Button, Section, TaskProgress, useBusy } from "./ui";
+import { Card, Section, TaskProgress, useBusy } from "./common";
 
 export function PostPanel() {
 	const project = useEditor((s) => s.project);
@@ -19,26 +21,40 @@ export function PostPanel() {
 
 	return (
 		<>
-			<Section title="Write the posts" hint="Claude reads the Khmer subtitles and writes a title, description and hashtags in Khmer for each platform.">
-				<Button variant="primary" className="w-full" disabled={!translated.length || busy} onClick={() => void generate()}>
-					<MagicWand size={16} weight="fill" /> Write YouTube, Facebook and TikTok posts
+			<Section title="Social posts" hint="Claude reads the Khmer subtitles and writes a title, description and hashtags in Khmer for YouTube, Facebook and TikTok.">
+				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!translated.length || busy} onClick={() => void generate()}>
+					<WandSparkles /> Write the posts
 				</Button>
-				{!translated.length && <p className="mt-2 text-xs text-dim">Make the Khmer subtitles first.</p>}
+				{!translated.length && <p className="text-xs text-muted-foreground">Make the Khmer subtitles first.</p>}
 				<TaskProgress prefix="captions" />
 			</Section>
 
 			{posts.map((post) => (
 				<Section key={post.platform} title={post.platform} action={<CopyButton text={`${post.title}\n\n${post.description}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`} />}>
-					<p className="font-khmer text-[14px] font-semibold leading-relaxed select-text">{post.title}</p>
-					<p className="mt-2 whitespace-pre-line font-khmer text-[13px] leading-relaxed text-muted select-text">{post.description}</p>
-					<p className="mt-2 text-xs text-accent select-text">{post.hashtags.map((h) => `#${h}`).join(" ")}</p>
+					<Card className="py-3" >
+						<div lang="km" className="space-y-2">
+							<p className="text-sm font-semibold select-text">{post.title}</p>
+							<p className="text-xs whitespace-pre-line text-muted-foreground select-text">{post.description}</p>
+							<div className="flex flex-wrap gap-1 pt-1">
+								{post.hashtags.map((h) => (
+									<Badge key={h} variant="secondary" className="font-normal select-text">
+										#{h}
+									</Badge>
+								))}
+							</div>
+						</div>
+					</Card>
 				</Section>
 			))}
 
 			<Section title="Subtitle files" hint="For YouTube's subtitle upload, or to keep a copy.">
-				<div className="grid grid-cols-2 gap-2">
-					<Button disabled={!translated.length} onClick={() => void exportSrt("khmer")}>Khmer .srt</Button>
-					<Button disabled={!project.cues.length} onClick={() => void exportSrt("source")}>Original .srt</Button>
+				<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-2">
+					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!translated.length} onClick={() => void exportSrt("khmer")}>
+						<FileDown /> Khmer .srt
+					</Button>
+					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!project.cues.length} onClick={() => void exportSrt("source")}>
+						<FileDown /> Original .srt
+					</Button>
 				</div>
 			</Section>
 		</>
@@ -50,14 +66,14 @@ function CopyButton({ text }: { text: string }) {
 	return (
 		<Button
 			variant="ghost"
-			className="h-7 px-2 text-xs"
+			size="xs"
 			onClick={() => {
 				void navigator.clipboard.writeText(text);
 				setCopied(true);
 				setTimeout(() => setCopied(false), 1500);
 			}}
 		>
-			{copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}
+			{copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy"}
 		</Button>
 	);
 }

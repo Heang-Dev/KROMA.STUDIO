@@ -2,7 +2,7 @@
 // screenshots the editor, downloads a short test video from a link, and exports an MP4.
 // Usage: bun run build && node scripts/smoke.mjs <test-video.mp4> <output-dir> [--download]
 // (PATH is stripped like a Finder launch, so it also checks that ffmpeg and yt-dlp are found.)
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { _electron as electron } from "playwright";
 
@@ -50,6 +50,59 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(800);
 await page.screenshot({ path: join(outDir, "editor-9x16.png") });
+
+// Light theme, Khmer panel.
+await page.evaluate(() => {
+	window.__kroma.applyAppearance("light");
+	window.__kroma.useEditor.getState().setPanel("ai");
+});
+await page.waitForTimeout(600);
+await page.screenshot({ path: join(outDir, "editor-light.png") });
+await page.evaluate(() => {
+	window.__kroma.applyAppearance("dark");
+	window.__kroma.useEditor.getState().setPanel("voice");
+});
+await page.waitForTimeout(600);
+await page.screenshot({ path: join(outDir, "editor-voice.png") });
+await page.getByRole("button", { name: "Settings" }).first().click();
+await page.waitForTimeout(700);
+await page.screenshot({ path: join(outDir, "settings.png") });
+await page.getByRole("button", { name: "Appearance" }).click();
+await page.waitForTimeout(400);
+await page.screenshot({ path: join(outDir, "settings-appearance.png") });
+// Interface size: 80% then back to the default.
+const zoom = await page.evaluate(async () => {
+	const before = window.innerWidth;
+	await window.kroma.setZoom(0.8);
+	await new Promise((r) => setTimeout(r, 300));
+	const after = window.innerWidth;
+	await window.kroma.setZoom(0.9);
+	return { before, after, setting: (await window.kroma.getSettings()).uiZoom };
+});
+console.log("zoom", zoom);
+// Electron's own capture (the test tool's screenshot mis-sizes a zoomed page).
+const png = await app.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString("base64"));
+writeFileSync(join(outDir, "native-settings.png"), Buffer.from(png, "base64"));
+await page.getByRole("button", { name: "Back to app" }).click();
+await page.waitForTimeout(500);
+const png2 = await app.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString("base64"));
+writeFileSync(join(outDir, "native-editor.png"), Buffer.from(png2, "base64"));
+
+// Drag the tools panel's divider: 120px narrower, then screenshot the narrowest panels.
+const handle = page.getByRole("separator", { name: "Resize the tools panel" });
+const box = await handle.boundingBox();
+const widthBefore = await page.evaluate(() => document.querySelector('[role="separator"]').parentElement.getBoundingClientRect().width);
+await page.mouse.move(box.x + box.width / 2, box.y + 200);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width / 2 - 150, box.y + 200, { steps: 8 });
+await page.mouse.up();
+const widthAfter = await page.evaluate(() => document.querySelector('[role="separator"]').parentElement.getBoundingClientRect().width);
+console.log("resize", { widthBefore, widthAfter });
+await page.evaluate(() => window.__kroma.useEditor.getState().setPanel("post"));
+await page.waitForTimeout(300);
+const narrowPost = await app.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString("base64"));
+writeFileSync(join(outDir, "narrow-post.png"), Buffer.from(narrowPost, "base64"));
+await handle.dblclick();
 
 // Khmer voice-over for the three lines.
 const voiced = await page.evaluate(async () => {

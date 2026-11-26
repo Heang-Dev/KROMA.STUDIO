@@ -1,21 +1,23 @@
 import { useState } from "react";
-import { Lightning, Microphone, Subtitles, Translate } from "@phosphor-icons/react";
+import { Captions, Languages, Mic, Settings, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { autoKhmer, getSubtitles, mainMedia, preferredSiteSubtitle, translateCues } from "@/lib/actions";
 import { useEditor } from "@/state/store";
-import { Button, Label, Section, TaskProgress, inputClass, useBusy } from "./ui";
+import { AppSelect, ProgressBar, Section, TaskProgress, useBusy } from "./common";
 
 const LANGUAGES = [
-	{ code: "zh", label: "Chinese (Mandarin)" },
-	{ code: "yue", label: "Cantonese" },
-	{ code: "en", label: "English" },
-	{ code: "ko", label: "Korean" },
-	{ code: "ja", label: "Japanese" },
-	{ code: "th", label: "Thai" },
-	{ code: "vi", label: "Vietnamese" },
-	{ code: "auto", label: "Detect automatically" },
+	{ value: "zh", label: "Chinese (Mandarin)" },
+	{ value: "yue", label: "Cantonese" },
+	{ value: "en", label: "English" },
+	{ value: "ko", label: "Korean" },
+	{ value: "ja", label: "Japanese" },
+	{ value: "th", label: "Thai" },
+	{ value: "vi", label: "Vietnamese" },
+	{ value: "auto", label: "Detect automatically" },
 ];
 
-export function AIPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function AIPanel() {
 	const project = useEditor((s) => s.project);
 	const update = useEditor((s) => s.update);
 	const [language, setLanguage] = useState("zh");
@@ -29,50 +31,65 @@ export function AIPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
 
 	return (
 		<>
-			<Section title="Auto Khmer subtitles" hint="One click: gets the Chinese lines (from the site, or speech-to-text in the cloud), then translates them to Khmer with Claude. Long movies take about a minute or two.">
-				<Label>Spoken language</Label>
-				<select className={`${inputClass} mb-3`} value={language} onChange={(e) => setLanguage(e.target.value)}>
-					{LANGUAGES.map((l) => (
-						<option key={l.code} value={l.code}>{l.label}</option>
-					))}
-				</select>
-				<Button variant="primary" className="h-10 w-full text-sm" disabled={!media || busy} onClick={() => void autoKhmer(language)}>
-					<Lightning size={17} weight="fill" /> Make Khmer subtitles
+			<Section
+				title="Auto Khmer subtitles"
+				hint="Gets the Chinese lines (from the site, or cloud speech-to-text), then Claude translates them to Khmer. Long movies take a minute or two."
+				action={
+					<Button variant="ghost" size="icon-xs" aria-label="API keys and models" onClick={() => useEditor.getState().openSettings("translation")}>
+						<Settings />
+					</Button>
+				}
+			>
+				<div className="space-y-1.5">
+					<p className="text-xs text-muted-foreground">Spoken language</p>
+					<AppSelect label="Spoken language" value={language} options={LANGUAGES} onChange={setLanguage} />
+				</div>
+				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!media || busy} onClick={() => void autoKhmer(language)}>
+					<Zap /> Make Khmer subtitles
 				</Button>
-				{!media && <p className="mt-2 text-xs text-dim">Add a video to the timeline first.</p>}
-				{media && site && <p className="mt-2 text-xs text-muted">This video has the site's own Chinese subtitles, so speech-to-text is skipped.</p>}
+				{!media && <p className="text-xs text-muted-foreground">Add a video to the timeline first.</p>}
+				{media && site && <p className="text-xs text-muted-foreground">This video has the site's own Chinese subtitles, so speech-to-text is skipped.</p>}
 				<TaskProgress prefix="asr" />
 				<TaskProgress prefix="translate" />
-				<button type="button" className="mt-3 text-xs text-dim underline-offset-2 hover:text-muted hover:underline" onClick={onOpenSettings}>
-					API keys and models
-				</button>
 			</Section>
 
-			<Section title="Notes for the translator" hint="Names, who's who, the show's title, the tone. Claude uses them to keep names and politeness consistent.">
-				<textarea
-					className={`${inputClass} h-24 resize-none py-2 leading-relaxed`}
+			<Section title="Notes for the translator" hint="Names, who's who, the show's title, the tone. Claude keeps names and politeness consistent with them.">
+				<Textarea
+					className="min-h-24 text-xs"
 					placeholder="e.g. Palace drama. 李明 is the hero, write it លី មីង. The emperor speaks formally."
 					value={project.context}
+					aria-label="Notes for the translator"
 					onFocus={() => useEditor.getState().checkpoint()}
 					onChange={(e) => update((p) => ({ ...p, context: e.target.value }), false)}
 				/>
 			</Section>
 
-			<Section title="Step by step" hint={total ? `${total} lines · ${translated} translated` : "Run one step at a time, or redo just one."}>
-				<div className="grid gap-2">
+			<Section title="Step by step" hint="Run one step at a time, or redo just one.">
+				{total > 0 && (
+					<div className="space-y-2">
+						<div className="flex justify-between text-xs">
+							<span className="text-muted-foreground">Translated</span>
+							<span className="tabular-nums">
+								{translated} / {total}
+							</span>
+						</div>
+						<ProgressBar value={translated / total} />
+					</div>
+				)}
+				<div className="grid gap-1.5">
 					{site && (
-						<Button disabled={!media || busy} onClick={() => media && void getSubtitles(media, { kind: "site", path: site })}>
-							<Subtitles size={15} /> Use the site's subtitles
+						<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!media || busy} onClick={() => media && void getSubtitles(media, { kind: "site", path: site })}>
+							<Captions /> Use the site's subtitles
 						</Button>
 					)}
-					<Button disabled={!media || busy} onClick={() => media && void getSubtitles(media, { kind: "cloud", language })}>
-						<Microphone size={15} /> Speech to text (cloud)
+					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!media || busy} onClick={() => media && void getSubtitles(media, { kind: "cloud", language })}>
+						<Mic /> Speech to text (cloud)
 					</Button>
-					<div className="grid grid-cols-2 gap-2">
-						<Button disabled={!total || busy} onClick={() => void translateCues(false)}>
-							<Translate size={15} /> Translate all
+					<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-2">
+						<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!total || busy} onClick={() => void translateCues(false)}>
+							<Languages /> Translate all
 						</Button>
-						<Button disabled={!total || busy || translated === total} onClick={() => void translateCues(true)}>
+						<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!total || busy || translated === total} onClick={() => void translateCues(true)}>
 							Translate missing
 						</Button>
 					</div>

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { create } from "zustand";
 import { DEFAULT_STYLE, type Project } from "@shared/types";
 import { totalDuration } from "@/lib/timeline";
@@ -31,6 +32,8 @@ interface EditorState {
 	playing: boolean;
 	zoom: number; // pixels per second
 	panel: Panel;
+	/** The editor, or the full-page Settings (Orca-style) open at one section. */
+	view: { name: "editor" } | { name: "settings"; section: string };
 	selection: Selection | null;
 	tasks: Record<string, TaskState>;
 	toast: { text: string; tone: "info" | "error" } | null;
@@ -48,6 +51,8 @@ interface EditorState {
 	setPlaying: (playing: boolean) => void;
 	setZoom: (zoom: number) => void;
 	setPanel: (panel: Panel) => void;
+	openSettings: (section?: string) => void;
+	closeSettings: () => void;
 	select: (selection: Selection | null) => void;
 	setTask: (task: TaskState) => void;
 	showToast: (text: string, tone?: "info" | "error") => void;
@@ -70,6 +75,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 	playing: false,
 	zoom: 40,
 	panel: "media",
+	view: { name: "editor" },
 	selection: null,
 	tasks: {},
 	toast: null,
@@ -107,10 +113,14 @@ export const useEditor = create<EditorState>((set, get) => ({
 	setPlaying: (playing) => set({ playing }),
 	setZoom: (zoom) => set({ zoom: Math.max(0.5, Math.min(400, zoom)) }),
 	setPanel: (panel) => set({ panel }),
+	openSettings: (section) => set((s) => ({ playing: false, view: { name: "settings", section: section ?? (s.view.name === "settings" ? s.view.section : "translation") } })),
+	closeSettings: () => set({ view: { name: "editor" } }),
 	select: (selection) => set({ selection }),
 	setTask: (task) => set((s) => ({ tasks: { ...s.tasks, [task.id]: task } })),
 	showToast: (text, tone = "info") => {
 		set({ toast: { text, tone } });
+		if (tone === "error") toast.error(text);
+		else toast.success(text);
 		setTimeout(() => {
 			if (get().toast?.text === text) set({ toast: null });
 		}, tone === "error" ? 7000 : 3500);
