@@ -117,8 +117,10 @@ export async function autoKhmer(language: string): Promise<void> {
 }
 
 export async function exportVideo(quality: ExportQuality): Promise<void> {
+	if (!state().project.clips.length) return state().showToast("The timeline is empty.", "error");
+	// A voice-over made before voices were removed automatically: remove them now, so no original speech is heard.
+	if (voiceCues(state().project).length) await removeVoicesUnlessOff();
 	const { project } = state();
-	if (!project.clips.length) return state().showToast("The timeline is empty.", "error");
 	const outPath = await window.kroma.saveVideoDialog(`${project.name} (${project.aspect.replace(":", "x")})`);
 	if (!outPath) return;
 	const frame = ASPECT_SIZE[project.aspect];
@@ -311,6 +313,18 @@ export async function makeVoiceOver(): Promise<void> {
 	if (!voiced) return;
 	const missed = lines.length - voiced;
 	state().showToast(missed ? `Voiced ${voiced} lines; ${missed} not done. Press again to finish them.` : `Voiced ${voiced} lines.`, missed ? "error" : "info");
+	await removeVoicesUnlessOff();
+}
+
+/**
+ * A voice-over replaces the original speech, so the original voices are removed too (music and effects stay),
+ * unless the creator switched that off. Runs once per video; later it's instant (cached).
+ */
+async function removeVoicesUnlessOff(): Promise<void> {
+	const voice = voiceSettings(state().project);
+	if (!voice.enabled || voice.removeVoices !== undefined) return;
+	const ok = await removeOriginalVoices(voice.separation ?? "fast");
+	if (!ok) state().showToast("The original voices are still in", "error", "Removing them didn't work, so the original sound plays quietly under the voice-over. Try again from Voice → Mix.");
 }
 
 /** The voices the character finder may choose from: the language's instant voices, and the KVS templates for Khmer (not clones of real people). */

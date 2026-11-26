@@ -220,8 +220,14 @@ export function VoicePanel() {
 					<SwitchRow label="Use the voice-over" description="In the preview and the export." checked={voice.enabled} onChange={(v) => setVoice({ enabled: v })} />
 					<SwitchRow
 						label="Remove the original voices"
-						description={removing ? "Removing…" : "Keeps the music and sound effects, drops the Chinese speech. Runs on this Mac: about 40 s per 5 minutes (the first time also downloads the tool)."}
-						checked={Boolean(voice.removeVoices)}
+						description={
+							removing
+								? "Removing…"
+								: voice.removeVoices === undefined
+									? "On: done automatically with the voice-over (or at export). Keeps the music and sound effects, drops the original speech."
+									: "Keeps the music and sound effects, drops the original speech. Runs on this Mac: about 40 s per 5 minutes."
+						}
+						checked={voice.removeVoices !== false}
 						onChange={(on) => {
 							if (!on) return setVoice({ removeVoices: false });
 							const ready = project.clips.every((c) => voice.backgrounds?.[c.mediaId] && voice.separation === quality);
@@ -229,7 +235,7 @@ export function VoicePanel() {
 							else void removeOriginalVoices(quality);
 						}}
 					/>
-					{voice.removeVoices || removing ? (
+					{voice.removeVoices !== false || removing ? (
 						<>
 							<Row
 								label="Quality"
