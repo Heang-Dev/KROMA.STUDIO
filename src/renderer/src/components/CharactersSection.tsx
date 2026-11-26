@@ -1,5 +1,6 @@
 import { Loader2, Plus, Trash2, Users } from "lucide-react";
-import { KHMER_VOICES, KVS_TEMPLATES, type KvsVoice, groupTemplates } from "@shared/types";
+import { languageOf } from "@shared/languages";
+import { KVS_TEMPLATES, type KvsVoice, groupTemplates } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addCharacter, findCharacters, removeCharacter, renameCharacter, setCharacterVoice, voiceSettings } from "@/lib/actions";
@@ -64,6 +65,7 @@ export function CharactersSection({ clones, sample }: { clones: KvsVoice[]; samp
 }
 
 export function VoiceSelect({ value, clones, onChange, label }: { value: string; clones: KvsVoice[]; onChange: (v: string) => void; label: string }) {
+	const lang = languageOf(useEditor((s) => s.project.language));
 	return (
 		<Select value={value} onValueChange={onChange}>
 			<SelectTrigger size="sm" className="h-7 min-w-0 flex-1 text-xs" aria-label={label}>
@@ -91,8 +93,8 @@ export function VoiceSelect({ value, clones, onChange, label }: { value: string;
 					</SelectGroup>
 				)}
 				<SelectGroup>
-					<SelectLabel>Instant</SelectLabel>
-					{KHMER_VOICES.map((v) => (
+					<SelectLabel>Instant · {lang.name}</SelectLabel>
+					{lang.voices.map((v) => (
 						<SelectItem key={v.id} value={v.id}>
 							{v.label}
 						</SelectItem>

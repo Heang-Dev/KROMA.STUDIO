@@ -15,7 +15,7 @@ export function PostPanel() {
 
 	const generate = async () => {
 		const transcript = translated.map((c) => c.text).join("\n");
-		const result = await runTask(`captions-${Date.now()}`, "Write posts", (id) => window.kroma.captions(id, { transcript, title: project.name, context: project.context }));
+		const result = await runTask(`captions-${Date.now()}`, "Write posts", (id) => window.kroma.captions(id, { transcript, title: project.name, context: project.context, language: project.language }));
 		if (result) setPosts(result);
 	};
 

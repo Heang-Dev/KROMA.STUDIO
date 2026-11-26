@@ -35,8 +35,8 @@ export function parseResponse(data: unknown): string {
 	return (data[0] as unknown[]).map((segment) => (Array.isArray(segment) && typeof segment[0] === "string" ? segment[0] : "")).join("");
 }
 
-async function request(text: string, signal?: AbortSignal): Promise<string> {
-	const url = `${ENDPOINT}?client=gtx&sl=auto&tl=km&dt=t&q=${encodeURIComponent(text)}`;
+async function request(text: string, signal: AbortSignal | undefined, target: string): Promise<string> {
+	const url = `${ENDPOINT}?client=gtx&sl=auto&tl=${encodeURIComponent(target)}&dt=t&q=${encodeURIComponent(text)}`;
 	for (let attempt = 0; ; attempt++) {
 		const response = await fetch(url, { signal, headers: { "User-Agent": "Mozilla/5.0" } });
 		if (response.ok) return parseResponse(await response.json());
@@ -46,15 +46,15 @@ async function request(text: string, signal?: AbortSignal): Promise<string> {
 	}
 }
 
-export async function googleTranslate(lines: Line[], onBatch: (done: number, total: number) => void, signal?: AbortSignal): Promise<Record<string, string>> {
+export async function googleTranslate(lines: Line[], onBatch: (done: number, total: number) => void, signal?: AbortSignal, target = "km"): Promise<Record<string, string>> {
 	const result: Record<string, string> = {};
 	const batches = batchLines(lines);
 	for (let i = 0; i < batches.length; i++) {
 		const batch = batches[i];
 		const joined = batch.map((l) => l.text.replace(/\n/g, " ")).join("\n");
-		const parts = (await request(joined, signal)).split("\n").map((t) => t.trim());
+		const parts = (await request(joined, signal, target)).split("\n").map((t) => t.trim());
 		if (parts.length === batch.length) batch.forEach((l, k) => (result[l.id] = parts[k]));
-		else for (const l of batch) result[l.id] = (await request(l.text, signal)).trim();
+		else for (const l of batch) result[l.id] = (await request(l.text, signal, target)).trim();
 		onBatch(i + 1, batches.length);
 		// One request at a time, gently spaced: the free endpoint blocks bursts.
 		if (i < batches.length - 1) await new Promise((r) => setTimeout(r, 400));

@@ -239,9 +239,9 @@ const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "
 	ipcMain.handle("task:transcribe", (_e, taskId: string, path: string, duration: number, language: string) =>
 		task(taskId, (p, s) => transcribe(path, duration, language, loadSettings(), p, s)),
 	);
-	ipcMain.handle("task:translate", (_e, taskId: string, lines: TranslateLine[], notes: string) =>
+	ipcMain.handle("task:translate", (_e, taskId: string, lines: TranslateLine[], notes: string, language?: string) =>
 		task(taskId, async (p, s) => {
-			const translations = await translateToKhmer(lines, notes, loadSettings(), p, s);
+			const translations = await translateToKhmer(lines, notes, loadSettings(), p, s, language);
 			return { translations, fallback: fallbackCount.get(lines) ?? 0 };
 		}),
 	);

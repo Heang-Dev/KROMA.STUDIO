@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { nativeImage } from "electron";
+import { app, nativeImage } from "electron";
 import type { ExportRequest, FitMode } from "@shared/types";
 import { requireTool, run } from "./tools";
 import { buildVoiceTrack } from "./voice";
@@ -53,9 +53,12 @@ export async function exportVideo(
 			const h = even(b.h);
 			const x = Math.max(0, Math.round(b.x));
 			const y = Math.max(0, Math.round(b.y));
-			// boxblur's radius must stay under half the box size.
-			const radius = Math.max(1, Math.min(Math.round(b.blur), Math.floor(Math.min(w, h) / 2) - 1));
-			filters.push(`${videoOut}split=2[ob${i}a][ob${i}b]`, `[ob${i}b]crop=${w}:${h}:${x}:${y},boxblur=${radius}:2[ob${i}c]`, `[ob${i}a][ob${i}c]overlay=${x}:${y}${enable(b)}[ob${i}]`);
+			const { luma, chroma } = blurRadii(b.blur, w, h);
+			filters.push(
+				`${videoOut}split=2[ob${i}a][ob${i}b]`,
+				`[ob${i}b]crop=${w}:${h}:${x}:${y},boxblur=luma_radius=${luma}:luma_power=2:chroma_radius=${chroma}:chroma_power=2[ob${i}c]`,
+				`[ob${i}a][ob${i}c]overlay=${x}:${y}${enable(b)}[ob${i}]`,
+			);
 			videoOut = `[ob${i}]`;
 		});
 		(req.objects?.images ?? []).forEach((img, i) => {
@@ -97,9 +100,8 @@ export async function exportVideo(
 		}
 
 		args.push("-filter_complex", filters.join(";"), "-map", videoOut, "-map", audioOut);
-		const fast = req.quality === "fast" && process.platform === "darwin";
 		args.push(
-			...(fast ? ["-c:v", "h264_videotoolbox", "-b:v", req.height >= 1080 ? "10M" : "6M", "-allow_sw", "1"] : ["-c:v", "libx264", "-preset", "medium", "-crf", "19"]),
+			...videoCodec(req.quality, req.height),
 			"-pix_fmt",
 			"yuv420p",
 			"-r",
@@ -107,22 +109,28 @@ export async function exportVideo(
 			"-c:a",
 			"aac",
 			"-b:a",
-			"192k",
+			req.quality === "high" ? "192k" : "128k",
 			"-movflags",
 			"+faststart",
 			req.outPath,
 		);
 
 		onProgress(0, "Exporting…");
+		const lines: string[] = [];
 		await run(ffmpeg, args, {
 			signal,
 			onLine: (line) => {
+				if (!/^(out_time|frame|fps|stream_|bitrate|total_size|dup_frames|drop_frames|speed|progress)/.test(line)) lines.push(line);
 				const m = line.match(/^out_time_us=(\d+)/);
 				if (m) {
 					const seconds = Number(m[1]) / 1e6;
 					onProgress(Math.min(0.999, seconds / total), `Exporting · ${formatClock(seconds)} / ${formatClock(total)}`);
 				}
 			},
+		}).catch((err: Error) => {
+			// The whole FFmpeg command and log, for finding out why (Settings → About shows where it is).
+			writeFileSync(join(app.getPath("userData"), "last-export-error.log"), [`ffmpeg ${args.map((a) => (/\s|;|\[/.test(a) ? JSON.stringify(a) : a)).join(" ")}`, "", ...lines, "", err.message].join("\n"));
+			throw err;
 		});
 		return req.outPath;
 	} finally {
@@ -180,4 +188,29 @@ function formatClock(seconds: number): string {
 	const h = Math.floor(s / 3600);
 	const m = Math.floor((s % 3600) / 60);
 	return `${h ? `${h}:` : ""}${String(m).padStart(h ? 2 : 1, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/**
+ * Encoder settings per export size (H.264, what every platform takes):
+ * - small: x264 at a capped quality: about 2 Mbit/s at 1080p (~80 MB per 5 min); TikTok and Facebook re-encode anyway
+ * - standard: the Mac's video chip at about 4 Mbit/s (~150 MB per 5 min), fast; YouTube
+ * - high: x264 at near-original quality, often no bigger than standard (it's more efficient), about 3x slower
+ */
+function videoCodec(quality: ExportRequest["quality"], height: number): string[] {
+	const big = height >= 1080;
+	if (quality === "small") return ["-c:v", "libx264", "-preset", "faster", "-crf", "25", "-maxrate", big ? "3M" : "2M", "-bufsize", big ? "6M" : "4M"];
+	if (quality === "high") return ["-c:v", "libx264", "-preset", "medium", "-crf", "19"];
+	if (process.platform === "darwin") return ["-c:v", "h264_videotoolbox", "-b:v", big ? "4M" : "2.5M", "-maxrate", big ? "6M" : "4M", "-allow_sw", "1"];
+	return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-maxrate", big ? "5M" : "3.5M", "-bufsize", big ? "10M" : "7M"];
+}
+
+/**
+ * boxblur's radius must stay under half the box's size, and the colour planes are half size (yuv420p), so their
+ * radius must stay under a quarter of it. A thin box (a subtitle strip) still blurs as much as it can.
+ */
+export function blurRadii(blur: number, w: number, h: number): { luma: number; chroma: number } {
+	const side = Math.min(w, h);
+	const luma = Math.max(1, Math.min(Math.round(blur), Math.ceil(side / 2) - 1));
+	const chroma = Math.max(1, Math.min(luma, Math.ceil(side / 4) - 1));
+	return { luma, chroma };
 }

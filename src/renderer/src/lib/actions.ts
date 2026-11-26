@@ -1,6 +1,7 @@
 import { extractShareTitle } from "@shared/links";
 import { toSrt } from "@shared/srt";
-import { ASPECT_SIZE, type Cue, DEFAULT_VOICE, type ExportRequest, KHMER_VOICES, KVS_TEMPLATES, isKvsVoice, type MediaItem, type Project, type SourceCue, type VoiceCue, type VoiceSettings } from "@shared/types";
+import { languageOf, languageOfVoice } from "@shared/languages";
+import { ASPECT_SIZE, type Cue, type ExportQuality, DEFAULT_VOICE, type ExportRequest, KHMER_VOICES, KVS_TEMPLATES, isKvsVoice, type MediaItem, type Project, type SourceCue, type VoiceCue, type VoiceSettings } from "@shared/types";
 import { newProject, runTask, useEditor } from "@/state/store";
 import { objectsForExport } from "./objects";
 import { ensureFonts, renderBandPng, subtitleBand } from "./subtitleRender";
@@ -91,14 +92,15 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 		state().showToast(onlyMissing ? "Every line is already translated." : "There are no lines to translate yet.", "error");
 		return false;
 	}
-	const answer = await runTask(`translate-${Date.now()}`, "Translate to Khmer", (id) => window.kroma.translate(id, lines, project.context));
+	const lang = languageOf(project.language);
+	const answer = await runTask(`translate-${Date.now()}`, `Translate to ${lang.name}`, (id) => window.kroma.translate(id, lines, project.context, lang.code));
 	if (!answer) return false;
 	const result = answer.translations;
 	state().update((p) => ({ ...p, cues: p.cues.map((c) => (result[c.id] !== undefined ? { ...c, text: result[c.id] } : c)) }));
 	const missed = lines.length - Object.keys(result).length;
 	if (missed) state().showToast(`Translated ${lines.length - missed} of ${lines.length} lines`, "error", `${missed} need another try: press "Translate missing".`);
-	else if (answer.fallback) state().showToast(`Translated ${lines.length} lines to Khmer`, "info", `Gemini was busy, so ${answer.fallback} lines used Google Translate. Press "Translate all" later for Gemini's better wording.`);
-	else state().showToast(`Translated ${lines.length} lines to Khmer.`);
+	else if (answer.fallback) state().showToast(`Translated ${lines.length} lines to ${lang.name}`, "info", `Gemini was busy, so ${answer.fallback} lines used Google Translate. Press "Translate all" later for Gemini's better wording.`);
+	else state().showToast(`Translated ${lines.length} lines to ${lang.name}.`);
 	return true;
 }
 
@@ -114,7 +116,7 @@ export async function autoKhmer(language: string): Promise<void> {
 	if (ok) await translateCues(false);
 }
 
-export async function exportVideo(quality: "fast" | "high"): Promise<void> {
+export async function exportVideo(quality: ExportQuality): Promise<void> {
 	const { project } = state();
 	if (!project.clips.length) return state().showToast("The timeline is empty.", "error");
 	const outPath = await window.kroma.saveVideoDialog(`${project.name} (${project.aspect.replace(":", "x")})`);
@@ -273,7 +275,7 @@ export async function removeOriginalVoices(quality: "fast" | "best"): Promise<bo
 		backgrounds[media.id] = path;
 	}
 	state().update((p) => ({ ...p, voice: { ...voiceSettings(p), removeVoices: true, separation: quality, backgrounds, enabled: true } }));
-	state().showToast("Original voices removed", "info", "The Khmer voice now plays over the music and effects only.");
+	state().showToast("Original voices removed", "info", "The voice-over now plays over the music and effects only.");
 	return true;
 }
 
@@ -281,7 +283,7 @@ export async function makeVoiceOver(): Promise<void> {
 	const { project } = state();
 	const lines = linesNeedingVoice(project);
 	if (!lines.length) {
-		state().showToast(project.cues.some((c) => c.text.trim()) ? "Every line already has a voice." : "Make the Khmer subtitles first.", "error");
+		state().showToast(project.cues.some((c) => c.text.trim()) ? "Every line already has a voice." : `Make the ${languageOf(project.language).name} subtitles first.`, "error");
 		return;
 	}
 	// One run per voice: each character's lines are spoken together, so the voice stays the same.
@@ -311,12 +313,31 @@ export async function makeVoiceOver(): Promise<void> {
 	state().showToast(missed ? `Voiced ${voiced} lines; ${missed} not done. Press again to finish them.` : `Voiced ${voiced} lines.`, missed ? "error" : "info");
 }
 
-/** The voices the character finder may choose from: instant voices and the voice templates (not clones of real people). */
-function castableVoices(): { id: string; label: string; description: string }[] {
+/** The voices the character finder may choose from: the language's instant voices, and the KVS templates for Khmer (not clones of real people). */
+function castableVoices(languageCode?: string): { id: string; label: string; description: string }[] {
+	const lang = languageOf(languageCode);
 	return [
-		...KHMER_VOICES.map((v) => ({ id: v.id, label: v.label, description: `${v.label.includes("female") ? "adult woman" : "adult man"}, plain and quick (instant voice)` })),
-		...KVS_TEMPLATES.map((t) => ({ id: `kvs-design:${t.name}`, label: t.name, description: t.description })),
+		...lang.voices.map((v) => ({ id: v.id, label: v.label, description: `${v.label.includes("female") ? "adult woman" : "adult man"}, plain and quick (instant voice)` })),
+		...(lang.code === "km" ? KVS_TEMPLATES.map((t) => ({ id: `kvs-design:${t.name}`, label: t.name, description: t.description })) : []),
 	];
+}
+
+/**
+ * Switches the language the subtitles are translated into. Instant voices of the old language move to the new
+ * language's voice of the same gender; existing translations stay until "Translate" runs again.
+ */
+export function setLanguage(code: string): void {
+	const lang = languageOf(code);
+	const swap = (voice: string) => {
+		const from = languageOfVoice(voice);
+		if (!from || from.code === lang.code) return voice;
+		const female = from.voices.find((v) => v.id === voice)?.label.includes("female");
+		return (lang.voices.find((v) => v.label.includes("female") === female) ?? lang.voices[0]).id;
+	};
+	updateVoicing((p) => {
+		const voice = voiceSettings(p);
+		return { ...p, language: lang.code, voice: { ...voice, voice: swap(voice.voice), cast: voice.cast?.map((c) => ({ ...c, voice: swap(c.voice) })) } };
+	});
 }
 
 /** Works out who says each line and gives each character a voice. */
@@ -325,8 +346,8 @@ export async function findCharacters(): Promise<void> {
 	const lines = project.cues.filter((c) => (c.source || c.text).trim()).map((c) => ({ id: c.id, text: (c.source || c.text).trim(), start: c.start }));
 	if (!lines.length) return state().showToast("Make the subtitles first.", "error");
 	// Prefer the voice family already in use: designed voices when the default is one, instant ones otherwise.
-	const all = castableVoices();
-	const kvs = isKvsVoice(voiceSettings(project).voice);
+	const all = castableVoices(project.language);
+	const kvs = isKvsVoice(voiceSettings(project).voice) && all.some((v) => isKvsVoice(v.id));
 	const voices = all.filter((v) => isKvsVoice(v.id) === kvs);
 	const result = await runTask(`characters-${Date.now()}`, "Find characters", (id) => window.kroma.findCharacters(id, lines, voices, project.context));
 	if (!result) return;
@@ -403,4 +424,25 @@ export async function restoreAutosave(): Promise<void> {
 	if (saved.path) state().markSaved(saved.path);
 	else useEditor.setState({ dirty: true });
 	state().showToast("Reopened your last project.");
+}
+
+/** How many translated lines contain the text. */
+export function countInLines(project: Project, find: string): number {
+	return find ? project.cues.filter((c) => c.text.includes(find)).length : 0;
+}
+
+/**
+ * Replaces text in every translated line (one undo step). With `remember`, the translator's notes get the fix, so
+ * the next translation writes it right.
+ */
+export function replaceInLines(find: string, replace: string, remember: boolean): number {
+	if (!find) return 0;
+	const count = countInLines(state().project, find);
+	if (!count) return 0;
+	state().update((p) => {
+		const note = `Write "${replace}", never "${find}".`;
+		const context = remember && !p.context.includes(note) ? `${p.context.trim()}\n${note}`.trim() : p.context;
+		return { ...p, context, cues: p.cues.map((c) => (c.text.includes(find) ? { ...c, text: c.text.split(find).join(replace) } : c)) };
+	});
+	return count;
 }

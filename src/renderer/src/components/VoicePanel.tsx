@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileAudio, Loader2, Play, Plus, Square, Trash2, Volume2, Wand2 } from "lucide-react";
-import { KHMER_VOICES, KVS_TEMPLATES, type KvsStatus, type KvsVoice, isKvsVoice } from "@shared/types";
+import { KVS_TEMPLATES, type KvsStatus, type KvsVoice, isKvsVoice } from "@shared/types";
+import { languageOf } from "@shared/languages";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +33,8 @@ function useKvs() {
 export function VoicePanel() {
 	const project = useEditor((s) => s.project);
 	const voice = voiceSettings(project);
+	const lang = languageOf(project.language);
+	const instant = lang.voices;
 	const busy = useBusy("voice");
 	const kvs = useKvs();
 	const player = usePlayer();
@@ -54,7 +57,7 @@ export function VoicePanel() {
 
 	const chooseSource = (next: Source) => {
 		if (next === source) return;
-		if (next === "microsoft") setVoice({ voice: KHMER_VOICES[0].id });
+		if (next === "microsoft") setVoice({ voice: instant[0].id });
 		else if (next === "designed") setVoice({ voice: `kvs-design:${(kvs.status?.presets[0] ?? KVS_TEMPLATES[0]).name}` });
 		else if (next === "cloned" && kvs.voices.some((v) => !v.preset)) setVoice({ voice: `kvs-clone:${kvs.voices.find((v) => !v.preset)!.id}` });
 		else if (next === "cloned") setCloneOpen(true);
@@ -66,8 +69,8 @@ export function VoicePanel() {
 		<>
 			<CharactersSection clones={kvs.voices.filter((v) => !v.preset)} sample={(v) => <PlaySample voice={v} rate={voice.rate} player={player} />} />
 			<Section
-				title={voice.cast?.length ? "Default voice" : "Khmer voice-over"}
-				hint="Reads the Khmer subtitles aloud, timed to each line, over the original sound turned down."
+				title={voice.cast?.length ? "Default voice" : `${lang.name} voice-over`}
+				hint={`Reads the ${lang.name} subtitles aloud, timed to each line, over the original sound turned down.`}
 			>
 				<Segmented<Source>
 					label="Voice type"
@@ -84,7 +87,7 @@ export function VoicePanel() {
 				{source === "microsoft" && (
 					<>
 						<Card className="px-0">
-							{KHMER_VOICES.map((v) => (
+							{instant.map((v) => (
 								<VoiceRow
 									key={v.id}
 									selected={voice.voice === v.id}
@@ -98,12 +101,17 @@ export function VoicePanel() {
 						<Card>
 							<SliderField label="Speed" value={voice.rate} min={-30} max={50} step={5} format={(v) => `${v > 0 ? "+" : ""}${v}%`} onChange={(v) => setVoice({ rate: v })} />
 						</Card>
-						<p className="text-xs text-muted-foreground">Free Microsoft voices: ready in seconds, good for drafts and checking timing.</p>
+						<p className="text-xs text-muted-foreground">Free Microsoft {lang.name} voices: ready in seconds{lang.code === "km" ? ", good for drafts and checking timing" : ""}.</p>
 					</>
 				)}
 
 				{source !== "microsoft" && (
 					<>
+						{lang.code !== "km" && (
+							<p className="rounded-md border border-dashed p-2.5 text-xs leading-relaxed text-muted-foreground">
+								These voices are made for Khmer. For {lang.name}, the Instant voices sound right; a KVS voice may read {lang.name} with a Khmer accent.
+							</p>
+						)}
 						{engineOffline ? (
 							<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs leading-relaxed text-destructive">
 								The KVS voice engine isn't reachable. {kvs.status?.error}
@@ -169,7 +177,7 @@ export function VoicePanel() {
 												onClick={() => {
 													if (!window.confirm(`Delete the voice "${v.name}"?`)) return;
 													void window.kroma.kvsDelete(v.id).then(() => {
-														if (on) setVoice({ voice: KHMER_VOICES[0].id });
+														if (on) setVoice({ voice: instant[0].id });
 														kvs.refresh();
 													});
 												}}
@@ -202,7 +210,7 @@ export function VoicePanel() {
 						{voiced > 0 && <p className="text-xs text-muted-foreground">Changing a voice re-voices only the lines it speaks; editing a subtitle re-voices only that line.</p>}
 					</div>
 				) : (
-					<p className="text-xs text-muted-foreground">Make the Khmer subtitles first.</p>
+					<p className="text-xs text-muted-foreground">Make the {lang.name} subtitles first.</p>
 				)}
 				<TaskProgress prefix="voice" />
 			</Section>

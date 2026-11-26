@@ -1,12 +1,14 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { FileUp, Plus, Search, Trash2 } from "lucide-react";
+import { FileUp, Plus, Replace, Search, Trash2 } from "lucide-react";
 import type { CastMember, Cue } from "@shared/types";
+import { languageOf } from "@shared/languages";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { castColor } from "@/lib/cast";
 import { addCharacter, importSrt, setSpeaker } from "@/lib/actions";
 import { cueAt, formatTime, totalDuration, uid } from "@/lib/timeline";
 import { useLayout } from "@/state/layout";
 import { useEditor } from "@/state/store";
+import { FindReplace } from "./FindReplace";
 import { ResizeHandle } from "./ResizeHandle";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "./common";
@@ -14,11 +16,13 @@ import { IconButton } from "./common";
 export function SubtitleList() {
 	const cues = useEditor((s) => s.project.cues);
 	const cast = useEditor((s) => s.project.voice?.cast);
+	const language = useEditor((s) => s.project.language);
 	const width = useLayout((s) => s.sizes.right);
 	const active = useEditor((s) => cueAt(s.project.cues, s.time));
 	const playing = useEditor((s) => s.playing);
 	const selectedId = useEditor((s) => (s.selection?.kind === "cue" ? s.selection.id : null));
 	const [query, setQuery] = useState("");
+	const [replacing, setReplacing] = useState(false);
 	const listRef = useRef<HTMLDivElement>(null);
 	const translated = cues.filter((c) => c.text.trim()).length;
 
@@ -55,11 +59,14 @@ export function SubtitleList() {
 			<header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
 				<div>
 					<h2 className="text-[13px] font-semibold">Subtitles</h2>
-					<p className="text-[11px] text-muted-foreground">{cues.length ? `${cues.length} lines · ${translated} in Khmer` : "None yet"}</p>
+					<p className="text-[11px] text-muted-foreground">{cues.length ? `${cues.length} lines · ${translated} in ${languageOf(language).name}` : "None yet"}</p>
 				</div>
 				<div className="flex">
 					<IconButton label="Import an .srt file" onClick={() => void importSrt()}>
 						<FileUp className="size-4" />
+					</IconButton>
+					<IconButton label="Find and replace" onClick={() => setReplacing(true)} disabled={!cues.length}>
+						<Replace className="size-4" />
 					</IconButton>
 					<IconButton label="Add a line at the playhead" onClick={addLine}>
 						<Plus className="size-4" />
@@ -78,6 +85,7 @@ export function SubtitleList() {
 				))}
 				{cues.length === 0 && <p className="px-4 py-6 text-xs leading-relaxed text-muted-foreground">Subtitles appear here after "Make Khmer subtitles". You can fix any line by typing in it.</p>}
 			</div>
+			<FindReplace open={replacing} onOpenChange={setReplacing} initial={query} />
 		</aside>
 	);
 }
@@ -117,7 +125,7 @@ const CueRow = memo(function CueRow({ cue, cast, active, selected }: { cue: Cue;
 			<textarea
 				rows={1}
 				value={cue.text}
-				placeholder={cue.source ? "Not translated yet" : "Type the Khmer line"}
+				placeholder={cue.source ? "Not translated yet" : "Type the translated line"}
 				onFocus={focus}
 				onChange={(e) => setText(e.target.value)}
 				className="field-sizing-content w-full resize-none rounded-none border border-transparent bg-transparent px-1.5 py-1 font-khmer text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground hover:border-border focus:border-primary focus:bg-background focus:outline-none"

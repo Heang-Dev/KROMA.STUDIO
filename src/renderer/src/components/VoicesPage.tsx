@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { CircleCheck, Download, Loader2, Mic, MoreHorizontal, Plus, Sparkles, Star, Trash2, Wand2 } from "lucide-react";
-import { KHMER_VOICES, KVS_TEMPLATES, groupTemplates, type KvsStatus, type KvsVoice } from "@shared/types";
+import { KVS_TEMPLATES, groupTemplates, type KvsStatus, type KvsVoice } from "@shared/types";
+import { TARGET_LANGUAGES } from "@shared/languages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -113,18 +114,25 @@ export function VoicesPage() {
 						))}
 					</LibrarySection>
 
-					<LibrarySection icon={<Sparkles className="size-4" />} title="Instant voices" description="Microsoft's free Khmer voices: ready in seconds, good for drafts.">
-						{KHMER_VOICES.map((v) => (
-							<VoiceCard
-								key={v.id}
-								icon={<Sparkles className="size-3.5" />}
-								title={v.label}
-								meta="instant"
-								ready
-								transcript="សួស្តី ខ្ញុំរីករាយណាស់ដែលបានជួបអ្នកនៅថ្ងៃនេះ។ សូមស្ដាប់សំឡេងរបស់ខ្ញុំ ហើយជ្រើសរើសវាសម្រាប់វីដេអូរបស់អ្នក។"
-								player={<WaveformPlayer resolve={() => window.kroma.voiceSample(v.id, 0)} />}
-								onUse={() => use(v.id, v.label)}
-							/>
+					<LibrarySection icon={<Sparkles className="size-4" />} title="Instant voices" description="Microsoft's free voices, ready in seconds. Khmer's are good for drafts; for other languages they're the voice-over.">
+						{TARGET_LANGUAGES.map((lang) => (
+							<Fragment key={lang.code}>
+								<h3 className="col-span-full mt-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase first:mt-0">
+									{lang.name} · {lang.native}
+								</h3>
+								{lang.voices.map((v) => (
+									<VoiceCard
+										key={v.id}
+										icon={<Sparkles className="size-3.5" />}
+										title={v.label}
+										meta={`instant · ${lang.name}`}
+										ready
+										transcript={lang.sample}
+										player={<WaveformPlayer resolve={() => window.kroma.voiceSample(v.id, 0)} />}
+										onUse={() => use(v.id, v.label)}
+									/>
+								))}
+							</Fragment>
 						))}
 					</LibrarySection>
 				</div>

@@ -1,12 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { type TargetLanguage, hasWrongScript, languageOf } from "@shared/languages";
 import type { CaptionRequest, PlatformCaption, Settings } from "@shared/types";
 import { geminiWithFallback as gemini } from "./gemini";
 import { googleTranslate } from "./google-translate";
 import { mapLimit } from "./tools";
 
-// Translation to Khmer and the post writer: Gemini (free tier), Google Translate (free, no key) or Claude (paid, best).
+// Translation (Khmer, or another chosen language) and the post writer: Gemini (free tier), Google Translate (free, no key) or Claude (paid, best).
 
 const BATCH = 60;
 const CONTEXT_LINES = 6;
@@ -16,17 +17,19 @@ function client(settings: Settings): Anthropic {
 	return new Anthropic({ apiKey: settings.anthropicKey, maxRetries: 4 });
 }
 
-const TRANSLATE_SYSTEM = `You translate video subtitles into natural, spoken Khmer (ភាសាខ្មែរ) for Cambodian viewers on YouTube, Facebook and TikTok.
+/** The translator's instructions for a target language. */
+function translateSystem(lang: TargetLanguage): string {
+	return `You translate video subtitles into natural, spoken ${lang.name} (${lang.native}) for ${lang.audience} on YouTube, Facebook and TikTok.
 
 Rules:
-- Translate the meaning the way a Cambodian would say it out loud, not word by word. Keep it short enough to read on screen.
-- Keep each line separate: return exactly one Khmer line for every numbered input line, with the same number.
+- Translate the meaning the way a native speaker would say it out loud, not word by word. Keep it short enough to read on screen.
+- Keep each line separate: return exactly one ${lang.name} line for every numbered input line, with the same number.
 - Use the earlier lines only to understand the scene; do not translate them again.
-- Keep names consistent across the whole video. Write foreign names in Khmer script by sound, unless the notes give a spelling.
-- Use pronouns and politeness that fit who is speaking to whom (e.g. បង/អូន, លោក, ព្រះករុណា for royalty in historical dramas).
-- Write numbers with Khmer or Arabic digits as reads naturally. No quotes, no notes, no romanisation.
+- Keep names consistent across the whole video, unless the notes give a spelling.
+${lang.notes ? `- ${lang.notes}\n` : ""}- No quotes, no notes, no romanisation.
 - If a line is only a sound or music, return an empty string for it.
-- The Khmer is also read aloud as a voice-over. Each line shows how long it's on screen, like [2.1s]: keep the Khmer short enough to say naturally in about that time (roughly 5 Khmer syllables per second). Shorten wordy phrasing, keep the meaning. Never put the [time] in your answer.`;
+- The ${lang.name} is also read aloud as a voice-over. Each line shows how long it's on screen, like [2.1s]: keep it short enough to say naturally in about that time (${lang.pace}). Shorten wordy phrasing, keep the meaning. Never put the [time] in your answer.`;
+}
 
 const TranslationSchema = z.object({
 	lines: z.array(z.object({ n: z.number().int(), km: z.string() })),
@@ -45,10 +48,16 @@ export async function translateToKhmer(
 	settings: Settings,
 	onProgress: (progress: number, message: string) => void,
 	signal?: AbortSignal,
+	/** Target language code (Khmer unless chosen otherwise). */
+	languageCode?: string,
+	/** Set on the second pass that re-translates lines written in the wrong script. */
+	repairing = false,
 ): Promise<Record<string, string>> {
+	const lang = languageOf(languageCode);
+	const TRANSLATE_SYSTEM = translateSystem(lang);
 	if (settings.translateProvider === "google") {
 		onProgress(0, "Translating with Google Translate");
-		return googleTranslate(lines, (done, total) => onProgress(done / total, `Translating with Google Translate · ${done}/${total}`), signal);
+		return googleTranslate(lines, (done, total) => onProgress(done / total, `Translating with Google Translate · ${done}/${total}`), signal, lang.code);
 	}
 
 	const useGemini = settings.translateProvider === "gemini";
@@ -119,7 +128,7 @@ export async function translateToKhmer(
 	if (useGemini && missing.length) {
 		onProgress(-1, `Gemini is busy: translating ${missing.length} lines with Google Translate`);
 		try {
-			Object.assign(result, await googleTranslate(missing, () => undefined, signal));
+			Object.assign(result, await googleTranslate(missing, () => undefined, signal, lang.code));
 			fallbackCount.set(lines, missing.length);
 			return result;
 		} catch {
@@ -127,6 +136,29 @@ export async function translateToKhmer(
 		}
 	}
 	if (failures.length === batches.length) throw new Error(failures[0]);
+	return repairing ? result : repairScript(result, lines, notes, settings, onProgress, signal, lang);
+}
+
+/** Lines that came back with letters of another script (a Thai word in Khmer, Chinese left as is) get one more try. */
+async function repairScript(
+	result: Record<string, string>,
+	lines: TranslateLine[],
+	notes: string,
+	settings: Settings,
+	onProgress: (progress: number, message: string) => void,
+	signal: AbortSignal | undefined,
+	lang: TargetLanguage,
+): Promise<Record<string, string>> {
+	const wrong = lines.filter((l) => result[l.id] && hasWrongScript(result[l.id], lang.code));
+	if (!wrong.length) return result;
+	onProgress(-1, `Fixing ${wrong.length} line${wrong.length === 1 ? "" : "s"} that mixed in another script`);
+	const note = `${notes}\nThese lines must be written only in ${lang.name} script: an earlier answer mixed in letters of another language.`.trim();
+	try {
+		const again = await translateToKhmer(wrong, note, settings, () => undefined, signal, lang.code, true);
+		for (const l of wrong) if (again[l.id] && !hasWrongScript(again[l.id], lang.code)) result[l.id] = again[l.id];
+	} catch {
+		// keep the first answer; the line can be fixed by hand
+	}
 	return result;
 }
 
@@ -150,12 +182,12 @@ const CaptionSchema = z.object({
 	),
 });
 
-const CAPTION_SYSTEM =
-	"You write social media posts in Khmer for a Cambodian creator who shares videos with Khmer subtitles. " +
+const captionSystem = (lang: TargetLanguage) =>
+	`You write social media posts in ${lang.name} for a creator who shares videos with ${lang.name} subtitles with ${lang.audience}. ` +
 	"Write one post each for YouTube, Facebook and TikTok, in the style that works on that platform: " +
 	"YouTube gets a searchable title (under 90 characters) and a description of 2-3 short paragraphs; " +
 	"Facebook gets a warm, curiosity-building post; TikTok gets a very short hook. " +
-	"Do not invent facts that aren't in the video. Hashtags: 5-10, mixing Khmer and English, without the # sign.";
+	`Do not invent facts that aren't in the video. Hashtags: 5-10, mixing ${lang.name}${lang.code === "en" ? "" : " and English"}, without the # sign.`;
 
 const GEMINI_CAPTION_SCHEMA = {
 	type: "OBJECT",
@@ -175,7 +207,9 @@ const GEMINI_CAPTION_SCHEMA = {
 /** Posts come from Claude when chosen, otherwise from Gemini (Google Translate can't write posts). */
 export async function writeCaptions(request: CaptionRequest, settings: Settings, signal?: AbortSignal): Promise<PlatformCaption[]> {
 	const transcript = request.transcript.length > 60_000 ? `${request.transcript.slice(0, 60_000)}\n…` : request.transcript;
-	const prompt = `Video title: ${request.title || "(unknown)"}\n${request.context ? `Notes: ${request.context}\n` : ""}\nKhmer subtitles of the video:\n${transcript}`;
+	const lang = languageOf(request.language);
+	const CAPTION_SYSTEM = captionSystem(lang);
+	const prompt = `Video title: ${request.title || "(unknown)"}\n${request.context ? `Notes: ${request.context}\n` : ""}\n${lang.name} subtitles of the video:\n${transcript}`;
 	const tidy = (posts: PlatformCaption[]) => posts.map((p) => ({ ...p, hashtags: p.hashtags.map((h) => h.replace(/^#/, "")) }));
 
 	const useClaude = settings.translateProvider === "claude" ? Boolean(settings.anthropicKey) : !settings.geminiKey && Boolean(settings.anthropicKey);

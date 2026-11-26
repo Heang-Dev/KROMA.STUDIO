@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Film, Library, Shapes, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
+import { ChevronDown, Film, Library, Minimize2, Shapes, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
 import { AIPanel } from "./components/AIPanel";
 import { AppToaster } from "./components/AppToaster";
 import { MediaPanel } from "./components/MediaPanel";
@@ -13,6 +13,7 @@ import { SubtitleList } from "./components/SubtitleList";
 import { Timeline, deleteSelection, splitAtPlayhead } from "./components/Timeline";
 import { VoicePanel } from "./components/VoicePanel";
 import { VoicesPage } from "./components/VoicesPage";
+import { ExportMenu, StepBar } from "./components/StepBar";
 import { IconButton, ProgressBar, latestTask } from "./components/common";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { Button } from "./components/ui/button";
@@ -26,12 +27,14 @@ import { applyAppearance } from "./lib/appearance";
 import { objectsForExport } from "./lib/objects";
 import { ensureFonts, renderBandPng, subtitleBand } from "./lib/subtitleRender";
 import { cn } from "./lib/utils";
+import { totalDuration } from "./lib/timeline";
+import { ASPECT_SIZE, type ExportQuality, estimateSize } from "@shared/types";
 import { useLayout } from "./state/layout";
 import { type Panel, subscribeProgress, useEditor } from "./state/store";
 
 const PANELS: { id: Panel; label: string; icon: ReactNode }[] = [
 	{ id: "media", label: "Media", icon: <Film /> },
-	{ id: "ai", label: "Khmer", icon: <Zap /> },
+	{ id: "ai", label: "Translate", icon: <Zap /> },
 	{ id: "voice", label: "Voice", icon: <Volume2 /> },
 	{ id: "style", label: "Style", icon: <Paintbrush /> },
 	{ id: "objects", label: "Objects", icon: <Shapes /> },
@@ -106,6 +109,7 @@ export function App() {
 					<SettingsPage />
 				) : (
 					<>
+						{view !== "voices" && <StepBar />}
 						<div className="flex min-h-0 flex-1">
 							<Rail panel={view === "voices" ? null : panel} voices={view === "voices"} />
 							{view === "voices" ? (
@@ -233,29 +237,11 @@ function TopBar() {
 						Cancel export
 					</Button>
 				) : (
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button size="sm" disabled={!hasClips}>
-								<Upload /> Export {aspect} <ChevronDown className="opacity-60" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-64">
-							<DropdownMenuItem onClick={() => void exportVideo("fast")} className="items-start">
-								<Zap className="mt-0.5" />
-								<span>
-									<span className="block">Fast</span>
-									<span className="block text-xs text-muted-foreground">Uses the Mac's video chip. Best for most posts.</span>
-								</span>
-							</DropdownMenuItem>
-							<DropdownMenuItem onClick={() => void exportVideo("high")} className="items-start">
-								<Sparkles className="mt-0.5" />
-								<span>
-									<span className="block">High quality</span>
-									<span className="block text-xs text-muted-foreground">Smaller file, sharper. Takes longer.</span>
-								</span>
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+					<ExportMenu>
+						<Button size="sm" disabled={!hasClips}>
+							<Upload /> Export {aspect} <ChevronDown className="opacity-60" />
+						</Button>
+					</ExportMenu>
 				)}
 			</div>
 		</header>

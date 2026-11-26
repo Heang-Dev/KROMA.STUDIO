@@ -28,8 +28,8 @@ const api = {
 	download: (taskId: string, url: string): Promise<DownloadResult> => ipcRenderer.invoke("task:download", taskId, url),
 	transcribe: (taskId: string, path: string, duration: number, language: string): Promise<{ cues: SourceCue[]; note?: string }> =>
 		ipcRenderer.invoke("task:transcribe", taskId, path, duration, language),
-	translate: (taskId: string, lines: { id: string; text: string; seconds?: number }[], notes: string): Promise<{ translations: Record<string, string>; fallback: number }> =>
-		ipcRenderer.invoke("task:translate", taskId, lines, notes),
+	translate: (taskId: string, lines: { id: string; text: string; seconds?: number }[], notes: string, language?: string): Promise<{ translations: Record<string, string>; fallback: number }> =>
+		ipcRenderer.invoke("task:translate", taskId, lines, notes, language),
 	captions: (taskId: string, req: CaptionRequest): Promise<PlatformCaption[]> => ipcRenderer.invoke("task:captions", taskId, req),
 	exportVideo: (taskId: string, req: ExportRequest): Promise<string> => ipcRenderer.invoke("task:export", taskId, req),
 	findCharacters: (

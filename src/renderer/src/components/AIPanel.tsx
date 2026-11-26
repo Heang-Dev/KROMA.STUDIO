@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Captions, Languages, Mic, Settings, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { autoKhmer, getSubtitles, mainMedia, preferredSiteSubtitle, translateCues } from "@/lib/actions";
+import { TARGET_LANGUAGES, languageOf } from "@shared/languages";
+import { autoKhmer, getSubtitles, setLanguage as setTargetLanguage, mainMedia, preferredSiteSubtitle, translateCues } from "@/lib/actions";
 import { useEditor } from "@/state/store";
 import { AppSelect, ProgressBar, Section, TaskProgress, useBusy } from "./common";
 
@@ -28,24 +29,31 @@ export function AIPanel() {
 	const site = media ? preferredSiteSubtitle(media) : null;
 	const total = project.cues.length;
 	const translated = project.cues.filter((c) => c.text.trim()).length;
+	const target = languageOf(project.language);
 
 	return (
 		<>
 			<Section
-				title="Auto Khmer subtitles"
-				hint="Gets the Chinese lines (from the site, or cloud speech-to-text), then translates them to Khmer (Gemini, Google Translate or Claude, set in Settings). Long movies take a minute or two."
+				title={`Auto ${target.name} subtitles`}
+				hint={`Gets the original lines (from the site, or cloud speech-to-text), then translates them to ${target.name} (Gemini, Google Translate or Claude, set in Settings). Long movies take a minute or two.`}
 				action={
 					<Button variant="ghost" size="icon-xs" aria-label="API keys and models" onClick={() => useEditor.getState().openSettings("translation")}>
 						<Settings />
 					</Button>
 				}
 			>
-				<div className="space-y-1.5">
-					<p className="text-xs text-muted-foreground">Spoken language</p>
-					<AppSelect label="Spoken language" value={language} options={LANGUAGES} onChange={setLanguage} />
+				<div className="grid grid-cols-1 gap-2 @[19rem]:grid-cols-2">
+					<div className="space-y-1.5">
+						<p className="text-xs text-muted-foreground">Spoken language</p>
+						<AppSelect label="Spoken language" value={language} options={LANGUAGES} onChange={setLanguage} />
+					</div>
+					<div className="space-y-1.5">
+						<p className="text-xs text-muted-foreground">Translate to</p>
+						<AppSelect label="Translate to" value={target.code} options={TARGET_LANGUAGES.map((l) => ({ value: l.code, label: l.code === l.native ? l.name : `${l.name} · ${l.native}` }))} onChange={setTargetLanguage} />
+					</div>
 				</div>
 				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!media || busy} onClick={() => void autoKhmer(language)}>
-					<Zap /> Make Khmer subtitles
+					<Zap /> Make {target.name} subtitles
 				</Button>
 				{!media && <p className="text-xs text-muted-foreground">Add a video to the timeline first.</p>}
 				{media && site && <p className="text-xs text-muted-foreground">This video has the site's own Chinese subtitles, so speech-to-text is skipped.</p>}

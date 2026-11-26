@@ -71,6 +71,8 @@ export interface Project {
 	voice?: VoiceSettings;
 	/** Things on top of the video: blur boxes (to hide burned-in subtitles), logos, text. */
 	objects?: VideoObject[];
+	/** The language the subtitles are translated into (see shared/languages). Khmer when missing. */
+	language?: string;
 }
 
 /**
@@ -286,6 +288,8 @@ export interface CaptionRequest {
 	transcript: string;
 	title: string;
 	context: string;
+	/** The subtitles' language (Khmer when missing). */
+	language?: string;
 }
 
 export interface PlatformCaption {
@@ -307,7 +311,7 @@ export interface ExportRequest {
 	/** Height and top of the subtitle band in output pixels. */
 	bandTop: number;
 	bandHeight: number;
-	quality: "fast" | "high";
+	quality: ExportQuality;
 	/** Blur boxes and images (text objects arrive as PNG images drawn by the editor), in output pixels. */
 	objects?: {
 		blurs: { x: number; y: number; w: number; h: number; blur: number; start?: number; end?: number }[];
@@ -387,4 +391,21 @@ export function groupTemplates<T extends { name: string }>(templates: T[]): { ti
 	const named = new Set(VOICE_GROUPS.flatMap((g) => g.names));
 	const rest = templates.filter((t) => !named.has(t.name));
 	return [...groups, { title: "More", items: rest }].filter((g) => g.items.length);
+}
+
+/** Export sizes. "fast" is the old name of "standard". */
+export type ExportQuality = "small" | "standard" | "high" | "fast";
+
+/** Rough average bitrates (video + sound, Mbit/s) per size and output height, for the size shown before exporting. */
+export function exportMbps(quality: ExportQuality, height: number): number {
+	const big = height >= 1080;
+	if (quality === "small") return big ? 2 : 1.3;
+	if (quality === "high") return big ? 4.5 : 3; // x264 at near-original quality: varies most with the video
+	return big ? 4.2 : 2.7;
+}
+
+/** "about 75 MB" for a video of this length. */
+export function estimateSize(quality: ExportQuality, height: number, seconds: number): string {
+	const mb = (exportMbps(quality, height) * seconds) / 8;
+	return mb >= 1000 ? `about ${(mb / 1000).toFixed(1)} GB` : `about ${Math.max(1, Math.round(mb / 5) * 5)} MB`;
 }

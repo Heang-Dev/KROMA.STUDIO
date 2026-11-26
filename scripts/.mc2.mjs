@@ -1,0 +1,21 @@
+// The hamburger project (from autosave) → find characters → a voice each → remove voices → export.
+import { readFileSync } from "node:fs";
+import { _electron as electron } from "playwright";
+const saved = JSON.parse(readFileSync(process.env.HOME + "/Library/Application Support/Kroma Studio/autosave.json", "utf8"));
+const project = saved.project ?? saved;
+const app = await electron.launch({ executablePath: process.env.KROMA_APP, args: [], env: { ...process.env, KROMA_E2E: "1" } });
+const page = await app.firstWindow();
+await page.waitForFunction(() => window.__kroma, null, { timeout: 15000 });
+const t0 = Date.now();
+const step = async (name, fn, arg) => { const t = Date.now(); const r = await page.evaluate(fn, arg); console.log(`✔ ${name} (${((Date.now() - t) / 1000).toFixed(0)} s) ${JSON.stringify(r)}`); return r; };
+const report = () => page.evaluate(() => ({ errors: Object.values(window.__kroma.useEditor.getState().tasks).filter((t) => t.status === "error").map((t) => t.error) }));
+await step("load", (p) => { const s = window.__kroma.useEditor.getState(); s.closeSettings(); s.load({ ...p, name: "Is hamburger really junk food (Khmer, 2 voices)" }, null); return { cues: p.cues.length, aspect: p.aspect }; }, project);
+await step("find characters", async () => { const k = window.__kroma; await k.actions.findCharacters(); const v = k.useEditor.getState().project.voice; return v.cast.map((c) => `${c.name} → ${c.voice}`); });
+console.log("  ", JSON.stringify(await report()));
+await step("voice-over (per character)", async () => { const k = window.__kroma; k.actions.setVoice({ enabled: true }); await k.actions.makeVoiceOver(); const p = k.useEditor.getState().project; return { voiced: k.actions.voiceCues(p).length, of: p.cues.filter((c) => c.text.trim()).length }; });
+console.log("  ", JSON.stringify(await report()));
+await step("voice timing", async () => { const k = window.__kroma; const cues = k.actions.voiceCues(k.useEditor.getState().project); const plan = k.planVoice(cues); return { lines: plan.length, spedUp: plan.filter((p) => p.tempo > 1.01).length, maxTempo: Number(Math.max(...plan.map((p) => p.tempo)).toFixed(2)), maxLag: Number(Math.max(...plan.map((p, i) => p.start - cues[i].start)).toFixed(2)) }; });
+await step("remove original voices", async () => ({ ok: await window.__kroma.actions.removeOriginalVoices("fast") }));
+await step("export", async () => { const k = window.__kroma; await k.actions.exportVideo("standard"); return { notice: k.useEditor.getState().toast?.text, detail: k.useEditor.getState().toast?.detail }; });
+console.log(`total ${((Date.now() - t0) / 60000).toFixed(1)} min`, JSON.stringify(await report()));
+await app.close();

@@ -9,7 +9,8 @@ const MAX_WIDTH = 0.88;
 
 const segmenters = new Map<string, Intl.Segmenter>();
 function segmenter(text: string): Intl.Segmenter {
-	const locale = /[ក-៿]/.test(text) ? "km" : /[㐀-鿿]/.test(text) ? "zh" : "en";
+	// Khmer, Thai and Lao have no spaces between words, so the segmenter finds where a line may break.
+	const locale = /[ក-៿]/.test(text) ? "km" : /[฀-๿]/.test(text) ? "th" : /[຀-໿]/.test(text) ? "lo" : /[㐀-鿿]/.test(text) ? "zh" : "en";
 	let s = segmenters.get(locale);
 	if (!s) {
 		s = new Intl.Segmenter(locale, { granularity: "word" });
