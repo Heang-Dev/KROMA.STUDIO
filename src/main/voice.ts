@@ -43,7 +43,15 @@ export async function synthesizeLines(
 							worker.tts = new MsEdgeTTS();
 							await worker.tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
 						}
-						writeFileSync(path, await speak(worker.tts, line.text, rate));
+						// The free service sometimes drops a stream mid-sentence: reconnect and try once more.
+						try {
+							writeFileSync(path, await speak(worker.tts, line.text, rate));
+						} catch {
+							worker.tts.close();
+							worker.tts = new MsEdgeTTS();
+							await worker.tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+							writeFileSync(path, await speak(worker.tts, line.text, rate));
+						}
 					}
 					result[line.id] = { path, duration: (statSync(path).size * 8) / BITRATE, text: line.text };
 				} catch (err) {
@@ -61,6 +69,16 @@ export async function synthesizeLines(
 	if (signal?.aborted) throw new Error("Cancelled");
 	if (failed === lines.length) throw new Error(`The voice service didn't answer: ${lastError}`);
 	return result;
+}
+
+const INSTANT_SAMPLE = "សួស្តី ខ្ញុំរីករាយណាស់ដែលបានជួបអ្នកនៅថ្ងៃនេះ។ សូមស្ដាប់សំឡេងរបស់ខ្ញុំ ហើយជ្រើសរើសវាសម្រាប់វីដេអូរបស់អ្នក។";
+
+/** A short Khmer sample of an Instant voice at the given speed (cached like any voiced line). */
+export async function instantSample(voice: string, rate: number): Promise<string> {
+	const result = await synthesizeLines([{ id: "sample", text: INSTANT_SAMPLE }], voice, rate, () => undefined);
+	const line = result.sample;
+	if (!line) throw new Error("The voice service didn't answer. Check your internet and try again.");
+	return line.path;
 }
 
 async function speak(tts: MsEdgeTTS, text: string, rate: number): Promise<Buffer> {

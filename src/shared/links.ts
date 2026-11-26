@@ -6,6 +6,25 @@ export function extractLink(text: string): string | null {
 	return match ? match[0] : null;
 }
 
+/**
+ * The title inside a pasted share message, when there is one:
+ * "【Is hamburger really junk food?】 https://…" (Bilibili), "《…》", "「…」", or plain words before the link.
+ * App boilerplate ("复制打开抖音，看看") and trailing share counters are dropped.
+ */
+export function extractShareTitle(text: string): string | null {
+	const link = extractLink(text);
+	const bracketed = text.match(/[【《「『]([^】》」』]{2,200})[】》」』]/);
+	if (bracketed) return tidyTitle(bracketed[1]);
+	if (!link) return null;
+	const before = text.slice(0, text.indexOf(link));
+	return tidyTitle(before.replace(/^\s*[\d.]+\s*/, "").replace(/复制(打开|此链接).*?[，,]?\s*(看看)?/g, ""));
+}
+
+function tidyTitle(title: string): string | null {
+	const t = title.replace(/\s+/g, " ").replace(/[\s#@]+$/, "").trim();
+	return t.length >= 2 ? t.slice(0, 120) : null;
+}
+
 // Query parameters that only track who shared the link; they never change which video it is.
 const TRACKING = /^(share_|spm_|vd_source|from_|utm_|is_story_h5|mid$|plat_id|timestamp|unique_k|up_id|buvid|session_id|bbid|ts$|si$|feature$|pp$|t$)/;
 

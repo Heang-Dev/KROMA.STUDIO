@@ -1,6 +1,8 @@
+import { extractShareTitle } from "@shared/links";
 import { toSrt } from "@shared/srt";
-import { ASPECT_SIZE, DEFAULT_VOICE, type ExportRequest, type MediaItem, type Project, type SourceCue, type VoiceCue, type VoiceSettings } from "@shared/types";
+import { ASPECT_SIZE, type Cue, DEFAULT_VOICE, type ExportRequest, KHMER_VOICES, KVS_TEMPLATES, isKvsVoice, type MediaItem, type Project, type SourceCue, type VoiceCue, type VoiceSettings } from "@shared/types";
 import { newProject, runTask, useEditor } from "@/state/store";
+import { objectsForExport } from "./objects";
 import { ensureFonts, renderBandPng, subtitleBand } from "./subtitleRender";
 import { placeClips, placeSourceCues, totalDuration, uid } from "./timeline";
 
@@ -33,7 +35,12 @@ export async function importFiles(): Promise<void> {
 export async function downloadFromLink(url: string): Promise<MediaItem | null> {
 	const result = await runTask(`download-${Date.now()}`, "Download", (id) => window.kroma.download(id, url.trim()));
 	if (!result) return null;
+	// The title from a pasted share message ("【…】 https://…") wins; otherwise the site's own title.
+	const title = extractShareTitle(url) ?? result.title;
+	result.media.name = title;
+	const firstVideo = state().project.clips.length === 0;
 	addMedia([result.media]);
+	if (firstVideo) state().update((p) => ({ ...p, name: title.slice(0, 80) }));
 	const subs = Object.keys(result.media.siteSubtitles ?? {});
 	state().showToast(subs.length ? `Downloaded, with the site's subtitles (${subs.join(", ")}).` : "Downloaded.");
 	return result.media;
@@ -147,6 +154,7 @@ export async function exportVideo(quality: "fast" | "high"): Promise<void> {
 			bandTop: band.top,
 			bandHeight: band.height,
 			quality,
+			objects: await objectsForExport(project, frame),
 			voice: voiceLines.length ? { lines: voiceLines, originalVolume: replacing ? (voice.backgroundVolume ?? 1) : voice.originalVolume } : undefined,
 		});
 	});
@@ -194,17 +202,34 @@ export async function openProject(): Promise<void> {
 
 export const voiceSettings = (project: Project): VoiceSettings => project.voice ?? DEFAULT_VOICE;
 
+/** The voice that speaks a line: its character's, or the project's default voice. */
+export function voiceOf(project: Project, cue: Cue): string {
+	const voice = voiceSettings(project);
+	return (cue.speaker && voice.cast?.find((c) => c.name === cue.speaker)?.voice) || voice.voice;
+}
+
+/** What a recording depends on besides the text: the voice, and the speed for instant voices. */
+export function voiceKey(project: Project, cue: Cue): string {
+	const v = voiceOf(project, cue);
+	return isKvsVoice(v) ? v : `${v}@${voiceSettings(project).rate}`;
+}
+
+/** A recording is current when its text and voice still match the line (older recordings have no voice: they match). */
+const isCurrent = (project: Project, cue: Cue): boolean => {
+	const line = voiceSettings(project).lines[cue.id];
+	return Boolean(line && cue.text.trim() && line.text === cue.text.trim() && (line.voice === undefined || line.voice === voiceKey(project, cue)));
+};
+
 /** Lines whose Khmer text has no up-to-date voice recording. */
 export function linesNeedingVoice(project: Project): { id: string; text: string }[] {
-	const voice = voiceSettings(project);
-	return project.cues.filter((c) => c.text.trim() && voice.lines[c.id]?.text !== c.text.trim()).map((c) => ({ id: c.id, text: c.text.trim() }));
+	return project.cues.filter((c) => c.text.trim() && !isCurrent(project, c)).map((c) => ({ id: c.id, text: c.text.trim() }));
 }
 
 /** The voice lines to play or export, each allowed to run until the next line starts. */
 export function voiceCues(project: Project): VoiceCue[] {
 	const voice = voiceSettings(project);
 	const total = totalDuration(project.clips);
-	const spoken = project.cues.filter((c) => voice.lines[c.id]?.text === c.text.trim() && c.text.trim());
+	const spoken = project.cues.filter((c) => isCurrent(project, c));
 	return spoken.map((c, i) => ({
 		id: c.id,
 		start: c.start,
@@ -214,13 +239,23 @@ export function voiceCues(project: Project): VoiceCue[] {
 	}));
 }
 
+/** Recordings without a voice key were made with the voice the line has now; stamp them so a change re-voices only the lines it affects. */
+function stamped(p: Project): Project {
+	const current = voiceSettings(p);
+	const lines = Object.fromEntries(
+		Object.entries(current.lines).map(([id, line]) => {
+			const cue = p.cues.find((c) => c.id === id);
+			return [id, line.voice || !cue ? line : { ...line, voice: voiceKey(p, cue) }];
+		}),
+	);
+	return { ...p, voice: { ...current, lines } };
+}
+
+/** Changes anything that decides which voice speaks a line (voices, cast, speakers). */
+const updateVoicing = (fn: (p: Project) => Project) => state().update((p) => fn(stamped(p)));
+
 export function setVoice(patch: Partial<VoiceSettings>): void {
-	state().update((p) => {
-		const current = voiceSettings(p);
-		// A different voice or speed means every line must be spoken again.
-		const reset = (patch.voice !== undefined && patch.voice !== current.voice) || (patch.rate !== undefined && patch.rate !== current.rate);
-		return { ...p, voice: { ...current, ...patch, lines: reset ? {} : (patch.lines ?? current.lines) } };
-	});
+	updateVoicing((p) => ({ ...p, voice: { ...voiceSettings(p), ...patch } }));
 }
 
 /** Makes the voice-free background (music and effects) of every video on the timeline, then switches it on. */
@@ -249,15 +284,96 @@ export async function makeVoiceOver(): Promise<void> {
 		state().showToast(project.cues.some((c) => c.text.trim()) ? "Every line already has a voice." : "Make the Khmer subtitles first.", "error");
 		return;
 	}
+	// One run per voice: each character's lines are spoken together, so the voice stays the same.
+	const groups = new Map<string, { id: string; text: string }[]>();
+	for (const line of lines) {
+		const v = voiceOf(project, project.cues.find((c) => c.id === line.id)!);
+		groups.set(v, [...(groups.get(v) ?? []), line]);
+	}
 	const voice = voiceSettings(project);
-	const result = await runTask(`voice-${Date.now()}`, "Voice-over", (id) => window.kroma.voiceOver(id, lines, voice.voice, voice.rate));
+	let voiced = 0;
+	let k = 0;
+	for (const [v, group] of groups) {
+		k += 1;
+		const who = voice.cast?.filter((c) => c.voice === v).map((c) => c.name).join(", ");
+		const label = groups.size > 1 ? `Voice-over ${k}/${groups.size}${who ? `: ${who}` : ""}` : "Voice-over";
+		const result = await runTask(`voice-${Date.now()}`, label, (id) => window.kroma.voiceOver(id, group, v, voice.rate));
+		if (!result) break;
+		voiced += Object.keys(result).length;
+		state().update((p) => {
+			const current = voiceSettings(p);
+			const stamped = Object.fromEntries(Object.entries(result).map(([id, line]) => [id, { ...line, voice: voiceKey(p, p.cues.find((c) => c.id === id)!) }]));
+			return { ...p, voice: { ...current, enabled: true, lines: { ...current.lines, ...stamped } } };
+		});
+	}
+	if (!voiced) return;
+	const missed = lines.length - voiced;
+	state().showToast(missed ? `Voiced ${voiced} lines; ${missed} not done. Press again to finish them.` : `Voiced ${voiced} lines.`, missed ? "error" : "info");
+}
+
+/** The voices the character finder may choose from: instant voices and the voice templates (not clones of real people). */
+function castableVoices(): { id: string; label: string; description: string }[] {
+	return [
+		...KHMER_VOICES.map((v) => ({ id: v.id, label: v.label, description: `${v.label.includes("female") ? "adult woman" : "adult man"}, plain and quick (instant voice)` })),
+		...KVS_TEMPLATES.map((t) => ({ id: `kvs-design:${t.name}`, label: t.name, description: t.description })),
+	];
+}
+
+/** Works out who says each line and gives each character a voice. */
+export async function findCharacters(): Promise<void> {
+	const { project } = state();
+	const lines = project.cues.filter((c) => (c.source || c.text).trim()).map((c) => ({ id: c.id, text: (c.source || c.text).trim(), start: c.start }));
+	if (!lines.length) return state().showToast("Make the subtitles first.", "error");
+	// Prefer the voice family already in use: designed voices when the default is one, instant ones otherwise.
+	const all = castableVoices();
+	const kvs = isKvsVoice(voiceSettings(project).voice);
+	const voices = all.filter((v) => isKvsVoice(v.id) === kvs);
+	const result = await runTask(`characters-${Date.now()}`, "Find characters", (id) => window.kroma.findCharacters(id, lines, voices, project.context));
 	if (!result) return;
-	state().update((p) => {
+	updateVoicing((p) => {
 		const current = voiceSettings(p);
-		return { ...p, voice: { ...current, enabled: true, lines: { ...current.lines, ...result } } };
+		// Keep voices the creator already chose for characters with the same name.
+		const cast = result.characters.map((c) => ({ ...c, voice: current.cast?.find((x) => x.name === c.name)?.voice ?? c.voice }));
+		return { ...p, cues: p.cues.map((c) => ({ ...c, speaker: result.speakers[c.id] ?? c.speaker })), voice: { ...current, cast } };
 	});
-	const missed = lines.length - Object.keys(result).length;
-	state().showToast(missed ? `Voiced ${lines.length - missed} lines; ${missed} failed. Press again to retry them.` : `Voiced ${lines.length} lines.`, missed ? "error" : "info");
+	state().showToast(`Found ${result.characters.length} character${result.characters.length === 1 ? "" : "s"}`, "info", "Each has a voice. Change any voice in the list, or who says a line in the subtitles.");
+}
+
+export function setCharacterVoice(name: string, voice: string): void {
+	setVoice({ cast: (voiceSettings(state().project).cast ?? []).map((c) => (c.name === name ? { ...c, voice } : c)) });
+}
+
+export function renameCharacter(from: string, to: string): void {
+	const name = to.trim();
+	if (!name || name === from) return;
+	updateVoicing((p) => {
+		const current = voiceSettings(p);
+		const exists = current.cast?.some((c) => c.name === name);
+		const cast = exists ? current.cast!.filter((c) => c.name !== from) : current.cast!.map((c) => (c.name === from ? { ...c, name } : c));
+		return { ...p, cues: p.cues.map((c) => (c.speaker === from ? { ...c, speaker: name } : c)), voice: { ...current, cast } };
+	});
+}
+
+/** Removes a character; their lines go back to the default voice. */
+export function removeCharacter(name: string): void {
+	updateVoicing((p) => {
+		const current = voiceSettings(p);
+		return { ...p, cues: p.cues.map((c) => (c.speaker === name ? { ...c, speaker: undefined } : c)), voice: { ...current, cast: current.cast?.filter((c) => c.name !== name) } };
+	});
+}
+
+export function addCharacter(): string {
+	const current = voiceSettings(state().project);
+	const cast = current.cast ?? [];
+	let n = cast.length + 1;
+	while (cast.some((c) => c.name === `Character ${n}`)) n += 1;
+	const name = `Character ${n}`;
+	setVoice({ cast: [...cast, { name, voice: current.voice }] });
+	return name;
+}
+
+export function setSpeaker(cueId: string, speaker: string | undefined): void {
+	updateVoicing((p) => ({ ...p, cues: p.cues.map((c) => (c.id === cueId ? { ...c, speaker } : c)) }));
 }
 
 export function startNewProject(): void {

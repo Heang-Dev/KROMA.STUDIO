@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { downloadErrorMessage, extractLink, normalizeLink } from "./links";
+import { downloadErrorMessage, extractLink, extractShareTitle, normalizeLink } from "./links";
 
 describe("normalizeLink", () => {
 	it("drops Bilibili's language path and share tracking", () => {
@@ -28,5 +28,20 @@ describe("downloadErrorMessage", () => {
 	});
 	it("explains encryption", () => {
 		expect(downloadErrorMessage("ERROR: This video is DRM protected")).toMatch(/protected/);
+	});
+});
+
+describe("extractShareTitle", () => {
+	it("reads Bilibili's bracketed title", () => {
+		expect(extractShareTitle("【Is hamburger really junk food?】 https://www.bilibili.com/en/video/BV19EsE6uETv/?share_source=copy_web")).toBe("Is hamburger really junk food?");
+	});
+	it("reads a Chinese bracketed title", () => {
+		expect(extractShareTitle("【汉堡真的是垃圾食品吗？】 https://b23.tv/abc")).toBe("汉堡真的是垃圾食品吗？");
+	});
+	it("uses the words before a link", () => {
+		expect(extractShareTitle("My favourite drama ep 3 https://youtu.be/x")).toBe("My favourite drama ep 3");
+	});
+	it("has no title for a bare link", () => {
+		expect(extractShareTitle("https://www.bilibili.com/video/BV19EsE6uETv/")).toBeNull();
 	});
 });

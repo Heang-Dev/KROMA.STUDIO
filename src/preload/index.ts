@@ -32,13 +32,23 @@ const api = {
 		ipcRenderer.invoke("task:translate", taskId, lines, notes),
 	captions: (taskId: string, req: CaptionRequest): Promise<PlatformCaption[]> => ipcRenderer.invoke("task:captions", taskId, req),
 	exportVideo: (taskId: string, req: ExportRequest): Promise<string> => ipcRenderer.invoke("task:export", taskId, req),
+	findCharacters: (
+		taskId: string,
+		lines: { id: string; text: string; start: number }[],
+		voices: { id: string; label: string; description: string }[],
+		notes: string,
+	): Promise<{ characters: { name: string; description: string; voice: string }[]; speakers: Record<string, string> }> => ipcRenderer.invoke("task:characters", taskId, lines, voices, notes),
 	voiceOver: (taskId: string, lines: { id: string; text: string }[], voice: string, rate: number): Promise<Record<string, VoiceLine>> =>
 		ipcRenderer.invoke("task:voice", taskId, lines, voice, rate),
 	kvsStatus: (): Promise<KvsStatus> => ipcRenderer.invoke("kvs:status"),
 	kvsVoices: (): Promise<KvsVoice[]> => ipcRenderer.invoke("kvs:voices"),
+	kvsImportable: (): Promise<{ kvsId: number; name: string; kind: "preset" | "clone"; seconds: number; transcript: string; imported: boolean }[]> => ipcRenderer.invoke("kvs:importable"),
+	kvsImport: (ids: number[]): Promise<number> => ipcRenderer.invoke("kvs:import", ids),
 	kvsDelete: (id: string): Promise<void> => ipcRenderer.invoke("kvs:delete", id),
 	kvsPickRecording: (): Promise<string | null> => ipcRenderer.invoke("kvs:pickRecording"),
 	removeVoices: (taskId: string, path: string, duration: number, quality: "fast" | "best"): Promise<string> => ipcRenderer.invoke("task:separate", taskId, path, duration, quality),
+	voiceSample: (voice: string, rate: number): Promise<string | null> => ipcRenderer.invoke("voice:sample", voice, rate),
+	makePresetVoice: (taskId: string, name: string): Promise<KvsVoice> => ipcRenderer.invoke("task:presetVoice", taskId, name),
 	cloneVoice: (taskId: string, name: string, recording: string): Promise<KvsVoice> => ipcRenderer.invoke("task:clone", taskId, name, recording),
 	cancel: (taskId: string): Promise<void> => ipcRenderer.invoke("task:cancel", taskId),
 	onProgress: (listener: (p: TaskProgress) => void): (() => void) => {
@@ -47,6 +57,7 @@ const api = {
 		return () => ipcRenderer.off("task:progress", handler);
 	},
 
+	pickImage: (): Promise<string | null> => ipcRenderer.invoke("dialog:pickImage"),
 	chooseFolder: (current: string): Promise<string | null> => ipcRenderer.invoke("dialog:chooseFolder", current),
 	folderDefaults: (): Promise<{ exportDir: string; downloadDir: string; libraryDir: string }> => ipcRenderer.invoke("folders:defaults"),
 	openFolder: (dir: string): Promise<void> => ipcRenderer.invoke("shell:openFolder", dir),

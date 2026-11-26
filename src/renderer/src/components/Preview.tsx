@@ -6,6 +6,7 @@ import { voiceCues, voiceSettings } from "@/lib/actions";
 import { drawCue } from "@/lib/subtitleRender";
 import { type PlacedClip, cueAt, formatTime, placeClips, totalDuration } from "@/lib/timeline";
 import { useEditor } from "@/state/store";
+import { ObjectLayer } from "./ObjectLayer";
 import { IconButton } from "./common";
 
 export const mediaUrl = (path: string) => `kroma://media${path.split("/").map(encodeURIComponent).join("/")}`;
@@ -157,6 +158,7 @@ export function Preview() {
 							onSeeked={drawBackground}
 							onLoadedData={drawBackground}
 						/>
+						<ObjectLayer width={box.width} height={box.height} />
 						<SubtitleCanvas width={box.width} height={box.height} />
 						<VoicePlayer videoRef={videoRef} />
 					</div>

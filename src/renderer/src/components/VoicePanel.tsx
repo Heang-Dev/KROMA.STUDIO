@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileAudio, Play, Plus, Trash2, Volume2 } from "lucide-react";
-import { KHMER_VOICES, type KvsStatus, type KvsVoice, isKvsVoice } from "@shared/types";
+import { FileAudio, Loader2, Play, Plus, Square, Trash2, Volume2, Wand2 } from "lucide-react";
+import { KHMER_VOICES, KVS_TEMPLATES, type KvsStatus, type KvsVoice, isKvsVoice } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { linesNeedingVoice, makeVoiceOver, removeOriginalVoices, setVoice, voiceSettings } from "@/lib/actions";
 import { runTask, useEditor } from "@/state/store";
+import { CharactersSection } from "./CharactersSection";
 import { mediaUrl } from "./Preview";
-import { AppSelect, Card, ChoiceTiles, ProgressBar, Row, Section, Segmented, SliderField, SwitchRow, TaskProgress, useBusy } from "./common";
+import { Card, ProgressBar, Row, Section, Segmented, SliderField, SwitchRow, TaskProgress, useBusy } from "./common";
 
 type Source = "microsoft" | "designed" | "cloned";
 
@@ -32,6 +33,7 @@ export function VoicePanel() {
 	const voice = voiceSettings(project);
 	const busy = useBusy("voice");
 	const kvs = useKvs();
+	const player = usePlayer();
 	const [cloneOpen, setCloneOpen] = useState(false);
 	const translated = project.cues.filter((c) => c.text.trim()).length;
 	const missing = linesNeedingVoice(project).length;
@@ -52,8 +54,8 @@ export function VoicePanel() {
 	const chooseSource = (next: Source) => {
 		if (next === source) return;
 		if (next === "microsoft") setVoice({ voice: KHMER_VOICES[0].id });
-		else if (next === "designed" && kvs.status?.presets[0]) setVoice({ voice: `kvs-design:${kvs.status.presets[0].name}` });
-		else if (next === "cloned" && kvs.voices[0]) setVoice({ voice: `kvs-clone:${kvs.voices[0].id}` });
+		else if (next === "designed") setVoice({ voice: `kvs-design:${(kvs.status?.presets[0] ?? KVS_TEMPLATES[0]).name}` });
+		else if (next === "cloned" && kvs.voices.some((v) => !v.preset)) setVoice({ voice: `kvs-clone:${kvs.voices.find((v) => !v.preset)!.id}` });
 		else if (next === "cloned") setCloneOpen(true);
 	};
 
@@ -61,7 +63,16 @@ export function VoicePanel() {
 
 	return (
 		<>
-			<Section title="Khmer voice-over" hint="Reads the Khmer subtitles aloud, timed to each line, over the original sound turned down.">
+			<CharactersSection clones={kvs.voices.filter((v) => !v.preset)} sample={(v) => <PlaySample voice={v} rate={voice.rate} player={player} />} />
+			<Section
+				title={voice.cast?.length ? "Default voice" : "Khmer voice-over"}
+				hint="Reads the Khmer subtitles aloud, timed to each line, over the original sound turned down."
+				action={
+					<Button variant="outline" size="xs" onClick={() => useEditor.getState().openVoices()}>
+						My voices
+					</Button>
+				}
+			>
 				<Segmented<Source>
 					label="Voice type"
 					equalWidth
@@ -76,12 +87,18 @@ export function VoicePanel() {
 
 				{source === "microsoft" && (
 					<>
-						<ChoiceTiles
-							label="Voice"
-							value={voice.voice}
-							options={KHMER_VOICES.map((v) => ({ value: v.id, label: v.label.split(" ")[0], description: v.label.includes("female") ? "Female" : "Male" }))}
-							onChange={(id) => setVoice({ voice: id })}
-						/>
+						<Card className="px-0">
+							{KHMER_VOICES.map((v) => (
+								<VoiceRow
+									key={v.id}
+									selected={voice.voice === v.id}
+									title={v.label.split(" ")[0]}
+									subtitle={v.label.includes("female") ? "Female · Microsoft" : "Male · Microsoft"}
+									onSelect={() => setVoice({ voice: v.id })}
+									sample={<PlaySample voice={v.id} rate={voice.rate} player={player} />}
+								/>
+							))}
+						</Card>
 						<Card>
 							<SliderField label="Speed" value={voice.rate} min={-30} max={50} step={5} format={(v) => `${v > 0 ? "+" : ""}${v}%`} onChange={(v) => setVoice({ rate: v })} />
 						</Card>
@@ -109,16 +126,33 @@ export function VoicePanel() {
 							</p>
 						)}
 
-						{source === "designed" && kvs.status?.online && (
-							<div className="space-y-1.5">
-								<AppSelect label="Designed voice" value={voice.voice} options={kvs.status.presets.map((p) => ({ value: `kvs-design:${p.name}`, label: p.name }))} onChange={(v) => setVoice({ voice: v })} />
-								<p className="text-xs leading-relaxed text-muted-foreground">{kvs.status.presets.find((p) => `kvs-design:${p.name}` === voice.voice)?.description}</p>
-							</div>
+						{source === "designed" && (
+							<p className="text-xs text-muted-foreground">
+								▶ plays a sample. <Wand2 className="inline size-3" /> makes one (once per voice): it also keeps that voice exactly the same in every video.
+							</p>
+						)}
+						{source === "designed" && (
+							<Card className="px-0">
+								{(kvs.status?.presets.length ? kvs.status.presets : KVS_TEMPLATES).map((p) => {
+									const id = `kvs-design:${p.name}`;
+									const saved = kvs.voices.some((v) => v.preset === p.name);
+									return (
+										<VoiceRow
+											key={p.name}
+											selected={voice.voice === id}
+											title={p.name}
+											subtitle={p.description}
+											onSelect={() => setVoice({ voice: id })}
+											sample={saved ? <PlaySample voice={id} rate={0} player={player} /> : <MakeSample name={p.name} onMade={kvs.refresh} disabled={engineOffline} />}
+										/>
+									);
+								})}
+							</Card>
 						)}
 
 						{source === "cloned" && (
 							<Card className="px-0">
-								{kvs.voices.map((v) => {
+								{kvs.voices.filter((v) => !v.preset).map((v) => {
 									const id = `kvs-clone:${v.id}`;
 									const on = voice.voice === id;
 									return (
@@ -131,6 +165,7 @@ export function VoicePanel() {
 													{v.seconds.toFixed(0)} s sample{v.transcript ? ` · “${v.transcript}”` : ""}
 												</span>
 											</button>
+											<PlaySample voice={id} rate={0} player={player} />
 											<Button
 												variant="ghost"
 												size="icon-xs"
@@ -168,7 +203,7 @@ export function VoicePanel() {
 							</span>
 						</div>
 						<ProgressBar value={voiced / translated} />
-						{voiced > 0 && <p className="text-xs text-muted-foreground">Changing the voice re-voices every line; editing a subtitle re-voices only that line.</p>}
+						{voiced > 0 && <p className="text-xs text-muted-foreground">Changing a voice re-voices only the lines it speaks; editing a subtitle re-voices only that line.</p>}
 					</div>
 				) : (
 					<p className="text-xs text-muted-foreground">Make the Khmer subtitles first.</p>
@@ -235,8 +270,92 @@ export function VoicePanel() {
 	);
 }
 
+/** One shared audio player: one sample at a time, the button shows loading / playing. */
+function usePlayer() {
+	const audio = useRef<HTMLAudioElement | null>(null);
+	const [state, setState] = useState<{ voice: string; status: "loading" | "playing" } | null>(null);
+	useEffect(() => () => audio.current?.pause(), []);
+	const stop = useCallback(() => {
+		audio.current?.pause();
+		setState(null);
+	}, []);
+	const play = useCallback(
+		async (voice: string, rate: number) => {
+			if (state?.voice === voice) return stop();
+			audio.current?.pause();
+			setState({ voice, status: "loading" });
+			try {
+				const path = await window.kroma.voiceSample(voice, rate);
+				if (!path) throw new Error("This voice has no sample yet.");
+				const el = new Audio(mediaUrl(path));
+				audio.current = el;
+				el.onended = () => setState((s) => (s?.voice === voice ? null : s));
+				await el.play();
+				setState({ voice, status: "playing" });
+			} catch (err) {
+				setState(null);
+				useEditor.getState().showToast("Couldn't play the sample", "error", err instanceof Error ? err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "") : String(err));
+			}
+		},
+		[state, stop],
+	);
+	return { state, play };
+}
+
+type Player = ReturnType<typeof usePlayer>;
+
+function PlaySample({ voice, rate, player }: { voice: string; rate: number; player: Player }) {
+	const status = player.state?.voice === voice ? player.state.status : null;
+	return (
+		<Button variant="ghost" size="icon-xs" aria-label={status === "playing" ? "Stop the sample" : "Hear a sample"} title={status === "playing" ? "Stop" : "Hear a sample"} onClick={(e) => (e.stopPropagation(), void player.play(voice, rate))}>
+			{status === "loading" ? <Loader2 className="animate-spin" /> : status === "playing" ? <Square className="fill-current" /> : <Play className="fill-current" />}
+		</Button>
+	);
+}
+
+/** Designs a template once into its saved sample (pitch-checked), then it can be played and used. */
+function MakeSample({ name, onMade, disabled }: { name: string; onMade: () => void; disabled?: boolean }) {
+	const [busy, setBusy] = useState(false);
+	return (
+		<Button
+			variant="outline"
+			size="icon-xs"
+			aria-label={`Make a sample of ${name}`}
+			disabled={busy || disabled}
+			title={disabled ? "Start the voice engine to make samples" : "Make a sample to hear (once, about a minute)"}
+			onClick={async (e) => {
+				e.stopPropagation();
+				setBusy(true);
+				const made = await runTask(`preset-${Date.now()}`, `Make "${name}" sample`, (id) => window.kroma.makePresetVoice(id, name));
+				setBusy(false);
+				if (made) {
+					useEditor.getState().showToast(`"${name}" sample is ready`, "info", "Press ▶ to hear it.");
+					onMade();
+				}
+			}}
+		>
+			{busy ? <Loader2 className="animate-spin" /> : <Wand2 />}
+		</Button>
+	);
+}
+
+function VoiceRow({ selected, title, subtitle, onSelect, sample }: { selected: boolean; title: string; subtitle?: string; onSelect: () => void; sample: React.ReactNode }) {
+	return (
+		<div className={`flex items-center gap-2 px-3 py-2 ${selected ? "bg-accent/50" : "hover:bg-accent/25"}`}>
+			<button type="button" role="radio" aria-checked={selected} className="flex min-w-0 flex-1 items-start gap-2.5 text-left" onClick={onSelect}>
+				<span className={`mt-1 flex size-3.5 shrink-0 items-center justify-center rounded-full border ${selected ? "border-foreground" : "border-input"}`}>{selected && <span className="size-1.5 rounded-full bg-foreground" />}</span>
+				<span className="min-w-0">
+					<span className="block text-[13px] leading-snug font-medium">{title}</span>
+					{subtitle && <span className="block text-[11px] leading-snug text-muted-foreground">{subtitle}</span>}
+				</span>
+			</button>
+			<div className="shrink-0">{sample}</div>
+		</div>
+	);
+}
+
 /** Make a cloned voice from a 5–20 s recording, with the speaker's consent (the same rule as KVS). */
-function CloneDialog({ open, onOpenChange, onCloned }: { open: boolean; onOpenChange: (open: boolean) => void; onCloned: (voice: KvsVoice) => void }) {
+export function CloneDialog({ open, onOpenChange, onCloned }: { open: boolean; onOpenChange: (open: boolean) => void; onCloned: (voice: KvsVoice) => void }) {
 	const [name, setName] = useState("");
 	const [file, setFile] = useState<string | null>(null);
 	const [consent, setConsent] = useState(false);

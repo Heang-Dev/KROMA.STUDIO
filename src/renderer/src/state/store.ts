@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { DEFAULT_STYLE, type Project } from "@shared/types";
 import { totalDuration } from "@/lib/timeline";
 
-export type Panel = "media" | "ai" | "voice" | "style" | "post";
+export type Panel = "media" | "ai" | "voice" | "style" | "objects" | "post";
 
 export interface TaskState {
 	id: string;
@@ -15,7 +15,7 @@ export interface TaskState {
 }
 
 export interface Selection {
-	kind: "clip" | "cue";
+	kind: "clip" | "cue" | "object";
 	id: string;
 }
 
@@ -33,7 +33,7 @@ interface EditorState {
 	zoom: number; // pixels per second
 	panel: Panel;
 	/** The editor, or the full-page Settings (Orca-style) open at one section. */
-	view: { name: "editor" } | { name: "settings"; section: string };
+	view: { name: "editor" } | { name: "settings"; section: string } | { name: "voices" };
 	selection: Selection | null;
 	tasks: Record<string, TaskState>;
 	toast: { text: string; tone: "info" | "error" } | null;
@@ -53,6 +53,8 @@ interface EditorState {
 	setPanel: (panel: Panel) => void;
 	openSettings: (section?: string) => void;
 	closeSettings: () => void;
+	openVoices: () => void;
+	closeVoices: () => void;
 	select: (selection: Selection | null) => void;
 	setTask: (task: TaskState) => void;
 	/** A notice: short title, optional detail line. Errors stay longer and can be closed. */
@@ -116,6 +118,8 @@ export const useEditor = create<EditorState>((set, get) => ({
 	setPanel: (panel) => set({ panel }),
 	openSettings: (section) => set((s) => ({ playing: false, view: { name: "settings", section: section ?? (s.view.name === "settings" ? s.view.section : "translation") } })),
 	closeSettings: () => set({ view: { name: "editor" } }),
+	openVoices: () => set({ playing: false, view: { name: "voices" } }),
+	closeVoices: () => set({ view: { name: "editor" } }),
 	select: (selection) => set({ selection }),
 	setTask: (task) => set((s) => ({ tasks: { ...s.tasks, [task.id]: task } })),
 	showToast: (text, tone = "info", description) => {

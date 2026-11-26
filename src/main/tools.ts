@@ -23,12 +23,14 @@ export function requireTool(name: "ffmpeg" | "ffprobe" | "yt-dlp"): string {
 export interface RunOptions {
 	onLine?: (line: string) => void;
 	signal?: AbortSignal;
+	/** Extra environment variables for the command. */
+	env?: Record<string, string>;
 }
 
 /** Runs a command, streaming stdout + stderr lines; resolves with stdout, rejects with the stderr tail. */
 export function run(command: string, args: string[], options: RunOptions = {}): Promise<string> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, { env: { ...process.env, PATH: [process.env.PATH, ...EXTRA_DIRS].join(delimiter) } });
+		const child = spawn(command, args, { env: { ...process.env, PATH: [process.env.PATH, ...EXTRA_DIRS].join(delimiter), ...options.env } });
 		let stdout = "";
 		const tail: string[] = [];
 		const onAbort = () => child.kill("SIGTERM");

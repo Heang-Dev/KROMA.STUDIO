@@ -35,6 +35,8 @@ export interface Cue {
 	source: string;
 	/** Translated line (Khmer). Empty until translated. */
 	text: string;
+	/** Who says it (a name from the project's cast); none means the default voice. */
+	speaker?: string;
 }
 
 export interface SubtitleStyle {
@@ -67,6 +69,36 @@ export interface Project {
 	context: string;
 	/** Khmer voice-over. Missing in projects made before voice-over existed. */
 	voice?: VoiceSettings;
+	/** Things on top of the video: blur boxes (to hide burned-in subtitles), logos, text. */
+	objects?: VideoObject[];
+}
+
+/**
+ * A layer over the video, placed in the output frame: x, y, w, h are fractions of the frame (0–1).
+ * Shown for the whole video unless start/end (timeline seconds) are set.
+ */
+export interface VideoObject {
+	id: string;
+	kind: "blur" | "image" | "text";
+	name: string;
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	start?: number;
+	end?: number;
+	hidden?: boolean;
+	/** 0–1 (images and text). */
+	opacity: number;
+	/** Blur strength 1–40 (blur boxes). */
+	blur?: number;
+	/** Image file (images). */
+	path?: string;
+	/** Text, its colour and an optional background (text). */
+	text?: string;
+	color?: string;
+	background?: string;
+	bold?: boolean;
 }
 
 /** Timeline pictures and waveform for one video (made once, cached). */
@@ -82,6 +114,16 @@ export interface VoiceLine {
 	duration: number;
 	/** The Khmer text it speaks; when the cue's text changes the line is stale. */
 	text: string;
+	/** The voice (and speed) it was spoken with, see voiceKey; a different one makes it stale. */
+	voice?: string;
+}
+
+/** A character in the video and the voice that speaks their lines. */
+export interface CastMember {
+	name: string;
+	voice: string;
+	/** Who they are, e.g. "young woman, the host". */
+	description?: string;
 }
 
 export interface VoiceSettings {
@@ -99,6 +141,8 @@ export interface VoiceSettings {
 	backgroundVolume?: number;
 	/** Voice-free sound per media id (made by removeVoices). */
 	backgrounds?: Record<string, string>;
+	/** The characters, in order (their colour follows it); lines with a speaker use that character's voice. */
+	cast?: CastMember[];
 }
 
 /** Microsoft's instant Khmer voices. Other voice ids: "kvs-design:<preset>" and "kvs-clone:<id>" (KVS engine). */
@@ -108,6 +152,20 @@ export const KHMER_VOICES = [
 ] as const;
 
 export const isKvsVoice = (voice: string) => voice.startsWith("kvs-");
+
+/** KVS's voice templates, shown even while the engine is off (the engine's own list replaces this when it's on). */
+export const KVS_TEMPLATES: { name: string; description: string }[] = [
+	{ name: "Storyteller (warm grandfather)", description: "An elderly Cambodian grandfather, an old man with a low, warm, slow and gentle male storytelling voice" },
+	{ name: "Storyteller (kind grandmother)", description: "An elderly Cambodian grandmother, an old woman with a soft, kind, calm female voice, clearly a woman" },
+	{ name: "Narrator (deep male)", description: "A middle-aged man with a deep, clear, confident male narrator voice" },
+	{ name: "Narrator (clear female)", description: "A young woman with a clear, bright and friendly female narrator voice" },
+	{ name: "News anchor (male)", description: "A professional adult male news anchor, a man with a low, formal male voice and a steady pace" },
+	{ name: "News anchor (female)", description: "A professional adult female news anchor, a woman with a formal female voice and a steady pace" },
+	{ name: "Young boy", description: "A cheerful ten-year-old boy, a child with a high-pitched, energetic young voice" },
+	{ name: "Young girl", description: "A sweet eight-year-old girl, a child with a high, playful young voice" },
+	{ name: "Villain (dark, slow)", description: "A menacing man with a dark, low, raspy and slow male voice" },
+	{ name: "Ghost story (whisper)", description: "A mysterious woman whispering softly, suspenseful female voice" },
+];
 
 export const DEFAULT_VOICE: VoiceSettings = { enabled: false, voice: "km-KH-SreymomNeural", rate: 10, originalVolume: 0.15, lines: {} };
 
@@ -137,6 +195,8 @@ export interface Settings {
 	/** Khmer Voice Studio engine (cloned / designed voices): its address and optional token. */
 	kvsUrl: string;
 	kvsToken: string;
+	/** The Khmer Voice Studio project folder, for importing its voices. */
+	kvsProjectDir: string;
 	/** Light, dark, or follow the Mac. */
 	theme: Appearance;
 	/** Interface zoom, like a browser's ⌘+ / ⌘−: 1 = 100 %. */
@@ -163,6 +223,12 @@ export interface KvsVoice {
 	transcript: string;
 	seconds: number;
 	created: number;
+	/** Set when this is the saved sample of a voice template (KVS-style preset voice). */
+	preset?: string;
+	/** The recording (clones) or saved sample (templates). */
+	path?: string;
+	/** Imported from the KVS dashboard (its voice id). */
+	kvsId?: number;
 }
 
 export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey" | "geminiKey" | "kvsToken"> {
@@ -216,6 +282,11 @@ export interface ExportRequest {
 	bandTop: number;
 	bandHeight: number;
 	quality: "fast" | "high";
+	/** Blur boxes and images (text objects arrive as PNG images drawn by the editor), in output pixels. */
+	objects?: {
+		blurs: { x: number; y: number; w: number; h: number; blur: number; start?: number; end?: number }[];
+		images: { path?: string; png?: Uint8Array; x: number; y: number; w: number; h: number; opacity: number; start?: number; end?: number }[];
+	};
 	/** Khmer voice-over lines to mix in, timed on the timeline. */
 	voice?: { lines: VoiceCue[]; originalVolume: number };
 }
@@ -259,6 +330,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	askExportPath: false,
 	downloadDir: "",
 	kvsUrl: "http://127.0.0.1:7861",
+	kvsProjectDir: "",
 	kvsToken: "",
 	theme: "dark",
 	uiZoom: 0.9,

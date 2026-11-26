@@ -3,7 +3,7 @@ import { Captions, Download, Film, FolderOpen, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { extractLink } from "@shared/links";
+import { extractLink, extractShareTitle } from "@shared/links";
 import { appendToTimeline, downloadFromLink, importFiles } from "@/lib/actions";
 import { formatTime } from "@/lib/timeline";
 import { useEditor } from "@/state/store";
@@ -13,6 +13,7 @@ export function MediaPanel() {
 	const media = useEditor((s) => s.project.media);
 	const [url, setUrl] = useState("");
 	const downloading = useBusy("download");
+	const shareTitle = extractShareTitle(url);
 
 	const submit = async () => {
 		if (!extractLink(url)) return useEditor.getState().showToast("Paste a link that starts with https:// (a share message with a link in it works too).", "error");
@@ -30,11 +31,16 @@ export function MediaPanel() {
 						void submit();
 					}}
 				>
-					<Input className="h-8 text-xs" placeholder="https://www.bilibili.com/video/…" value={url} onChange={(e) => setUrl(e.target.value)} disabled={downloading} aria-label="Video link" />
+					<Input className="h-8 text-xs" placeholder="Paste a link or a share message" value={url} onChange={(e) => setUrl(e.target.value)} disabled={downloading} aria-label="Video link" />
 					<Button type="submit" size="sm" disabled={downloading || !url.trim()}>
 						<Download /> Get
 					</Button>
 				</form>
+				{shareTitle && !downloading && (
+					<p className="truncate text-xs text-muted-foreground" title={shareTitle}>
+						Title: <span className="text-foreground">{shareTitle}</span>
+					</p>
+				)}
 				<TaskProgress prefix="download" />
 			</Section>
 

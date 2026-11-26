@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Film, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
+import { ChevronDown, Film, Library, Shapes, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
 import { AIPanel } from "./components/AIPanel";
 import { AppToaster } from "./components/AppToaster";
 import { MediaPanel } from "./components/MediaPanel";
+import { ObjectsPanel } from "./components/ObjectsPanel";
 import { PostPanel } from "./components/PostPanel";
 import { ResizeHandle } from "./components/ResizeHandle";
 import { Preview } from "./components/Preview";
@@ -11,6 +12,7 @@ import { StylePanel } from "./components/StylePanel";
 import { SubtitleList } from "./components/SubtitleList";
 import { Timeline, deleteSelection, splitAtPlayhead } from "./components/Timeline";
 import { VoicePanel } from "./components/VoicePanel";
+import { VoicesPage } from "./components/VoicesPage";
 import { IconButton, ProgressBar, latestTask } from "./components/common";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { Button } from "./components/ui/button";
@@ -21,6 +23,7 @@ import * as actions from "./lib/actions";
 import { exportVideo, openProject, restoreAutosave, saveProject, startAutosave, startNewProject } from "./lib/actions";
 import { planVoice } from "@shared/voice";
 import { applyAppearance } from "./lib/appearance";
+import { objectsForExport } from "./lib/objects";
 import { ensureFonts, renderBandPng, subtitleBand } from "./lib/subtitleRender";
 import { cn } from "./lib/utils";
 import { useLayout } from "./state/layout";
@@ -31,6 +34,7 @@ const PANELS: { id: Panel; label: string; icon: ReactNode }[] = [
 	{ id: "ai", label: "Khmer", icon: <Zap /> },
 	{ id: "voice", label: "Voice", icon: <Volume2 /> },
 	{ id: "style", label: "Style", icon: <Paintbrush /> },
+	{ id: "objects", label: "Objects", icon: <Shapes /> },
 	{ id: "post", label: "Post", icon: <Megaphone /> },
 ];
 
@@ -54,7 +58,7 @@ export function App() {
 	useEffect(() => {
 		void window.kroma.info().then(({ tools, smoke }) => {
 			// The automated smoke test (scripts/smoke.mjs) drives the editor through this handle.
-			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, applyAppearance, toast, planVoice, render: { ensureFonts, renderBandPng, subtitleBand } } });
+			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, applyAppearance, toast, planVoice, objectsForExport, render: { ensureFonts, renderBandPng, subtitleBand } } });
 			setMissingTools(Object.entries(tools).filter(([name, ok]) => !ok && name !== "uv").map(([name]) => (name === "ytdlp" ? "yt-dlp" : name)));
 		});
 		void window.kroma.getSettings().then((s) => {
@@ -88,6 +92,8 @@ export function App() {
 				)}
 				{view === "settings" ? (
 					<SettingsPage />
+				) : view === "voices" ? (
+					<VoicesPage />
 				) : (
 					<>
 						<div className="flex min-h-0 flex-1">
@@ -107,7 +113,10 @@ export function App() {
 										{p.label}
 									</button>
 								))}
-								<div className="mt-auto">
+								<div className="mt-auto flex flex-col items-center gap-1">
+									<IconButton label="My voices" onClick={() => useEditor.getState().openVoices()}>
+										<Library />
+									</IconButton>
 									<IconButton label="Settings" shortcut="⌘," onClick={() => useEditor.getState().openSettings()}>
 										<Settings />
 									</IconButton>
@@ -119,6 +128,7 @@ export function App() {
 									{panel === "ai" && <AIPanel />}
 									{panel === "voice" && <VoicePanel />}
 									{panel === "style" && <StylePanel />}
+									{panel === "objects" && <ObjectsPanel />}
 									{panel === "post" && <PostPanel />}
 								</aside>
 								<ResizeHandle panel="left" edge="right" label="Resize the tools panel" />
@@ -242,7 +252,7 @@ function useShortcuts(): void {
 			} else if (mod && e.key.toLowerCase() === "o") {
 				e.preventDefault();
 				void openProject();
-			} else if (typing || s.view.name === "settings" || document.querySelector('[role="dialog"], [role="menu"]')) {
+			} else if (typing || s.view.name !== "editor" || document.querySelector('[role="dialog"], [role="menu"]')) {
 				return;
 			} else if (mod && e.key.toLowerCase() === "z") {
 				e.preventDefault();

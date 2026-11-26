@@ -1,7 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { FileUp, Plus, Search, Trash2 } from "lucide-react";
-import type { Cue } from "@shared/types";
-import { importSrt } from "@/lib/actions";
+import type { CastMember, Cue } from "@shared/types";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { castColor } from "@/lib/cast";
+import { addCharacter, importSrt, setSpeaker } from "@/lib/actions";
 import { cueAt, formatTime, totalDuration, uid } from "@/lib/timeline";
 import { useLayout } from "@/state/layout";
 import { useEditor } from "@/state/store";
@@ -11,6 +13,7 @@ import { IconButton } from "./common";
 
 export function SubtitleList() {
 	const cues = useEditor((s) => s.project.cues);
+	const cast = useEditor((s) => s.project.voice?.cast);
 	const width = useLayout((s) => s.sizes.right);
 	const active = useEditor((s) => cueAt(s.project.cues, s.time));
 	const playing = useEditor((s) => s.playing);
@@ -71,7 +74,7 @@ export function SubtitleList() {
 			)}
 			<div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
 				{visible.map((cue) => (
-					<CueRow key={cue.id} cue={cue} active={cues[active]?.id === cue.id} selected={selectedId === cue.id} />
+					<CueRow key={cue.id} cue={cue} cast={cast} active={cues[active]?.id === cue.id} selected={selectedId === cue.id} />
 				))}
 				{cues.length === 0 && <p className="px-4 py-6 text-xs leading-relaxed text-muted-foreground">Subtitles appear here after "Make Khmer subtitles". You can fix any line by typing in it.</p>}
 			</div>
@@ -79,7 +82,7 @@ export function SubtitleList() {
 	);
 }
 
-const CueRow = memo(function CueRow({ cue, active, selected }: { cue: Cue; active: boolean; selected: boolean }) {
+const CueRow = memo(function CueRow({ cue, cast, active, selected }: { cue: Cue; cast?: CastMember[]; active: boolean; selected: boolean }) {
 	const update = useEditor((s) => s.update);
 	const setText = (text: string) => update((p) => ({ ...p, cues: p.cues.map((c) => (c.id === cue.id ? { ...c, text } : c)) }), false);
 	const focus = () => {
@@ -94,10 +97,12 @@ const CueRow = memo(function CueRow({ cue, active, selected }: { cue: Cue; activ
 			data-cue={cue.id}
 			className={`cue-row group border-b border-border/60 px-4 py-2.5 ${active ? "bg-primary/5" : ""} ${selected ? "shadow-[inset_3px_0_0_var(--primary)]" : ""}`}
 		>
-			<div className="mb-1 flex items-center justify-between">
+			<div className="mb-1 flex items-center gap-2">
 				<button type="button" className="font-mono text-[11px] tabular-nums text-muted-foreground hover:text-primary" onClick={focus}>
 					{formatTime(cue.start, true)} → {formatTime(cue.end, true)}
 				</button>
+				{cast && cast.length > 0 && <SpeakerChip cue={cue} cast={cast} />}
+				<span className="flex-1" />
 				<button
 					type="button"
 					aria-label="Delete line"
@@ -120,3 +125,34 @@ const CueRow = memo(function CueRow({ cue, active, selected }: { cue: Cue; activ
 		</div>
 	);
 });
+
+/** Who says the line; pick another character from the menu. */
+function SpeakerChip({ cue, cast }: { cue: Cue; cast: CastMember[] }) {
+	const index = cast.findIndex((m) => m.name === cue.speaker);
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<button
+					type="button"
+					className="flex max-w-36 items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+					aria-label={`Who says this line: ${index >= 0 ? cue.speaker : "default voice"}`}
+				>
+					<span className="size-2 shrink-0 rounded-full border" style={{ background: castColor(index), borderColor: index >= 0 ? castColor(index) : "var(--border)" }} />
+					<span className="truncate">{index >= 0 ? cue.speaker : "Default voice"}</span>
+				</button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="min-w-44">
+				{cast.map((m, i) => (
+					<DropdownMenuItem key={m.name} onClick={() => setSpeaker(cue.id, m.name)}>
+						<span className="size-2 rounded-full" style={{ background: castColor(i) }} /> {m.name}
+					</DropdownMenuItem>
+				))}
+				<DropdownMenuItem onClick={() => setSpeaker(cue.id, undefined)}>
+					<span className="size-2 rounded-full border" /> Default voice
+				</DropdownMenuItem>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem onClick={() => setSpeaker(cue.id, addCharacter())}>New character…</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}

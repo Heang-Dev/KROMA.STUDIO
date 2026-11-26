@@ -15,9 +15,10 @@ import { mediaVisuals } from "./visuals";
 import { loadSettings, saveSettings, viewOf } from "./settings";
 import { findTool } from "./tools";
 import { transcribe } from "./transcribe";
-import { cloneVoice, deleteKvsVoice, kvsStatus, listKvsVoices, speakWithKvs } from "./kvs";
+import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePath, kvsStatus, listKvsVoices, makePresetVoice, presetVoice, speakWithKvs } from "./kvs";
 import { removeVoices, type SeparationQuality } from "./separate";
-import { synthesizeLines } from "./voice";
+import { instantSample, synthesizeLines } from "./voice";
+import { type CharacterLine, type VoiceChoice, findCharacters } from "./characters";
 
 // Media files are streamed to the editor through kroma://media/<path>, with Range support so long videos seek instantly.
 // The automated smoke test gets its own settings and autosave, so it never touches yours.
@@ -27,9 +28,9 @@ if (process.env.KROMA_SMOKE === "1") {
 	app.setPath("userData", dir);
 }
 
-protocol.registerSchemesAsPrivileged([{ scheme: "kroma", privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } }]);
+protocol.registerSchemesAsPrivileged([{ scheme: "kroma", privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true, corsEnabled: true } }]);
 
-const MIME: Record<string, string> = { ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png" };
+const MIME: Record<string, string> = { ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif" };
 
 function serveMedia(request: Request): Response {
 	const path = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, "/"));
@@ -42,13 +43,13 @@ function serveMedia(request: Request): Response {
 	const type = MIME[extname(path).toLowerCase()] ?? "application/octet-stream";
 	const range = request.headers.get("range")?.match(/bytes=(\d*)-(\d*)/);
 	if (!range) {
-		return new Response(Readable.toWeb(createReadStream(path)) as ReadableStream, { headers: { "Content-Type": type, "Content-Length": String(size), "Accept-Ranges": "bytes" } });
+		return new Response(Readable.toWeb(createReadStream(path)) as ReadableStream, { headers: { "Content-Type": type, "Content-Length": String(size), "Accept-Ranges": "bytes", "Access-Control-Allow-Origin": "*" } });
 	}
 	const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
 	const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
 	return new Response(Readable.toWeb(createReadStream(path, { start, end })) as ReadableStream, {
 		status: 206,
-		headers: { "Content-Type": type, "Content-Length": String(end - start + 1), "Content-Range": `bytes ${start}-${end}/${size}`, "Accept-Ranges": "bytes" },
+		headers: { "Content-Type": type, "Content-Length": String(end - start + 1), "Content-Range": `bytes ${start}-${end}/${size}`, "Accept-Ranges": "bytes", "Access-Control-Allow-Origin": "*" },
 	});
 }
 
@@ -159,10 +160,22 @@ function registerIpc(): void {
 	ipcMain.handle("task:cancel", (_e, taskId: string) => tasks.get(taskId)?.abort());
 	ipcMain.handle("task:download", (_e, taskId: string, url: string) => task(taskId, (p, s) => downloadLink(url, loadSettings().cookiesBrowser, loadSettings().downloadDir, p, s)));
 	ipcMain.handle("task:voice", (_e, taskId: string, lines: { id: string; text: string }[], voice: string, rate: number) =>
-		task(taskId, (p, s) => (isKvsVoice(voice) ? speakWithKvs(loadSettings(), lines, voice, p, s) : synthesizeLines(lines, voice, rate, p, s))),
+		task(taskId, async (p, s) => {
+			if (!isKvsVoice(voice)) return synthesizeLines(lines, voice, rate, p, s);
+			// A template without its saved sample gets one first, so every line (now and later) sounds the same.
+			const name = voice.startsWith("kvs-design:") ? voice.slice("kvs-design:".length) : null;
+			if (name && !presetVoice(name)) await makePresetVoice(loadSettings(), name, (v, m) => p(-1, `Preparing the voice "${name}" (once): ${m.replace(/^Voice engine: /, "")}`), s);
+			return speakWithKvs(loadSettings(), lines, voice, p, s);
+		}),
 	);
+	ipcMain.handle("voice:sample", (_e, voice: string, rate: number) => (isKvsVoice(voice) ? kvsSamplePath(voice) : instantSample(voice, rate)));
+	ipcMain.handle("task:presetVoice", (_e, taskId: string, name: string) => task(taskId, (p, s) => makePresetVoice(loadSettings(), name, p, s)));
 	ipcMain.handle("kvs:status", () => kvsStatus(loadSettings()));
 	ipcMain.handle("kvs:voices", () => listKvsVoices());
+	// The KVS project folder: the saved setting, or the usual place next to this project.
+	const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "Documents", "PERSONAL", "PROJECTS", "KHMER.VOICE.STUDIO");
+	ipcMain.handle("kvs:importable", () => kvsImportable(kvsDir()));
+	ipcMain.handle("kvs:import", (_e, ids: number[]) => importKvsVoices(kvsDir(), ids));
 	ipcMain.handle("kvs:delete", (_e, id: string) => deleteKvsVoice(id));
 	ipcMain.handle("kvs:pickRecording", async () => {
 		const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters: [{ name: "Recording", extensions: ["wav", "mp3", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm"] }] });
@@ -179,6 +192,7 @@ function registerIpc(): void {
 			return { translations, fallback: fallbackCount.get(lines) ?? 0 };
 		}),
 	);
+	ipcMain.handle("task:characters", (_e, taskId: string, lines: CharacterLine[], voices: VoiceChoice[], notes: string) => task(taskId, (p, s) => findCharacters(lines, voices, notes, loadSettings(), p, s)));
 	ipcMain.handle("task:captions", (_e, taskId: string, req: CaptionRequest) => task(taskId, (_p, s) => writeCaptions(req, loadSettings(), s)));
 	ipcMain.handle("task:export", (_e, taskId: string, req: ExportRequest) => task(taskId, (p, s) => exportVideo(req, p, s)));
 
@@ -198,6 +212,10 @@ function registerIpc(): void {
 		return target;
 	};
 	ipcMain.handle("dialog:saveVideo", (_e, name: string) => exportTarget(name, "mp4"));
+	ipcMain.handle("dialog:pickImage", async () => {
+		const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
+		return res.canceled ? null : res.filePaths[0];
+	});
 	ipcMain.handle("dialog:chooseFolder", async (_e, current: string) => {
 		const res = await dialog.showOpenDialog(win!, { defaultPath: current || app.getPath("videos"), properties: ["openDirectory", "createDirectory"] });
 		return res.canceled ? null : res.filePaths[0];

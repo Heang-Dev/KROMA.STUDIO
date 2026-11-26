@@ -25,6 +25,7 @@ export function deleteSelection(): void {
 	const { selection, update, select } = useEditor.getState();
 	if (!selection) return;
 	if (selection.kind === "clip") update((p) => ({ ...p, ...deleteClip(p.clips, p.cues, selection.id) }));
+	else if (selection.kind === "object") update((p) => ({ ...p, objects: (p.objects ?? []).filter((o) => o.id !== selection.id) }));
 	else update((p) => ({ ...p, cues: p.cues.filter((c) => c.id !== selection.id) }));
 	select(null);
 }

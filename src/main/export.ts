@@ -45,10 +45,40 @@ export async function exportVideo(
 		filters.push(`${req.clips.map((_, i) => `[v${i}][a${i}]`).join("")}concat=n=${req.clips.length}:v=1:a=1[vc][aout]`);
 
 		let videoOut = "[vc]";
+		// Objects (blur boxes, logos, text) go over the video and under the subtitles.
+		let nextIndex = n;
+		const enable = (o: { start?: number; end?: number }) => (o.start !== undefined || o.end !== undefined ? `:enable='between(t,${(o.start ?? 0).toFixed(2)},${(o.end ?? total + 1).toFixed(2)})'` : "");
+		(req.objects?.blurs ?? []).forEach((b, i) => {
+			const w = even(b.w);
+			const h = even(b.h);
+			const x = Math.max(0, Math.round(b.x));
+			const y = Math.max(0, Math.round(b.y));
+			// boxblur's radius must stay under half the box size.
+			const radius = Math.max(1, Math.min(Math.round(b.blur), Math.floor(Math.min(w, h) / 2) - 1));
+			filters.push(`${videoOut}split=2[ob${i}a][ob${i}b]`, `[ob${i}b]crop=${w}:${h}:${x}:${y},boxblur=${radius}:2[ob${i}c]`, `[ob${i}a][ob${i}c]overlay=${x}:${y}${enable(b)}[ob${i}]`);
+			videoOut = `[ob${i}]`;
+		});
+		(req.objects?.images ?? []).forEach((img, i) => {
+			let file = img.path;
+			if (img.png) {
+				file = join(dir, `object${i}.png`);
+				writeFileSync(file, img.png);
+			}
+			if (!file) return;
+			args.push("-loop", "1", "-t", total.toFixed(3), "-i", file);
+			const index = nextIndex++;
+			filters.push(
+				`[${index}:v]scale=${even(img.w)}:${even(img.h)},format=rgba,colorchannelmixer=aa=${Math.max(0, Math.min(1, img.opacity)).toFixed(2)}[oi${i}]`,
+				`${videoOut}[oi${i}]overlay=${Math.round(img.x)}:${Math.round(img.y)}:eof_action=pass${enable(img)}[oo${i}]`,
+			);
+			videoOut = `[oo${i}]`;
+		});
+
 		if (req.overlays.length) {
 			const list = writeOverlayList(dir, req);
 			args.push("-f", "concat", "-safe", "0", "-i", list);
-			filters.push(`[${n}:v]format=rgba[subs]`, `[vc][subs]overlay=0:${Math.round(req.bandTop)}:eof_action=pass:format=auto[vout]`);
+			filters.push(`[${nextIndex}:v]format=rgba[subs]`, `${videoOut}[subs]overlay=0:${Math.round(req.bandTop)}:eof_action=pass:format=auto[vout]`);
+			nextIndex++;
 			videoOut = "[vout]";
 		}
 
@@ -56,7 +86,7 @@ export async function exportVideo(
 		if (req.voice?.lines.length) {
 			const track = join(dir, "voice.wav");
 			await buildVoiceTrack(req.voice.lines, total, track, onProgress, signal);
-			const index = n + (req.overlays.length ? 1 : 0);
+			const index = nextIndex++;
 			args.push("-i", track);
 			filters.push(
 				`[aout]volume=${req.voice.originalVolume.toFixed(2)}[orig]`,
