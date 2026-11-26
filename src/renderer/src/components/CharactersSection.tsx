@@ -21,11 +21,40 @@ export function CharactersSection({ clones, sample }: { clones: KvsVoice[]; samp
 	return (
 		<Section
 			title="Characters"
-			hint={cast.length ? "Each character speaks with their own voice. Change who says a line from the coloured name on it in the subtitles." : "A movie has many people talking. Find them, and each gets their own voice (the default voice below speaks the rest)."}
+			hint={
+				cast.length
+					? "Each character speaks with their own voice: pick it here. To change who says a line, click the coloured name on that line in the subtitles."
+					: "A video with 3 people talking can have 3 voices. List the characters, pick a voice for each, and each line is spoken by its character."
+			}
 		>
-			<Button variant={cast.length ? "outline" : "default"} className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => void findCharacters()}>
-				{busy ? <Loader2 className="animate-spin" /> : <Users />} {cast.length ? "Find characters again" : "Find characters"}
-			</Button>
+			{cast.length === 0 && hasLines && (
+				<div className="rounded-lg border border-dashed p-3">
+					<p className="mb-2 text-[11px] text-muted-foreground">For example:</p>
+					<div className="space-y-1.5 opacity-70" aria-hidden>
+						{[
+							["Narrator", "Narrator (deep male)"],
+							["Hero", "Young man (hero)"],
+							["Mother", "Mother (caring)"],
+						].map(([who, voice], i) => (
+							<div key={who} className="flex items-center gap-2 text-xs">
+								<span className="size-2.5 shrink-0 rounded-full" style={{ background: castColor(i) }} />
+								<span className="w-16 font-medium">{who}</span>
+								<span className="text-muted-foreground">→</span>
+								<span className="truncate rounded-md border bg-background px-2 py-0.5">{voice}</span>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+			<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-2">
+				<Button variant={cast.length ? "outline" : "default"} className="h-auto min-h-9 whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => void findCharacters()}>
+					{busy ? <Loader2 className="animate-spin" /> : <Users />} {cast.length ? "Find again" : "Find automatically"}
+				</Button>
+				<Button variant="outline" className="h-auto min-h-9 whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => addCharacter()}>
+					<Plus /> Add a character
+				</Button>
+			</div>
+			{cast.length === 0 && hasLines && <p className="text-xs text-muted-foreground">"Find automatically" reads the dialogue (about 20 s) and suggests a voice for each person; you can change everything after.</p>}
 			<TaskProgress prefix="characters" />
 			{!hasLines && <p className="text-xs text-muted-foreground">Make the subtitles first.</p>}
 			{cast.length > 0 && (
@@ -48,15 +77,13 @@ export function CharactersSection({ clones, sample }: { clones: KvsVoice[]; samp
 								</Button>
 							</div>
 							{m.description && <p className="pl-[18px] text-[11px] leading-snug text-muted-foreground">{m.description}</p>}
+							{count(m.name) === 0 && <p className="pl-[18px] text-[11px] leading-snug text-warning">No lines yet: click the coloured name on a line in the subtitles and choose {m.name}.</p>}
 							<div className="flex items-center gap-1 pl-[18px]">
 								<VoiceSelect value={m.voice} clones={clones} onChange={(v) => setCharacterVoice(m.name, v)} label={`Voice for ${m.name}`} />
 								{sample(m.voice)}
 							</div>
 						</div>
 					))}
-					<button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-muted-foreground hover:bg-accent/40 hover:text-foreground" onClick={() => addCharacter()}>
-						<Plus className="size-3.5" /> Add a character
-					</button>
 				</Card>
 			)}
 			{cast.length > 0 && unassigned > 0 && <p className="text-xs text-muted-foreground">{unassigned} lines have no character: the default voice speaks them.</p>}

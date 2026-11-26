@@ -34,6 +34,7 @@ export function stepsOf(project: Project, exported: boolean): Step[] {
 		{ id: "video", label: "Video", panel: "media", status: project.clips.length ? "done" : "todo", next: "Add a video" },
 		{ id: "subtitles", label: "Subtitles", panel: "ai", status: project.cues.length ? "done" : "todo", next: "Get the subtitles" },
 		{ id: "khmer", label: languageOf(project.language).name, panel: "ai", status: translated ? "done" : "todo", next: `Translate to ${languageOf(project.language).name}` },
+		{ id: "characters", label: "Characters", panel: "voice", status: voice.cast?.length ? "done" : "optional", next: "Choose the characters' voices" },
 		// A voice-over is a choice: subtitles alone are a finished video too.
 		{ id: "voices", label: "Voices", panel: "voice", status: voiced ? "done" : voice.enabled ? "todo" : "optional", next: "Finish the voice-over" },
 		{ id: "style", label: "Style", panel: "style", status: styled ? "done" : "optional", next: "Style the subtitles" },
@@ -47,12 +48,15 @@ export function StepBar() {
 	const exported = useEditor((s) => latestTask(s.tasks, "export")?.status === "done");
 	const steps = stepsOf(project, exported);
 	const next = steps.find((s) => s.status === "todo");
+	// Several steps share a panel (Subtitles + Khmer, Characters + Voices): the open panel's first unfinished one is current.
+	const inPanel = steps.filter((s) => s.panel === panel);
+	const currentId = (inPanel.find((s) => s.status !== "done") ?? inPanel[inPanel.length - 1])?.id;
 	const open = (p: Panel) => useEditor.getState().setPanel(p);
 
 	return (
 		<nav aria-label="Steps" className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b bg-background px-3 text-xs">
 			{steps.map((step, i) => {
-				const current = step.panel === panel && (step.id !== "khmer" || steps[1].status === "done") && (step.id !== "subtitles" || steps[1].status !== "done");
+				const current = step.id === currentId;
 				const content = (
 					<>
 						<span
