@@ -56,8 +56,13 @@ export function preferredSiteSubtitle(media: MediaItem): string | null {
 /** Fills the subtitle track from the site's subtitles or cloud speech-to-text. Replaces existing cues of that media. */
 export async function getSubtitles(media: MediaItem, source: { kind: "site"; path: string } | { kind: "cloud"; language: string }): Promise<boolean> {
 	let cues: SourceCue[] | null;
+	let note: string | undefined;
 	if (source.kind === "site") cues = await window.kroma.readSubtitles(source.path);
-	else cues = await runTask(`asr-${Date.now()}`, "Speech to text", (id) => window.kroma.transcribe(id, media.path, media.duration, source.language));
+	else {
+		const answer = await runTask(`asr-${Date.now()}`, "Speech to text", (id) => window.kroma.transcribe(id, media.path, media.duration, source.language));
+		cues = answer?.cues ?? null;
+		note = answer?.note;
+	}
 	if (!cues) return false;
 	if (!cues.length) {
 		state().showToast("No speech was found.", "error");
@@ -67,7 +72,8 @@ export async function getSubtitles(media: MediaItem, source: { kind: "site"; pat
 		const others = p.cues.filter((c) => !placeClips(p.clips).some((clip) => clip.mediaId === media.id && c.start >= clip.start && c.start < clip.end));
 		return { ...p, cues: [...others, ...placeSourceCues(cues, media.id, p.clips)] };
 	});
-	state().showToast(`${cues.length} subtitle lines ready.`);
+	if (note) state().showToast(`${cues.length} subtitle lines ready, lower accuracy`, "error", note);
+	else state().showToast(`${cues.length} subtitle lines ready.`);
 	return true;
 }
 
@@ -78,11 +84,14 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 		state().showToast(onlyMissing ? "Every line is already translated." : "There are no lines to translate yet.", "error");
 		return false;
 	}
-	const result = await runTask(`translate-${Date.now()}`, "Translate to Khmer", (id) => window.kroma.translate(id, lines, project.context));
-	if (!result) return false;
+	const answer = await runTask(`translate-${Date.now()}`, "Translate to Khmer", (id) => window.kroma.translate(id, lines, project.context));
+	if (!answer) return false;
+	const result = answer.translations;
 	state().update((p) => ({ ...p, cues: p.cues.map((c) => (result[c.id] !== undefined ? { ...c, text: result[c.id] } : c)) }));
 	const missed = lines.length - Object.keys(result).length;
-	state().showToast(missed ? `Translated ${lines.length - missed} lines; ${missed} need another try ("Translate missing").` : `Translated ${lines.length} lines to Khmer.`, missed ? "error" : "info");
+	if (missed) state().showToast(`Translated ${lines.length - missed} of ${lines.length} lines`, "error", `${missed} need another try: press "Translate missing".`);
+	else if (answer.fallback) state().showToast(`Translated ${lines.length} lines to Khmer`, "info", `Gemini was busy, so ${answer.fallback} lines used Google Translate. Press "Translate all" later for Gemini's better wording.`);
+	else state().showToast(`Translated ${lines.length} lines to Khmer.`);
 	return true;
 }
 

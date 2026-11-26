@@ -21,7 +21,7 @@ export function PostPanel() {
 
 	return (
 		<>
-			<Section title="Social posts" hint="Claude reads the Khmer subtitles and writes a title, description and hashtags in Khmer for YouTube, Facebook and TikTok.">
+			<Section title="Social posts" hint="AI (Gemini or Claude) reads the Khmer subtitles and writes a title, description and hashtags in Khmer for YouTube, Facebook and TikTok.">
 				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!translated.length || busy} onClick={() => void generate()}>
 					<WandSparkles /> Write the posts
 				</Button>

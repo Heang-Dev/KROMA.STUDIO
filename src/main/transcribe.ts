@@ -2,12 +2,14 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Settings, SourceCue } from "@shared/types";
+import { geminiWithFallback } from "./gemini";
 import { mapLimit, requireTool, run } from "./tools";
 
 // Cloud speech-to-text through an OpenAI-compatible endpoint (Groq by default).
 // The audio is cut into small pieces and sent in parallel, so a long movie takes about as long as one piece.
 
 const CHUNK_SECONDS = 600;
+const GEMINI_CHUNK_SECONDS = 120;
 const MAX_CUE_SECONDS = 7;
 
 // Lines Whisper is known to invent over silence or music in Chinese videos.
@@ -27,29 +29,40 @@ export async function transcribe(
 	settings: Settings,
 	onProgress: (progress: number, message: string) => void,
 	signal?: AbortSignal,
-): Promise<SourceCue[]> {
-	if (!settings.asrKey) throw new Error("Add your speech-to-text API key in Settings first (Groq is free to start).");
+): Promise<{ cues: SourceCue[]; note?: string }> {
+	const useGemini = settings.asrProvider === "gemini";
+	if (useGemini && !settings.geminiKey) throw new Error("Add your free Gemini key in Settings → Translation (speech to text uses it too), or choose Groq in Settings → Speech to Text.");
+	if (!useGemini && !settings.asrKey) throw new Error("Add your speech-to-text API key in Settings → Speech to Text (Groq is free to start).");
 	const ffmpeg = requireTool("ffmpeg");
 	const dir = mkdtempSync(join(tmpdir(), "kroma-asr-"));
+	// Gemini listens to shorter pieces (its timings stay accurate and each answer stays small); Whisper takes 10 minutes at once.
+	const pieceSeconds = useGemini ? GEMINI_CHUNK_SECONDS : CHUNK_SECONDS;
 	const starts: number[] = [];
-	for (let t = 0; t < duration; t += CHUNK_SECONDS) starts.push(t);
+	for (let t = 0; t < duration; t += pieceSeconds) starts.push(t);
 
 	let done = 0;
-	const report = () => onProgress(done / starts.length, `Transcribing in the cloud · ${done}/${starts.length} parts`);
+	let liteParts = 0;
+	const service = useGemini ? "Gemini" : "the cloud";
+	const report = (note = "") => onProgress(done / starts.length, note || `Transcribing with ${service} · ${done}/${starts.length} parts`);
 	report();
 
 	try {
-		const parts = await mapLimit(starts, settings.concurrency, async (start, i) => {
+		const parts = await mapLimit(starts, useGemini ? Math.min(settings.concurrency, 3) : settings.concurrency, async (start, i) => {
 			const chunk = join(dir, `part${i}.m4a`);
-			const length = Math.min(CHUNK_SECONDS, duration - start);
+			const length = Math.min(pieceSeconds, duration - start);
 			// Mono 16 kHz at 32 kbps: ~2.4 MB per 10 minutes, well under upload limits.
 			await run(ffmpeg, ["-y", "-ss", String(start), "-t", String(length), "-i", mediaPath, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "aac", "-b:a", "32k", chunk], { signal });
-			const segments = await requestTranscription(chunk, language, settings, signal);
+			const segments = useGemini
+				? await geminiTranscription(chunk, length, language, settings, signal, (reason) => report(`${reason} · ${done}/${starts.length} parts done`), () => liteParts++)
+				: await requestTranscription(chunk, language, settings, signal);
 			done += 1;
 			report();
 			return segments.map((s) => ({ ...s, start: s.start + start, end: Math.min(s.end, length) + start }));
 		});
-		return clean(parts.flat());
+		const note = liteParts
+			? `Gemini's main model wasn't available (free daily limit or busy), so ${liteParts} of ${starts.length} parts used the lighter Flash-Lite model, which is less accurate. Add a free Groq key in Settings → Speech to Text for full accuracy on long videos.`
+			: undefined;
+		return { cues: clean(parts.flat()), note };
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}
@@ -81,6 +94,37 @@ async function requestTranscription(file: string, language: string, settings: Se
 		const wait = Number(response.headers.get("retry-after")) || 2 ** attempt * 3;
 		await new Promise((r) => setTimeout(r, wait * 1000));
 	}
+}
+
+const LANGUAGE_NAMES: Record<string, string> = { zh: "Simplified Chinese", yue: "Cantonese (written in Traditional Chinese)", en: "English", ko: "Korean", ja: "Japanese", th: "Thai", vi: "Vietnamese" };
+
+const SEGMENT_SCHEMA = {
+	type: "OBJECT",
+	properties: { segments: { type: "ARRAY", items: { type: "OBJECT", properties: { start: { type: "NUMBER" }, end: { type: "NUMBER" }, text: { type: "STRING" } }, required: ["start", "end", "text"] } } },
+	required: ["segments"],
+};
+
+/** Gemini listens to one audio piece and returns timed subtitle lines (seconds from the start of the piece). */
+async function geminiTranscription(file: string, length: number, language: string, settings: Settings, signal: AbortSignal | undefined, onRetry: (reason: string) => void, onFallback: () => void): Promise<Segment[]> {
+	const written = LANGUAGE_NAMES[language] ?? "the language spoken, as it is normally written";
+	const answer = await geminiWithFallback<{ segments: Segment[] }>(settings, {
+		system: "You make accurate subtitles from audio. You write exactly what is said, never summarise, never translate, and never invent lines for music or silence.",
+		prompt: `Transcribe the speech in this ${Math.round(length)}-second audio in ${written}, with punctuation. Split it into subtitle lines of one short sentence (at most about 16 Chinese characters or 12 words). Give each line's start and end time in seconds from the beginning of the audio. Skip music, sound effects and silence.`,
+		schema: SEGMENT_SCHEMA,
+		audio: { mimeType: "audio/mp4", data: readFileSync(file).toString("base64") },
+		timeoutMs: 180_000,
+		// Low thinking makes Gemini mishear sound-alike words (过度 → 过渡) and round timings; listening keeps its default.
+		thinking: "model",
+		temperature: 0,
+		signal,
+		onRetry,
+		onFallback,
+	});
+	// Keep timings inside the piece and in order; Gemini occasionally rounds past the end.
+	return (answer.segments ?? [])
+		.map((s) => ({ start: Math.max(0, Math.min(length, Number(s.start) || 0)), end: Math.max(0, Math.min(length, Number(s.end) || 0)), text: String(s.text ?? "") }))
+		.filter((s) => s.end > s.start && s.text.trim())
+		.sort((a, b) => a.start - b.start);
 }
 
 /** Drops invented lines and splits long segments at punctuation so each line fits on screen. */

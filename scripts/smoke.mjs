@@ -67,6 +67,8 @@ await page.screenshot({ path: join(outDir, "editor-voice.png") });
 await page.getByRole("button", { name: "Settings" }).first().click();
 await page.waitForTimeout(700);
 await page.screenshot({ path: join(outDir, "settings.png") });
+const translationShot = await app.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString("base64"));
+writeFileSync(join(outDir, "native-translation.png"), Buffer.from(translationShot, "base64"));
 await page.getByRole("button", { name: "Appearance" }).click();
 await page.waitForTimeout(400);
 await page.screenshot({ path: join(outDir, "settings-appearance.png") });

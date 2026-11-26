@@ -1,11 +1,12 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { CircleCheck, CircleX, Download, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette } from "lucide-react";
-import { type Appearance, type Settings, type SettingsView, UI_ZOOM_STEPS } from "@shared/types";
+import { type Appearance, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { applyAppearance } from "@/lib/appearance";
+import { useEditor } from "@/state/store";
 import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented } from "../common";
 
 // The settings registry. Each entry is one page in the settings nav; add a page by adding an entry here.
@@ -28,8 +29,8 @@ export interface SettingsSectionDef {
 }
 
 export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
-	{ id: "translation", group: "AI services", title: "Translation", icon: Languages, keywords: "claude anthropic api key model khmer translate opus sonnet haiku", component: TranslationSection },
-	{ id: "speech", group: "AI services", title: "Speech to Text", icon: Mic, keywords: "groq openai whisper transcribe api key parallel endpoint", component: SpeechSection },
+	{ id: "translation", group: "AI services", title: "Translation", icon: Languages, keywords: "gemini google translate free claude anthropic api key model khmer translate opus sonnet haiku flash", component: TranslationSection },
+	{ id: "speech", group: "AI services", title: "Speech to Text", icon: Mic, keywords: "gemini groq openai whisper transcribe speech api key endpoint", component: SpeechSection },
 	{ id: "downloads", group: "Media", title: "Downloads", icon: Download, keywords: "yt-dlp cookies browser login bilibili douyin youtube 1080p", component: DownloadsSection },
 	{ id: "storage", group: "Media", title: "Storage", icon: HardDrive, keywords: "library folder movies voice cache downloads finder", component: StorageSection },
 	{ id: "appearance", group: "Interface", title: "Appearance", icon: Palette, keywords: "theme dark light system mac zoom size scale bigger smaller interface", component: AppearanceSection },
@@ -45,15 +46,46 @@ const MODELS = [
 	{ value: "claude-haiku-5-5", label: "Haiku 5.5 · cheapest" },
 ];
 
+const PROVIDERS: { value: TranslateProvider; label: string; description: string }[] = [
+	{ value: "gemini", label: "Gemini", description: "Free tier · good Khmer" },
+	{ value: "google", label: "Google Translate", description: "Free · no key · basic" },
+	{ value: "claude", label: "Claude", description: "Paid · best Khmer" },
+];
+
 function TranslationSection({ settings, save }: SectionProps) {
+	const provider = settings.translateProvider;
 	return (
 		<>
-			<Group title="Anthropic" description="Claude translates the subtitles to Khmer and writes the post text.">
-				<Card>
-					<KeyRow label="API key" saved={settings.hasAnthropicKey} placeholder="sk-ant-…" keyUrl="https://platform.claude.com/settings/keys" onSave={(v) => save({ anthropicKey: v })} />
-					<Row label="Model" description="Used for translation and the post writer." control={<AppSelect label="Model" className="w-56" value={settings.translateModel} options={MODELS} onChange={(v) => void save({ translateModel: v })} />} />
-				</Card>
+			<Group title="Translator" description="Who turns the subtitles into Khmer. Gemini and Claude also write the social posts.">
+				<ChoiceTiles label="Translator" columns={3} value={provider} options={PROVIDERS} onChange={(v) => void save({ translateProvider: v })} />
 			</Group>
+
+			{provider === "gemini" && (
+				<Group title="Gemini" description="Free from Google AI Studio, no card needed. The free tier limits requests per minute (Kroma waits when it has to) and Google may use free-tier requests to improve its models.">
+					<Card>
+						<KeyRow label="API key" saved={settings.hasGeminiKey} placeholder="AIza…" keyUrl="https://aistudio.google.com/apikey" onSave={(v) => save({ geminiKey: v })} />
+						<Row label="Model" description="Flash models are fast and free; Pro is better but has a smaller free limit." control={<GeminiModelSelect settings={settings} save={save} />} />
+					</Card>
+				</Group>
+			)}
+
+			{provider === "google" && (
+				<Group title="Google Translate" description="Works straight away with no key. Translations are literal and don't use your notes or the earlier lines, so names and politeness may be off. Social posts need Gemini or Claude.">
+					<Card>
+						<Row label="Ready to use" description="Nothing to set up." control={<CircleCheck className="size-4 text-success" />} />
+					</Card>
+				</Group>
+			)}
+
+			{provider === "claude" && (
+				<Group title="Claude" description="Paid by use (Anthropic API). The most natural Khmer, best with names and tone.">
+					<Card>
+						<KeyRow label="API key" saved={settings.hasAnthropicKey} placeholder="sk-ant-…" keyUrl="https://platform.claude.com/settings/keys" onSave={(v) => save({ anthropicKey: v })} />
+						<Row label="Model" control={<AppSelect label="Model" className="w-56" value={settings.translateModel} options={MODELS} onChange={(v) => void save({ translateModel: v })} />} />
+					</Card>
+				</Group>
+			)}
+
 			<Group title="Speed">
 				<Card>
 					<Row
@@ -67,27 +99,79 @@ function TranslationSection({ settings, save }: SectionProps) {
 	);
 }
 
+/** Gemini models from the key's live list (new versions appear by themselves); the saved one stays listed. */
+function GeminiModelSelect({ settings, save }: SectionProps) {
+	const [models, setModels] = useState<{ value: string; label: string }[]>([]);
+	useEffect(() => {
+		if (!settings.hasGeminiKey) return setModels([]);
+		window.kroma
+			.geminiModels()
+			.then((list) => setModels(list.map((m) => ({ value: m.id, label: m.label }))))
+			.catch(() => setModels([]));
+	}, [settings.hasGeminiKey]);
+	const options = models.some((m) => m.value === settings.geminiModel) ? models : [{ value: settings.geminiModel, label: settings.geminiModel }, ...models];
+	return <AppSelect label="Gemini model" className="w-56" value={settings.geminiModel} options={options} onChange={(v) => void save({ geminiModel: v })} />;
+}
+
 const ASR_PRESETS = [
 	{ value: "https://api.groq.com/openai/v1", label: "Groq", description: "Fast, free to start", model: "whisper-large-v3", keyUrl: "https://console.groq.com/keys" },
 	{ value: "https://api.openai.com/v1", label: "OpenAI", description: "Whisper", model: "whisper-1", keyUrl: "https://platform.openai.com/api-keys" },
 ];
 
+const SPEECH_SERVICES = [
+	{ value: "gemini", label: "Gemini", description: "Your Gemini key · accurate" },
+	{ value: "https://api.groq.com/openai/v1", label: "Groq", description: "Free key · fastest" },
+	{ value: "https://api.openai.com/v1", label: "OpenAI", description: "Paid · Whisper" },
+];
+
 function SpeechSection({ settings, save }: SectionProps) {
+	const choice = settings.asrProvider === "gemini" ? "gemini" : (ASR_PRESETS.find((p) => p.value === settings.asrBaseUrl)?.value ?? "custom");
 	const preset = ASR_PRESETS.find((p) => p.value === settings.asrBaseUrl);
 	return (
 		<>
-			<Group title="Service" description="Turns the video's speech into timed lines when the site has no subtitles. Runs in the cloud, in parallel 10-minute parts.">
-				<ChoiceTiles label="Speech-to-text service" value={preset?.value ?? ""} options={ASR_PRESETS} onChange={(v) => void save({ asrBaseUrl: v, asrModel: ASR_PRESETS.find((p) => p.value === v)?.model ?? settings.asrModel })} />
-				<Card>
-					<KeyRow label="API key" saved={settings.hasAsrKey} placeholder={preset?.label === "OpenAI" ? "sk-…" : "gsk_…"} keyUrl={preset?.keyUrl} onSave={(v) => save({ asrKey: v })} />
-				</Card>
+			<Group title="Service" description="Turns the video's speech into timed lines when the site has no subtitles. Runs in the cloud, several parts at once.">
+				<ChoiceTiles
+					label="Speech-to-text service"
+					columns={3}
+					value={choice}
+					options={SPEECH_SERVICES}
+					onChange={(v) => void (v === "gemini" ? save({ asrProvider: "gemini" }) : save({ asrProvider: "whisper", asrBaseUrl: v, asrModel: ASR_PRESETS.find((p) => p.value === v)?.model ?? settings.asrModel }))}
+				/>
 			</Group>
-			<Group title="Advanced" description="Any OpenAI-compatible transcription endpoint works.">
-				<Card>
-					<Row label="Endpoint" control={<DraftInput className="w-72" value={settings.asrBaseUrl} onCommit={(v) => void save({ asrBaseUrl: v })} />} />
-					<Row label="Model" control={<DraftInput className="w-72" value={settings.asrModel} onCommit={(v) => void save({ asrModel: v })} />} />
-				</Card>
-			</Group>
+
+			{settings.asrProvider === "gemini" ? (
+				<Group title="Gemini" description="Uses the Gemini key from Settings → Translation, so there's nothing else to set up. Very accurate, with punctuation; about a minute per 2 minutes of speech, so for long movies Groq is faster.">
+					<Card>
+						<Row
+							label="Gemini key"
+							description={settings.hasGeminiKey ? "Ready." : "Add it in Settings → Translation."}
+							control={
+								settings.hasGeminiKey ? (
+									<CircleCheck className="size-4 text-success" />
+								) : (
+									<Button variant="outline" size="sm" onClick={() => useEditor.getState().openSettings("translation")}>
+										Add key
+									</Button>
+								)
+							}
+						/>
+					</Card>
+				</Group>
+			) : (
+				<>
+					<Group title={preset?.label ?? "Whisper service"} description={preset?.label === "Groq" ? "Whisper large-v3 on Groq's servers: a whole movie in about a minute. Free key." : "Any OpenAI-compatible transcription endpoint."}>
+						<Card>
+							<KeyRow label="API key" saved={settings.hasAsrKey} placeholder={preset?.label === "OpenAI" ? "sk-…" : "gsk_…"} keyUrl={preset?.keyUrl} onSave={(v) => save({ asrKey: v })} />
+						</Card>
+					</Group>
+					<Group title="Advanced">
+						<Card>
+							<Row label="Endpoint" control={<DraftInput className="w-72" value={settings.asrBaseUrl} onCommit={(v) => void save({ asrBaseUrl: v })} />} />
+							<Row label="Model" control={<DraftInput className="w-72" value={settings.asrModel} onCommit={(v) => void save({ asrModel: v })} />} />
+						</Card>
+					</Group>
+				</>
+			)}
 		</>
 	);
 }

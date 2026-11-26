@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, type Settings, type SettingsView } from "@shared/type
 
 // API keys are encrypted with the OS keychain (safeStorage) before they touch the disk.
 const file = () => join(app.getPath("userData"), "settings.json");
-const SECRET_KEYS = ["anthropicKey", "asrKey"] as const;
+const SECRET_KEYS = ["anthropicKey", "asrKey", "geminiKey"] as const;
 
 function encrypt(value: string): string {
 	if (!value) return "";
@@ -52,6 +52,6 @@ export function saveSettings(patch: Partial<Record<keyof Settings, string | numb
 }
 
 export function viewOf(settings: Settings): SettingsView {
-	const { anthropicKey, asrKey, ...rest } = settings;
-	return { ...rest, hasAnthropicKey: Boolean(anthropicKey), hasAsrKey: Boolean(asrKey) };
+	const { anthropicKey, asrKey, geminiKey, ...rest } = settings;
+	return { ...rest, hasAnthropicKey: Boolean(anthropicKey), hasAsrKey: Boolean(asrKey), hasGeminiKey: Boolean(geminiKey) };
 }

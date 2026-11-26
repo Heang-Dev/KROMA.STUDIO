@@ -1,8 +1,10 @@
 import { memo, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { MoveHorizontal, Scissors, Trash2, ZoomIn, ZoomOut } from "lucide-react";
-import type { Cue, Project } from "@shared/types";
+import type { Cue, MediaItem, MediaVisuals, Project } from "@shared/types";
 import { type PlacedClip, deleteClip, formatTime, moveClip, placeClips, splitAt, totalDuration, trimClip } from "@/lib/timeline";
 import { useLayout } from "@/state/layout";
+import { useMediaVisuals } from "@/state/visuals";
+import { mediaUrl } from "./Preview";
 import { useEditor } from "@/state/store";
 import { ResizeHandle } from "./ResizeHandle";
 import { Slider } from "@/components/ui/slider";
@@ -11,7 +13,7 @@ import { IconButton } from "./common";
 const PAD = 16;
 const RULER = 26;
 const SUB_TRACK = 40;
-const VIDEO_TRACK = 56;
+const VIDEO_TRACK = 64;
 const HEAD = 72;
 
 export function splitAtPlayhead(): void {
@@ -171,7 +173,7 @@ export function Timeline() {
 						</div>
 						<div className="absolute right-0 left-0" style={{ top: RULER + SUB_TRACK, height: VIDEO_TRACK }} onPointerDown={scrubStart}>
 							{placed.map((clip) => (
-								<ClipBlock key={clip.id} clip={clip} zoom={zoom} name={project.media.find((m) => m.id === clip.mediaId)?.name ?? ""} selected={selection?.kind === "clip" && selection.id === clip.id} onReorder={reorderStart} />
+								<ClipBlock key={clip.id} clip={clip} zoom={zoom} media={project.media.find((m) => m.id === clip.mediaId)} selected={selection?.kind === "clip" && selection.id === clip.id} view={view} onReorder={reorderStart} />
 							))}
 							{dropAt !== null && <div className="pointer-events-none absolute top-0 bottom-0 z-20 w-[3px] -translate-x-1/2 rounded-none bg-primary" style={{ left: PAD + dropAt * zoom }} />}
 						</div>
@@ -225,32 +227,108 @@ function dragHandler(onMove: (original: Project, dx: number) => Project) {
 	};
 }
 
-const ClipBlock = memo(function ClipBlock({ clip, zoom, name, selected, onReorder }: { clip: PlacedClip; zoom: number; name: string; selected: boolean; onReorder: (e: ReactPointerEvent, id: string) => void }) {
+const ClipBlock = memo(function ClipBlock({
+	clip,
+	zoom,
+	media,
+	selected,
+	view,
+	onReorder,
+}: {
+	clip: PlacedClip;
+	zoom: number;
+	media: MediaItem | undefined;
+	selected: boolean;
+	view: { left: number; width: number };
+	onReorder: (e: ReactPointerEvent, id: string) => void;
+}) {
+	const visuals = useMediaVisuals(media);
 	const trim = (edge: "in" | "out") =>
 		dragHandler((p, dx) => {
-			const media = p.media.find((m) => m.id === clip.mediaId);
+			const m = p.media.find((x) => x.id === clip.mediaId);
 			const value = (edge === "in" ? clip.in : clip.out) + dx / zoom;
-			return { ...p, ...trimClip(p.clips, p.cues, clip.id, edge, value, media?.duration ?? clip.out) };
+			return { ...p, ...trimClip(p.clips, p.cues, clip.id, edge, value, m?.duration ?? clip.out) };
 		});
 	const trimIn = trim("in");
 	const trimOut = trim("out");
+	const left = PAD + clip.start * zoom;
+	const width = Math.max(2, (clip.end - clip.start) * zoom);
+	// The part of the clip on screen (px from the clip's left edge), so long clips only draw what's visible.
+	const visibleFrom = Math.max(0, view.left - left - 200);
+	const visibleTo = Math.min(width, view.left + view.width - left + 200);
+
 	return (
 		<div
-			className={`absolute top-1.5 bottom-1.5 cursor-grab overflow-hidden rounded-none border active:cursor-grabbing ${selected ? "border-primary bg-track-video" : "border-track-video/50 bg-track-video/70 hover:border-track-video"}`}
-			style={{ left: PAD + clip.start * zoom, width: Math.max(2, (clip.end - clip.start) * zoom) }}
+			className={`absolute top-1 bottom-1 cursor-grab overflow-hidden rounded-sm border-2 bg-track-video/40 active:cursor-grabbing ${selected ? "border-primary" : "border-transparent hover:border-track-video"}`}
+			style={{ left, width }}
 			onPointerDown={(e) => {
 				e.stopPropagation();
 				useEditor.getState().select({ kind: "clip", id: clip.id });
 				onReorder(e, clip.id);
 			}}
 		>
-			<div className="pointer-events-none truncate px-2.5 pt-1.5 text-[11px] font-medium text-white/90">{name}</div>
-			<div className="pointer-events-none px-2.5 text-[10px] text-white/55">{formatTime(clip.end - clip.start)}</div>
-			<div className="absolute inset-y-0 left-0 w-2 cursor-ew-resize hover:bg-white/30" onPointerDown={trimIn} />
-			<div className="absolute inset-y-0 right-0 w-2 cursor-ew-resize hover:bg-white/30" onPointerDown={trimOut} />
+			{visuals && media && visibleTo > visibleFrom && <Filmstrip clip={clip} zoom={zoom} media={media} visuals={visuals} from={visibleFrom} to={visibleTo} />}
+			{visuals && visuals.peaks.length > 0 && visibleTo > visibleFrom && <Waveform clip={clip} zoom={zoom} visuals={visuals} from={visibleFrom} to={visibleTo} />}
+			<div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-1.5 bg-gradient-to-b from-black/60 to-transparent px-2 pt-0.5 pb-2 text-[10px] text-white">
+				<span className="truncate font-medium">{media?.name ?? ""}</span>
+				<span className="shrink-0 text-white/60">{formatTime(clip.end - clip.start)}</span>
+			</div>
+			<div className="absolute inset-y-0 left-0 w-2 cursor-ew-resize hover:bg-white/40" onPointerDown={trimIn} />
+			<div className="absolute inset-y-0 right-0 w-2 cursor-ew-resize hover:bg-white/40" onPointerDown={trimOut} />
 		</div>
 	);
 });
+
+/** Frames side by side along the clip, each showing the moment under it (like CapCut). */
+function Filmstrip({ clip, zoom, media, visuals, from, to }: { clip: PlacedClip; zoom: number; media: MediaItem; visuals: MediaVisuals; from: number; to: number }) {
+	const height = VIDEO_TRACK - 8;
+	const tile = Math.max(24, Math.round((height * media.width) / Math.max(1, media.height)));
+	const tiles: { x: number; src: string }[] = [];
+	const first = Math.floor(from / tile) * tile;
+	for (let x = first; x < to; x += tile) {
+		const t = clip.in + (x + tile / 2) / zoom;
+		const index = Math.min(visuals.thumbs.files.length - 1, Math.max(0, Math.floor(t / visuals.thumbs.interval)));
+		const file = visuals.thumbs.files[index];
+		if (file) tiles.push({ x, src: mediaUrl(file) });
+	}
+	return (
+		<div className="pointer-events-none absolute inset-0">
+			{tiles.map((t) => (
+				<img key={t.x} src={t.src} alt="" draggable={false} className="absolute top-0 h-full object-cover" style={{ left: t.x, width: tile }} />
+			))}
+		</div>
+	);
+}
+
+/** The sound's loudness along the bottom of the clip. */
+function Waveform({ clip, zoom, visuals, from, to }: { clip: PlacedClip; zoom: number; visuals: MediaVisuals; from: number; to: number }) {
+	const ref = useRef<HTMLCanvasElement>(null);
+	const height = 16;
+	const width = Math.min(Math.ceil(to - from), 8000);
+	useEffect(() => {
+		const canvas = ref.current;
+		if (!canvas) return;
+		const dpr = window.devicePixelRatio || 1;
+		canvas.width = width * dpr;
+		canvas.height = height * dpr;
+		const ctx = canvas.getContext("2d")!;
+		ctx.scale(dpr, dpr);
+		ctx.clearRect(0, 0, width, height);
+		ctx.fillStyle = "rgba(255,255,255,0.6)";
+		const perPx = visuals.peaksPerSecond / zoom; // peaks per pixel
+		for (let px = 0; px < width; px++) {
+			const t = clip.in + (from + px) / zoom;
+			const a = Math.floor(t * visuals.peaksPerSecond);
+			const b = Math.max(a + 1, Math.floor(a + perPx));
+			let peak = 0;
+			for (let i = a; i < b && i < visuals.peaks.length; i++) peak = Math.max(peak, visuals.peaks[i]);
+			// Mirrored around a midline, as editors draw it; a gentle curve keeps loud parts from filling the strip.
+			const h = Math.max(1, Math.sqrt(peak / 255) * (height - 4));
+			ctx.fillRect(px, (height - h) / 2, 1, h);
+		}
+	}, [clip.in, zoom, visuals, from, width]);
+	return <canvas ref={ref} className="pointer-events-none absolute bottom-0 bg-gradient-to-t from-black/55 to-transparent" style={{ left: from, width, height }} />;
+}
 
 const CueBlock = memo(function CueBlock({ cue, zoom, selected }: { cue: Cue; zoom: number; selected: boolean }) {
 	const edit = (mode: "move" | "start" | "end") =>

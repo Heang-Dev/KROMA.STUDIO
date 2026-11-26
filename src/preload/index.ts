@@ -1,11 +1,12 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine } from "@shared/types";
+import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals } from "@shared/types";
 
 const api = {
-	info: (): Promise<{ tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean }; libraryDir: string; version: string; smoke: boolean }> => ipcRenderer.invoke("app:info"),
+	info: (): Promise<{ tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
 	getSettings: (): Promise<SettingsView> => ipcRenderer.invoke("settings:get"),
 	saveSettings: (patch: Partial<Record<keyof Settings, string | number | null>>): Promise<SettingsView> => ipcRenderer.invoke("settings:save", patch),
 
+	geminiModels: (): Promise<{ id: string; label: string }[]> => ipcRenderer.invoke("gemini:models"),
 	setZoom: (zoom: number): Promise<number> => ipcRenderer.invoke("zoom:set", zoom),
 	onZoomChanged: (listener: (zoom: number) => void): (() => void) => {
 		const handler = (_e: unknown, zoom: number) => listener(zoom);
@@ -21,12 +22,13 @@ const api = {
 
 	openMedia: (): Promise<MediaItem[]> => ipcRenderer.invoke("media:open"),
 	probe: (path: string): Promise<MediaItem> => ipcRenderer.invoke("media:probe", path),
+	visuals: (path: string, duration: number): Promise<MediaVisuals> => ipcRenderer.invoke("media:visuals", path, duration),
 	readSubtitles: (path: string): Promise<SourceCue[]> => ipcRenderer.invoke("media:readSubtitles", path),
 
 	download: (taskId: string, url: string): Promise<DownloadResult> => ipcRenderer.invoke("task:download", taskId, url),
-	transcribe: (taskId: string, path: string, duration: number, language: string): Promise<SourceCue[]> =>
+	transcribe: (taskId: string, path: string, duration: number, language: string): Promise<{ cues: SourceCue[]; note?: string }> =>
 		ipcRenderer.invoke("task:transcribe", taskId, path, duration, language),
-	translate: (taskId: string, lines: { id: string; text: string }[], notes: string): Promise<Record<string, string>> =>
+	translate: (taskId: string, lines: { id: string; text: string }[], notes: string): Promise<{ translations: Record<string, string>; fallback: number }> =>
 		ipcRenderer.invoke("task:translate", taskId, lines, notes),
 	captions: (taskId: string, req: CaptionRequest): Promise<PlatformCaption[]> => ipcRenderer.invoke("task:captions", taskId, req),
 	exportVideo: (taskId: string, req: ExportRequest): Promise<string> => ipcRenderer.invoke("task:export", taskId, req),

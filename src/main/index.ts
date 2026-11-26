@@ -4,10 +4,12 @@ import { Readable } from "node:stream";
 import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, shell } from "electron";
 import { parseSubtitles } from "@shared/srt";
 import { type CaptionRequest, type ExportRequest, type Project, type Settings, UI_ZOOM_STEPS } from "@shared/types";
-import { translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
+import { fallbackCount, translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
 import { downloadLink, LIBRARY_DIR } from "./download";
 import { exportVideo } from "./export";
+import { listGeminiModels } from "./gemini";
 import { probe } from "./media";
+import { mediaVisuals } from "./visuals";
 import { loadSettings, saveSettings, viewOf } from "./settings";
 import { findTool } from "./tools";
 import { transcribe } from "./transcribe";
@@ -23,7 +25,7 @@ if (process.env.KROMA_SMOKE === "1") {
 
 protocol.registerSchemesAsPrivileged([{ scheme: "kroma", privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } }]);
 
-const MIME: Record<string, string> = { ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav" };
+const MIME: Record<string, string> = { ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png" };
 
 function serveMedia(request: Request): Response {
 	const path = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, "/"));
@@ -128,10 +130,16 @@ function registerIpc(): void {
 		tools: { ffmpeg: Boolean(findTool("ffmpeg")), ffprobe: Boolean(findTool("ffprobe")), ytdlp: Boolean(findTool("yt-dlp")) },
 		libraryDir: LIBRARY_DIR,
 		version: app.getVersion(),
-		smoke: process.env.KROMA_SMOKE === "1",
+		smoke: process.env.KROMA_SMOKE === "1" || process.env.KROMA_E2E === "1",
+		// End-to-end runs use the real settings (your keys) but must not touch your autosaved project.
+		e2e: process.env.KROMA_E2E === "1",
 	}));
 
 	ipcMain.handle("settings:get", () => viewOf(loadSettings()));
+	ipcMain.handle("gemini:models", () => {
+		const key = loadSettings().geminiKey;
+		return key ? listGeminiModels(key) : [];
+	});
 	ipcMain.handle("zoom:set", (_e, zoom: number) => setZoom(zoom));
 	ipcMain.handle("settings:save", (_e, patch: Partial<Record<keyof Settings, string | number | null>>) => saveSettings(patch));
 
@@ -141,6 +149,7 @@ function registerIpc(): void {
 		return Promise.all(res.filePaths.map((p) => probe(p)));
 	});
 	ipcMain.handle("media:probe", (_e, path: string) => probe(path));
+	ipcMain.handle("media:visuals", (_e, path: string, duration: number) => mediaVisuals(path, duration));
 	ipcMain.handle("media:readSubtitles", (_e, path: string) => parseSubtitles(readFileSync(path, "utf8")));
 
 	ipcMain.handle("task:cancel", (_e, taskId: string) => tasks.get(taskId)?.abort());
@@ -152,7 +161,10 @@ function registerIpc(): void {
 		task(taskId, (p, s) => transcribe(path, duration, language, loadSettings(), p, s)),
 	);
 	ipcMain.handle("task:translate", (_e, taskId: string, lines: TranslateLine[], notes: string) =>
-		task(taskId, (p, s) => translateToKhmer(lines, notes, loadSettings(), p, s)),
+		task(taskId, async (p, s) => {
+			const translations = await translateToKhmer(lines, notes, loadSettings(), p, s);
+			return { translations, fallback: fallbackCount.get(lines) ?? 0 };
+		}),
 	);
 	ipcMain.handle("task:captions", (_e, taskId: string, req: CaptionRequest) => task(taskId, (_p, s) => writeCaptions(req, loadSettings(), s)));
 	ipcMain.handle("task:export", (_e, taskId: string, req: ExportRequest) => task(taskId, (p, s) => exportVideo(req, p, s)));

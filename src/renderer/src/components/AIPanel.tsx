@@ -33,7 +33,7 @@ export function AIPanel() {
 		<>
 			<Section
 				title="Auto Khmer subtitles"
-				hint="Gets the Chinese lines (from the site, or cloud speech-to-text), then Claude translates them to Khmer. Long movies take a minute or two."
+				hint="Gets the Chinese lines (from the site, or cloud speech-to-text), then translates them to Khmer (Gemini, Google Translate or Claude, set in Settings). Long movies take a minute or two."
 				action={
 					<Button variant="ghost" size="icon-xs" aria-label="API keys and models" onClick={() => useEditor.getState().openSettings("translation")}>
 						<Settings />
@@ -53,7 +53,7 @@ export function AIPanel() {
 				<TaskProgress prefix="translate" />
 			</Section>
 
-			<Section title="Notes for the translator" hint="Names, who's who, the show's title, the tone. Claude keeps names and politeness consistent with them.">
+			<Section title="Notes for the translator" hint="Names, who's who, the show's title, the tone. Gemini and Claude keep names and politeness consistent with them.">
 				<Textarea
 					className="min-h-24 text-xs"
 					placeholder="e.g. Palace drama. 李明 is the hero, write it លី មីង. The emperor speaks formally."

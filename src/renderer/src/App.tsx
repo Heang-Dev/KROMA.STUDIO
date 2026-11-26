@@ -42,8 +42,11 @@ export function App() {
 	useEffect(() => subscribeProgress(), []);
 	useEffect(() => {
 		let stop: (() => void) | undefined;
-		void restoreAutosave().finally(() => {
-			stop = startAutosave();
+		void window.kroma.info().then(({ e2e }) => {
+			if (e2e) return; // end-to-end test runs leave your autosaved project alone
+			void restoreAutosave().finally(() => {
+				stop = startAutosave();
+			});
 		});
 		return () => stop?.();
 	}, []);
@@ -57,7 +60,7 @@ export function App() {
 			applyAppearance(s.theme);
 			setZoomVar(s.uiZoom);
 			// First run: no keys yet, so open the settings for them.
-			if (!s.hasAnthropicKey && !s.hasAsrKey) useEditor.getState().openSettings("translation");
+			if (!s.hasAnthropicKey && !s.hasGeminiKey && !s.hasAsrKey && s.translateProvider !== "google") useEditor.getState().openSettings("translation");
 		});
 		// Browser-style notice when the interface size changes.
 		const stopZoom = window.kroma.onZoomChanged((zoom) => {

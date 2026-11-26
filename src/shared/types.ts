@@ -69,6 +69,14 @@ export interface Project {
 	voice?: VoiceSettings;
 }
 
+/** Timeline pictures and waveform for one video (made once, cached). */
+export interface MediaVisuals {
+	thumbs: { interval: number; files: string[] };
+	peaksPerSecond: number;
+	/** Loudness 0–255, peaksPerSecond values per second. */
+	peaks: number[];
+}
+
 export interface VoiceLine {
 	path: string;
 	duration: number;
@@ -94,8 +102,15 @@ export const KHMER_VOICES = [
 export const DEFAULT_VOICE: VoiceSettings = { enabled: false, voice: "km-KH-SreymomNeural", rate: 10, originalVolume: 0.15, lines: {} };
 
 export interface Settings {
+	/** Who translates to Khmer and writes the posts. */
+	translateProvider: TranslateProvider;
 	anthropicKey: string;
+	/** Claude model. */
 	translateModel: string;
+	geminiKey: string;
+	geminiModel: string;
+	/** Speech to text: Gemini (your Gemini key) or a Whisper endpoint (Groq / OpenAI). */
+	asrProvider: AsrProvider;
 	asrBaseUrl: string;
 	asrKey: string;
 	asrModel: string;
@@ -111,8 +126,12 @@ export interface Settings {
 
 export type Appearance = "system" | "light" | "dark";
 
-export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey"> {
+export type TranslateProvider = "gemini" | "google" | "claude";
+export type AsrProvider = "gemini" | "whisper";
+
+export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey" | "geminiKey"> {
 	hasAnthropicKey: boolean;
+	hasGeminiKey: boolean;
 	hasAsrKey: boolean;
 }
 
@@ -186,8 +205,13 @@ export const DEFAULT_STYLE: SubtitleStyle = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
+	translateProvider: "gemini",
 	anthropicKey: "",
 	translateModel: "claude-opus-5-5",
+	geminiKey: "",
+	// An alias Google keeps pointed at its current Flash model, so it never goes stale.
+	geminiModel: "gemini-flash-latest",
+	asrProvider: "gemini",
 	asrBaseUrl: "https://api.groq.com/openai/v1",
 	asrKey: "",
 	asrModel: "whisper-large-v3",
