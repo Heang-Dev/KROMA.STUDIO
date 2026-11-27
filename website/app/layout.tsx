@@ -8,7 +8,7 @@ const kantumruy = Kantumruy_Pro({ subsets: ["khmer", "latin"], variable: "--font
 
 export const metadata: Metadata = {
 	// The address the site is published at (for link previews on Facebook, Telegram, X…).
-	metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://heang-dev.github.io/kroma-studio/"),
+	metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://heang-dev.github.io/kroma/"),
 	title: "Kroma Studio · Turn any video into a Khmer video",
 	description:
 		"Download videos from YouTube, Bilibili, Douyin and 1,000+ sites, translate the subtitles to Khmer, give every character a voice, and post to YouTube, Facebook and TikTok. A free desktop app for macOS, Windows and Linux.",
