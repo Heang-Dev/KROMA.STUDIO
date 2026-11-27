@@ -71,7 +71,9 @@ describe("update download", async () => {
 
 describe("checking for updates with automatic downloads off", async () => {
 	const { checkForUpdates } = await import("./updater");
-	it("only says a new version is out, and downloads nothing", async () => {
+	// Mac and Linux .deb check GitHub Releases themselves (this path); Windows goes through electron-updater, whose
+	// autoDownload follows the same setting but can't run in a unit test.
+	it.skipIf(process.platform === "win32")("only says a new version is out, and downloads nothing", async () => {
 		const calls: string[] = [];
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (async (url: string) => {
