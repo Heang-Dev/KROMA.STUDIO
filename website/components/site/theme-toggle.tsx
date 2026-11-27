@@ -5,12 +5,13 @@ import { flushSync } from "react-dom";
 import { Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /**
  * Light / dark, remembered (the same `dark` class the app uses). The new theme spreads in a circle from the button
  * (View Transitions), and the icon spins from sun to moon. Instant where the browser can't, or for reduced motion.
  */
-export function ThemeToggle({ label }: { label: string }) {
+export function ThemeToggle({ label, className }: { label: string; className?: string }) {
 	const [dark, setDark] = useState<boolean | null>(null);
 	useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
 
@@ -42,7 +43,7 @@ export function ThemeToggle({ label }: { label: string }) {
 	};
 
 	return (
-		<Button variant="outline" size="icon-sm" aria-label={label} title={label} onClick={toggle} className="relative overflow-hidden">
+		<Button variant="ghost" size="icon-sm" aria-label={label} title={label} onClick={toggle} className={cn("relative overflow-hidden", className)}>
 			{dark === null ? (
 				// Before the page knows its theme: plain icons, so nothing jumps.
 				<>

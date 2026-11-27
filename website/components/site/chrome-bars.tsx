@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 import { BrandIcon } from "./brand-icons";
 import { LangSwitcher } from "./lang-switcher";
 import { MobileMenu } from "./mobile-menu";
+
+// One button in the header toolbar: quiet until hovered or open.
+const TOOL = "h-7 rounded-sm text-muted-foreground shadow-none hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground";
 import { ThemeToggle } from "./theme-toggle";
 
 const wrap = "mx-auto w-[min(1180px,100%-32px)]";
@@ -38,28 +41,32 @@ export function HeaderBar({ stars }: { stars: number | null }) {
 						</Link>
 					))}
 				</nav>
-				{/* Every action button is the same small outline button: community, GitHub, language, theme. */}
-				<div className="ml-auto flex items-center gap-1.5">
-					{communityLinks().map((c) => (
-						<Button key={c.name} asChild variant="outline" size="icon-sm" className="hidden sm:inline-flex">
-							<a href={c.href} target="_blank" rel="noreferrer" aria-label={c.label} title={c.label}>
-								<BrandIcon name={c.name} />
+				{/* GitHub, language and theme sit together in one slim toolbar, as tall as the Download button. */}
+				<div className="ml-auto flex items-center gap-2">
+					<div className="flex h-8 items-center rounded-md border bg-background p-0.5">
+						{communityLinks().map((c) => (
+							<Button key={c.name} asChild variant="ghost" size="icon-sm" className={cn(TOOL, "hidden w-7 sm:inline-flex")}>
+								<a href={c.href} target="_blank" rel="noreferrer" aria-label={c.label} title={c.label}>
+									<BrandIcon name={c.name} />
+								</a>
+							</Button>
+						))}
+						<Button asChild variant="ghost" size="sm" className={cn(TOOL, "hidden gap-1.5 px-2 sm:inline-flex", !showStars && "w-7 px-0")}>
+							<a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label={`GitHub${showStars ? `, ${stars} stars` : ""}`} title="GitHub">
+								<BrandIcon name="github" />
+								{showStars && (
+									<span className="flex items-center gap-1 text-xs tabular-nums">
+										<Star className="size-3" /> {compact(stars!)}
+									</span>
+								)}
 							</a>
 						</Button>
-					))}
-					<Button asChild variant="outline" size={showStars ? "sm" : "icon-sm"} className={cn("hidden sm:inline-flex", showStars && "gap-1.5 px-2.5")}>
-						<a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label={`GitHub${showStars ? `, ${stars} stars` : ""}`} title="GitHub">
-							<BrandIcon name="github" />
-							{showStars && (
-								<span className="flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
-									<Star className="size-3" /> {compact(stars!)}
-								</span>
-							)}
-						</a>
-					</Button>
-					<LangSwitcher label={t.language} />
-					<ThemeToggle label={t.theme} />
-					<Button asChild size="sm" className="ml-1 hidden sm:inline-flex">
+						<span aria-hidden className="mx-0.5 hidden h-4 w-px bg-border sm:block" />
+						<LangSwitcher label={t.language} className={TOOL} />
+						<span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
+						<ThemeToggle label={t.theme} className={cn(TOOL, "w-7")} />
+					</div>
+					<Button asChild size="sm" className="hidden sm:inline-flex">
 						<Link href={localize("/#download", lang)}>{t.download}</Link>
 					</Button>
 					<MobileMenu

@@ -5,10 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { Check, Languages } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { LANGS, type Lang, langOf, switchPath } from "@/lib/i18n";
 
 /** English / ខ្មែរ: opens the same page in the other language, and remembers the choice. */
-export function LangSwitcher({ label }: { label: string }) {
+export function LangSwitcher({ label, className }: { label: string; className?: string }) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const current = langOf(pathname);
@@ -31,8 +32,9 @@ export function LangSwitcher({ label }: { label: string }) {
 	return (
 		<DropdownMenu.Root modal={false}>
 			<DropdownMenu.Trigger asChild>
-				<Button variant="outline" size="icon-sm" aria-label={label} title={label}>
+				<Button variant="ghost" size="sm" aria-label={label} title={label} className={cn("gap-1.5 px-2", className)}>
 					<Languages />
+					<span lang={current} className={cn("text-xs", current === "km" && "font-khmer")}>{current === "km" ? "ខ្មែរ" : "EN"}</span>
 				</Button>
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Portal>
