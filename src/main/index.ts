@@ -20,6 +20,7 @@ import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePa
 import { removeVoices, type SeparationQuality } from "./separate";
 import { instantSample, synthesizeLines } from "./voice";
 import { type CharacterLine, type VoiceChoice, findCharacters } from "./characters";
+import { checkForUpdates, downloadUpdate, installUpdate, startUpdater, updateState } from "./updater";
 import { connectLink, ensureProfile, facebookPages, postAccount, postProfiles, publish } from "./publish";
 
 // Media files are streamed to the editor through kroma://media/<path>, with Range support so long videos seek instantly.
@@ -355,6 +356,11 @@ const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "
 		if (process.platform === "darwin") return;
 		BrowserWindow.fromWebContents(e.sender)?.setTitleBarOverlay({ color, symbolColor, height: 44 });
 	});
+	// Updates (see updater.ts).
+	ipcMain.handle("update:get", () => updateState());
+	ipcMain.handle("update:check", () => checkForUpdates(true));
+	ipcMain.handle("update:download", () => downloadUpdate());
+	ipcMain.handle("update:install", () => installUpdate());
 	ipcMain.handle("file:exists", (_e, path: string) => existsSync(path));
 	ipcMain.handle("shell:show", (_e, path: string) => shell.showItemInFolder(path));
 	ipcMain.handle("shell:open", (_e, url: string) => {
@@ -385,6 +391,7 @@ app.whenReady().then(() => {
 	registerIpc();
 	buildMenu();
 	createWindow();
+	startUpdater(() => loadSettings().autoUpdate);
 	// Right-click the Dock icon (Mac) or the taskbar button (Windows) → New Window.
 	app.dock?.setMenu(Menu.buildFromTemplate([{ label: "New Window", click: () => createWindow() }]));
 	if (process.platform === "win32") app.setUserTasks([{ program: process.execPath, arguments: "--new-window", iconPath: process.execPath, iconIndex: 0, title: "New Window", description: "Open another Kroma window" }]);

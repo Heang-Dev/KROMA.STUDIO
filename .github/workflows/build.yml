@@ -4,6 +4,11 @@ name: Build Windows and Linux
 # on each packaged app, and keeps the files as downloads on the run (and on a draft release for a v* tag).
 on:
   workflow_dispatch:
+    inputs:
+      update_test:
+        description: "Also check that an older build finds and downloads the latest release"
+        type: boolean
+        default: false
   push:
     tags: ["v*"]
 
@@ -18,12 +23,15 @@ jobs:
             app: dist/win-unpacked/Kroma Studio.exe
             files: |
               dist/*.exe
+              dist/*.exe.blockmap
+              dist/latest.yml
           - os: ubuntu-latest
             target: linux
             app: dist/linux-unpacked/kroma-studio
             files: |
               dist/*.AppImage
               dist/*.deb
+              dist/latest-linux.yml
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -61,3 +69,37 @@ jobs:
         with:
           draft: true
           files: ${{ matrix.files }}
+
+  # An old build (version 0.0.1) must find the latest release, download it and get ready to restart into it.
+  update-test:
+    if: ${{ inputs.update_test }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            app: dist/win-unpacked/Kroma Studio.exe
+          - os: ubuntu-latest
+            target: linux
+            app: dist/Kroma-Studio-0.0.1-x86_64.AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - run: node scripts/fetch-tools.mjs
+      - name: Package as version 0.0.1
+        run: bunx electron-vite build && bunx electron-builder --${{ matrix.target }} --publish never -c.extraMetadata.version=0.0.1
+      - name: Update test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0 libnss3 libgbm1 libasound2t64 libfuse2t64
+          chmod +x "${{ matrix.app }}"
+          xvfb-run -a node scripts/ci-update.mjs "${{ matrix.app }}"
+      - name: Update test (Windows)
+        if: runner.os == 'Windows'
+        run: node scripts/ci-update.mjs "${{ matrix.app }}"

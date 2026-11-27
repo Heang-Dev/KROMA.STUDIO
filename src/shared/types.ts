@@ -241,6 +241,8 @@ export interface Settings {
 	postProfile: string;
 	/** The Facebook Page videos are posted to. */
 	facebookPageId: string;
+	/** Download new versions in the background and offer "Restart to update". */
+	autoUpdate: boolean;
 }
 
 export type Appearance = "system" | "light" | "dark";
@@ -378,7 +380,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	theme: "dark",
 	uiZoom: 0.9,	postKey: "",
 	postProfile: "",
-	facebookPageId: "",
+	facebookPageId: "",	autoUpdate: true,
 };
 
 export const UI_ZOOM_STEPS = [0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.4] as const;
@@ -462,4 +464,20 @@ export interface PublishResult {
 export interface PublishRecord {
 	at: number;
 	results: PublishResult[];
+}
+
+// ── Updates ──
+
+export interface UpdateState {
+	status: "idle" | "checking" | "none" | "available" | "downloading" | "ready" | "error";
+	/** The running version. */
+	current: string;
+	/** The new version, when there is one. */
+	version?: string;
+	/** Download progress 0–1. */
+	progress?: number;
+	notes?: string;
+	/** The release page. */
+	url?: string;
+	error?: string;
 }

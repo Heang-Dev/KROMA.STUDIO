@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { applyAppearance } from "@/lib/appearance";
 import { useEditor } from "@/state/store";
+import { useUpdateState } from "../UpdateButton";
 import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented, SwitchRow } from "../common";
 
 // The settings registry. Each entry is one page in the settings nav; add a page by adding an entry here.
@@ -541,6 +542,57 @@ function ShortcutsSection() {
 	);
 }
 
+/** Settings → About → Updates: the version, a check button, and automatic updates on or off. */
+function UpdatesGroup() {
+	const state = useUpdateState();
+	const [auto, setAuto] = useState<boolean | null>(null);
+	useEffect(() => {
+		void window.kroma.getSettings().then((s) => setAuto(s.autoUpdate));
+	}, []);
+	const status = !state
+		? ""
+		: state.status === "checking"
+			? "Checking…"
+			: state.status === "none"
+				? `You have the latest version (${state.current}).`
+				: state.status === "available"
+					? `Kroma ${state.version} is available.`
+					: state.status === "downloading"
+						? `Downloading Kroma ${state.version}${state.progress !== undefined ? ` · ${Math.round(state.progress * 100)}%` : ""}`
+						: state.status === "ready"
+							? `Kroma ${state.version} is ready: press “Restart to update” at the top.`
+							: state.status === "error"
+								? (state.error ?? "Couldn't check for updates.")
+								: `Version ${state.current}. Kroma checks for updates on start and every few hours.`;
+	return (
+		<Group title="Updates" description="New versions come from GitHub Releases. Kroma downloads them in the background; you choose when to restart.">
+			<Card>
+				<Row
+					label="Check for updates"
+					description={status}
+					control={
+						<Button variant="outline" size="sm" disabled={state?.status === "checking" || state?.status === "downloading"} onClick={() => void window.kroma.checkForUpdates()}>
+							<RefreshCw className={state?.status === "checking" ? "animate-spin" : ""} /> Check now
+						</Button>
+					}
+				/>
+				{auto !== null && (
+					<SwitchRow
+						label="Update automatically"
+						description="Download new versions in the background. Off: Kroma only tells you a new version is out."
+						checked={auto}
+						onChange={(v) => {
+							setAuto(v);
+							void window.kroma.saveSettings({ autoUpdate: v });
+						}}
+					/>
+				)}
+				<Row label="What's new" control={<Button variant="ghost" size="sm" onClick={() => void window.kroma.openExternal("https://heang-dev.github.io/kroma/changelog/")}><ExternalLink /> Changelog</Button>} />
+			</Card>
+		</Group>
+	);
+}
+
 function AboutSection() {
 	const [info, setInfo] = useState<Awaited<ReturnType<typeof window.kroma.info>> | null>(null);
 	useEffect(() => {
@@ -559,6 +611,7 @@ function AboutSection() {
 					<Row label={`Kroma Studio ${info.version}`} description="Turns Chinese and online videos into Khmer-subtitled posts for YouTube, Facebook and TikTok." />
 				</Card>
 			</Group>
+			<UpdatesGroup />
 			<Group title="Tools" description={info.platform === "darwin" ? "Installed with Homebrew; Kroma finds them on its own." : "FFmpeg and yt-dlp come with Kroma. uv is only needed for removing the original voices."}>
 				<Card>
 					{tools.map(([name, ok, install]) => (

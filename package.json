@@ -1,7 +1,7 @@
 {
 	"name": "kroma-studio",
 	"productName": "Kroma Studio",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Desktop video editor for turning Chinese and online videos into Khmer-subtitled posts for YouTube, Facebook and TikTok",
 	"main": "./out/main/index.js",
 	"private": true,
@@ -19,6 +19,7 @@
 	"dependencies": {
 		"@anthropic-ai/sdk": "^1.14.0",
 		"cn": "^0.5.2",
+		"electron-updater": "6.8.11",
 		"msedge-tts": "^2.1.1",
 		"zod": "^4.6.7"
 	},
@@ -127,7 +128,15 @@
 					"to": "icon.png"
 				}
 			]
-		}
+		},
+		"publish": [
+			{
+				"provider": "github",
+				"owner": "Heang-Dev",
+				"repo": "kroma",
+				"releaseType": "release"
+			}
+		]
 	},
 	"author": {
 		"name": "Heang-Dev"

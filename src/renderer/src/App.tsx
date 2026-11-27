@@ -13,6 +13,7 @@ import { SubtitleList } from "./components/SubtitleList";
 import { Timeline, deleteSelection, splitAtPlayhead } from "./components/Timeline";
 import { VoicePanel } from "./components/VoicePanel";
 import { VoicesPage } from "./components/VoicesPage";
+import { UpdateButton } from "./components/UpdateButton";
 import { ExportMenu, StepBar } from "./components/StepBar";
 import { IconButton, ProgressBar, latestTask } from "./components/common";
 import { SettingsPage } from "./components/settings/SettingsPage";
@@ -222,6 +223,7 @@ function TopBar() {
 				</div>
 			)}
 			<div className="no-drag ml-auto flex items-center gap-0.5">
+				<UpdateButton />
 				{exporting && (
 					<div className="mr-3 w-48">
 						<p className="mb-1 truncate text-[11px] text-muted-foreground">{exportTask.message}</p>

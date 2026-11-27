@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, PostAccount, PostProfile, PublishRequest, PublishResult } from "@shared/types";
+import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState } from "@shared/types";
 
 const api = {
 	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; platform: string; installHints: { ffmpeg: string; ytdlp: string; uv: string }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
@@ -31,6 +31,15 @@ const api = {
 	translate: (taskId: string, lines: { id: string; text: string; seconds?: number }[], notes: string, language?: string): Promise<{ translations: Record<string, string>; fallback: number }> =>
 		ipcRenderer.invoke("task:translate", taskId, lines, notes, language),
 	setTitleBarColors: (color: string, symbolColor: string): Promise<void> => ipcRenderer.invoke("window:titleBar", color, symbolColor),
+	getUpdateState: (): Promise<UpdateState> => ipcRenderer.invoke("update:get"),
+	checkForUpdates: (): Promise<UpdateState> => ipcRenderer.invoke("update:check"),
+	downloadUpdate: (): Promise<void> => ipcRenderer.invoke("update:download"),
+	installUpdate: (): Promise<void> => ipcRenderer.invoke("update:install"),
+	onUpdateState: (callback: (state: UpdateState) => void): (() => void) => {
+		const listener = (_e: Electron.IpcRendererEvent, state: UpdateState) => callback(state);
+		ipcRenderer.on("update:state", listener);
+		return () => ipcRenderer.removeListener("update:state", listener);
+	},
 	fileExists: (path: string): Promise<boolean> => ipcRenderer.invoke("file:exists", path),
 	postAccount: (): Promise<PostAccount> => ipcRenderer.invoke("post:account"),
 	postProfiles: (): Promise<PostProfile[]> => ipcRenderer.invoke("post:profiles"),
