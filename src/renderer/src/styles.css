@@ -196,6 +196,11 @@ textarea {
 :root[data-fullscreen] .title-bar {
 	padding-left: calc(12px / var(--ui-zoom));
 }
+/* Windows and Linux: no buttons on the left; the system's minimize / maximize / close sit on the right. */
+:root:not([data-platform="darwin"]) .title-bar {
+	padding-left: calc(12px / var(--ui-zoom));
+	padding-right: calc(144px / var(--ui-zoom));
+}
 
 .drag {
 	-webkit-app-region: drag;

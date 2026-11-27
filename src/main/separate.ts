@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { LIBRARY_DIR } from "./download";
-import { findTool, requireTool, run } from "./tools";
+import { findTool, installHint, requireTool, run } from "./tools";
 
 // Removes the original voices from a video's sound and keeps the music and effects (the UVR models, through
 // audio-separator), so the Khmer voice-over replaces the Chinese speech instead of talking over it.
@@ -34,7 +34,7 @@ export function removeVoices(mediaPath: string, duration: number, quality: Separ
 
 async function separate(mediaPath: string, duration: number, quality: SeparationQuality, out: string, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<string> {
 	const uvx = findTool("uvx");
-	if (!uvx) throw new Error("Removing voices needs uv. Install it with: brew install uv");
+	if (!uvx) throw new Error(`Removing voices needs uv. Install it with: ${installHint("uvx")}`);
 	const ffmpeg = requireTool("ffmpeg");
 	const work = join(CACHE, `work-${Date.now()}`);
 	mkdirSync(work, { recursive: true });

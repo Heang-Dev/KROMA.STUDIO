@@ -18,7 +18,7 @@ type Source = "microsoft" | "designed" | "cloned";
 
 const sourceOf = (voice: string): Source => (voice.startsWith("kvs-design:") ? "designed" : voice.startsWith("kvs-clone:") ? "cloned" : "microsoft");
 
-/** The KVS engine's status and the cloned voices on this Mac, refreshed on demand. */
+/** The KVS engine's status and the cloned voices on this computer, refreshed on demand. */
 function useKvs() {
 	const [status, setStatus] = useState<KvsStatus | null>(null);
 	const [voices, setVoices] = useState<KvsVoice[]>([]);
@@ -126,7 +126,7 @@ export function VoicePanel() {
 							</div>
 						) : (
 							<p className="text-xs text-muted-foreground">
-								Your KVS engine{kvs.status?.device ? ` (${kvs.status.device === "cuda" ? "GPU" : kvs.status.device === "mps" ? "this Mac, slower" : kvs.status.device})` : ""}: natural, expressive voices. Slower than Instant, so voice once the subtitles are final.
+								Your KVS engine{kvs.status?.device ? ` (${kvs.status.device === "cuda" ? "GPU" : kvs.status.device === "mps" ? "this computer, slower" : kvs.status.device})` : ""}: natural, expressive voices. Slower than Instant, so voice once the subtitles are final.
 							</p>
 						)}
 
@@ -225,7 +225,7 @@ export function VoicePanel() {
 								? "Removing…"
 								: voice.removeVoices === undefined
 									? "On: done automatically with the voice-over (or at export). Keeps the music and sound effects, drops the original speech."
-									: "Keeps the music and sound effects, drops the original speech. Runs on this Mac: about 40 s per 5 minutes."
+									: "Keeps the music and sound effects, drops the original speech. Runs on this computer: about 40 s per 5 minutes on a recent Mac or PC."
 						}
 						checked={voice.removeVoices !== false}
 						onChange={(on) => {
@@ -239,7 +239,7 @@ export function VoicePanel() {
 						<>
 							<Row
 								label="Quality"
-								description={quality === "best" ? "Cleanest, but slower than the video's length on a Mac." : "Fast and removes speech well."}
+								description={quality === "best" ? "Cleanest, but slower than the video's length without a strong GPU." : "Fast and removes speech well."}
 								control={
 									<Segmented<"fast" | "best">
 										label="Voice removal quality"

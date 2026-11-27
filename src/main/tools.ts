@@ -1,23 +1,75 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 
-// Apps opened from Finder don't get the shell's PATH, so look in the usual install places too.
-const EXTRA_DIRS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
+export type ToolName = "ffmpeg" | "ffprobe" | "yt-dlp" | "uvx";
 
-export function findTool(name: "ffmpeg" | "ffprobe" | "yt-dlp" | "uvx"): string | null {
-	const dirs = [...(process.env.PATH ?? "").split(delimiter), ...EXTRA_DIRS];
-	for (const dir of dirs) {
-		const candidate = join(dir, name);
-		if (dir && existsSync(candidate)) return candidate;
+const isWindows = process.platform === "win32";
+
+/** Tools shipped inside the app (Windows and Linux builds carry FFmpeg and yt-dlp; see scripts/fetch-tools.mjs). */
+export function bundledToolsDir(): string | null {
+	const resources = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+	const candidates = [resources && join(resources, "bin"), join(__dirname, "../../vendor/bin")].filter(Boolean) as string[];
+	return candidates.find((d) => existsSync(d)) ?? null;
+}
+
+/**
+ * Each system's usual install places: apps opened from the Finder, Start menu or a desktop launcher don't get the
+ * shell's PATH.
+ */
+function systemDirs(): string[] {
+	const home = homedir();
+	const common = [join(home, ".local", "bin"), join(home, ".cargo", "bin")];
+	if (isWindows) {
+		const local = process.env.LOCALAPPDATA ?? join(home, "AppData", "Local");
+		return [...common, join(local, "Microsoft", "WinGet", "Links"), join(home, "scoop", "shims"), "C:\\ProgramData\\chocolatey\\bin", "C:\\ffmpeg\\bin"];
+	}
+	if (process.platform === "darwin") return ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", ...common];
+	return ["/usr/local/bin", "/usr/bin", "/snap/bin", ...common];
+}
+
+/** Where to look, in order. On a Mac, Homebrew's tools come first (they have the Mac's video chip encoder); elsewhere the app's own copies. */
+function searchDirs(): string[] {
+	const bundled = bundledToolsDir();
+	const path = (process.env.PATH ?? process.env.Path ?? "").split(delimiter);
+	const dirs = process.platform === "darwin" ? [...systemDirs(), ...path, bundled] : [bundled, ...systemDirs(), ...path];
+	return dirs.filter((d): d is string => Boolean(d));
+}
+
+export function findTool(name: ToolName | "psql"): string | null {
+	const file = isWindows ? `${name}.exe` : name;
+	for (const dir of searchDirs()) {
+		const candidate = join(dir, file);
+		if (existsSync(candidate)) return candidate;
 	}
 	return null;
 }
 
+/** How to install a missing tool on this system. */
+export function installHint(name: ToolName): string {
+	const pkg = name === "ffprobe" ? "ffmpeg" : name === "uvx" ? "uv" : name;
+	if (isWindows) return name === "uvx" ? "winget install astral-sh.uv" : `winget install ${pkg === "ffmpeg" ? "Gyan.FFmpeg" : "yt-dlp.yt-dlp"}`;
+	if (process.platform === "darwin") return `brew install ${pkg}`;
+	return name === "uvx" ? "curl -LsSf https://astral.sh/uv/install.sh | sh" : `sudo apt install ${pkg}`;
+}
+
 export function requireTool(name: "ffmpeg" | "ffprobe" | "yt-dlp"): string {
 	const found = findTool(name);
-	if (!found) throw new Error(`${name} is not installed. Install it with: brew install ${name === "ffprobe" ? "ffmpeg" : name}`);
+	if (!found) throw new Error(`${name} is not installed. Install it with: ${installHint(name)}`);
 	return found;
+}
+
+/** PATH for the commands Kroma runs, so they find each other (yt-dlp and audio-separator need ffmpeg). */
+export function toolPath(): string {
+	return [...new Set(searchDirs())].join(delimiter);
+}
+
+/** The environment for a command: PATH set once (Windows spells it "Path"; two copies would confuse it). */
+function commandEnv(extra?: Record<string, string>): NodeJS.ProcessEnv {
+	const env: NodeJS.ProcessEnv = {};
+	for (const [k, v] of Object.entries(process.env)) if (k.toUpperCase() !== "PATH") env[k] = v;
+	return { ...env, PATH: toolPath(), ...extra };
 }
 
 export interface RunOptions {
@@ -30,7 +82,7 @@ export interface RunOptions {
 /** Runs a command, streaming stdout + stderr lines; resolves with stdout, rejects with the stderr tail. */
 export function run(command: string, args: string[], options: RunOptions = {}): Promise<string> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, { env: { ...process.env, PATH: [process.env.PATH, ...EXTRA_DIRS].join(delimiter), ...options.env } });
+		const child = spawn(command, args, { env: commandEnv(options.env), windowsHide: true });
 		let stdout = "";
 		const tail: string[] = [];
 		const onAbort = () => child.kill("SIGTERM");
@@ -63,7 +115,7 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
 /** Runs a command and returns its raw stdout bytes (for decoded audio). */
 export function runBuffer(command: string, args: string[], signal?: AbortSignal): Promise<Buffer> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, { signal });
+		const child = spawn(command, args, { signal, windowsHide: true });
 		const chunks: Buffer[] = [];
 		let stderr = "";
 		child.stdout.on("data", (c: Buffer) => chunks.push(c));

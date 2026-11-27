@@ -1,6 +1,11 @@
+import { isMac } from "@/lib/platform"
 import { cn } from "@/lib/utils"
 
-function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
+// Mac key symbols become the names Windows and Linux use.
+const KEY_NAMES: Record<string, string> = { "⌘": "Ctrl", "⇧": "Shift", "⌥": "Alt" }
+
+function Kbd({ className, children, ...props }: React.ComponentProps<"kbd">) {
+  if (!isMac && typeof children === "string" && KEY_NAMES[children]) children = KEY_NAMES[children]
   return (
     <kbd
       data-slot="kbd"
@@ -11,7 +16,9 @@ function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
         className
       )}
       {...props}
-    />
+    >
+      {children}
+    </kbd>
   )
 }
 

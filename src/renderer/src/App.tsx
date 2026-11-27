@@ -46,6 +46,7 @@ export function App() {
 	const view = useEditor((s) => s.view.name);
 	const leftWidth = useLayout((s) => s.sizes.left);
 	const [missingTools, setMissingTools] = useState<string[]>([]);
+	const [installHints, setInstallHints] = useState<Record<string, string>>({});
 
 	useEffect(() => subscribeProgress(), []);
 	useEffect(() => {
@@ -71,7 +72,8 @@ export function App() {
 		};
 	}, []);
 	useEffect(() => {
-		void window.kroma.info().then(({ tools, smoke }) => {
+		void window.kroma.info().then(({ tools, smoke, installHints: hints }) => {
+			setInstallHints(hints);
 			// The automated smoke test (scripts/smoke.mjs) drives the editor through this handle.
 			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, applyAppearance, toast, planVoice, objectsForExport, render: { ensureFonts, renderBandPng, subtitleBand } } });
 			setMissingTools(Object.entries(tools).filter(([name, ok]) => !ok && name !== "uv").map(([name]) => (name === "ytdlp" ? "yt-dlp" : name)));
@@ -102,7 +104,11 @@ export function App() {
 				{missingTools.length > 0 && (
 					<div role="alert" className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
 						<TriangleAlert className="size-4" /> Missing {missingTools.join(", ")}. Install with:
-						<code className="rounded-sm bg-background/60 px-1.5 py-0.5">brew install {[missingTools.includes("yt-dlp") && "yt-dlp", missingTools.some((t) => t.startsWith("ff")) && "ffmpeg"].filter(Boolean).join(" ")}</code>
+						{[missingTools.some((t) => t.startsWith("ff")) && installHints.ffmpeg, missingTools.includes("yt-dlp") && installHints.ytdlp].filter(Boolean).map((hint) => (
+							<code key={String(hint)} className="rounded-sm bg-background/60 px-1.5 py-0.5">
+								{hint}
+							</code>
+						))}
 					</div>
 				)}
 				{view === "settings" ? (

@@ -1,3 +1,4 @@
+import { keyLabel } from "@/lib/platform";
 import type { ComponentProps, ReactNode } from "react";
 import { Check, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -170,7 +171,7 @@ export function IconButton({ label, shortcut, children, size = "icon-sm", ...pro
 			</TooltipTrigger>
 			<TooltipContent>
 				{label}
-				{shortcut && <span className="ml-1.5 opacity-60">{shortcut}</span>}
+				{shortcut && <span className="ml-1.5 opacity-60">{keyLabel(shortcut)}</span>}
 			</TooltipContent>
 		</Tooltip>
 	);

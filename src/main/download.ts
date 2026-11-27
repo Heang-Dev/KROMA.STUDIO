@@ -1,12 +1,22 @@
+import { app } from "electron";
 import { mkdirSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { downloadErrorMessage, normalizeLink } from "@shared/links";
 import type { DownloadResult } from "@shared/types";
 import { probe } from "./media";
-import { requireTool, run } from "./tools";
+import { findTool, requireTool, run } from "./tools";
 
-export const LIBRARY_DIR = join(homedir(), "Movies", "Kroma Studio");
+// The Movies folder on a Mac, Videos on Windows and Linux.
+export const LIBRARY_DIR = join(videosDir(), "Kroma Studio");
+
+function videosDir(): string {
+	try {
+		return app.getPath("videos");
+	} catch {
+		return join(homedir(), process.platform === "darwin" ? "Movies" : "Videos");
+	}
+}
 
 // Chinese first (Bilibili's AI subtitles are "ai-zh"), then English as a fallback source.
 const SUB_LANGS = "zh-Hans,zh-Hant,zh,zh-CN,zh-TW,ai-zh,en";
@@ -25,7 +35,10 @@ export async function downloadLink(
 	const dir = join(downloadDir || defaultDownloadDir(), String(Date.now()));
 	mkdirSync(dir, { recursive: true });
 
+	// yt-dlp joins video and sound with ffmpeg: point it at the one Kroma uses (bundled on Windows and Linux).
+	const ffmpeg = findTool("ffmpeg");
 	const baseArgs = [
+		...(ffmpeg ? ["--ffmpeg-location", ffmpeg] : []),
 		"--no-playlist",
 		"--newline",
 		"--no-simulate",

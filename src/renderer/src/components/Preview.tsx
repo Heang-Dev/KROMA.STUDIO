@@ -9,7 +9,8 @@ import { useEditor } from "@/state/store";
 import { ObjectLayer } from "./ObjectLayer";
 import { IconButton } from "./common";
 
-export const mediaUrl = (path: string) => `kroma://media${path.split("/").map(encodeURIComponent).join("/")}`;
+export { mediaUrl } from "@shared/media";
+import { mediaUrl } from "@shared/media";
 
 export function Preview() {
 	const project = useEditor((s) => s.project);

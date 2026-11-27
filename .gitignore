@@ -7,3 +7,6 @@ dist/
 
 # temporary test scripts
 scripts/.*.mjs
+
+# tools bundled into Windows and Linux builds (scripts/fetch-tools.mjs)
+vendor/

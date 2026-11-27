@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, wri
 import { join } from "node:path";
 import type { KvsStatus, KvsVoice, Settings, VoiceLine } from "@shared/types";
 import { LIBRARY_DIR } from "./download";
-import { requireTool, run } from "./tools";
+import { findTool, requireTool, run } from "./tools";
 
 // Client for the Khmer Voice Studio engine (../KHMER.VOICE.STUDIO/engine): VoxCPM2 cloned and designed Khmer voices.
 // It runs on this Mac (make engine) or on a free Colab GPU (its notebook prints a URL + token). The engine keeps no
@@ -356,7 +356,7 @@ function fileHash(path: string): string {
 async function kvsDashboardVoices(projectDir: string): Promise<(KvsImportable & { file: string })[]> {
 	const env = readFileSync(join(projectDir, ".env"), "utf8");
 	const get = (k: string) => env.match(new RegExp(`^${k}=(.*)$`, "m"))?.[1]?.trim().replace(/^"|"$/g, "") ?? "";
-	const psql = ["/opt/homebrew/bin/psql", "/usr/local/bin/psql", "/usr/bin/psql"].find((p) => existsSync(p));
+	const psql = findTool("psql");
 	if (!psql) throw new Error("Importing from KVS needs psql (brew install postgresql).");
 	const sql =
 		"select id, name, source, is_preset, coalesce(seconds,0), ref_path, replace(coalesce(transcript,''), E'\\n', ' ') from voice_voices where status = 'ready' and deleted_at is null and ref_path is not null order by id";

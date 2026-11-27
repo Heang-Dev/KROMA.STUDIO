@@ -13,7 +13,8 @@ import { listGeminiModels } from "./gemini";
 import { probe } from "./media";
 import { mediaVisuals } from "./visuals";
 import { loadSettings, saveSettings, viewOf } from "./settings";
-import { findTool } from "./tools";
+import { findTool, installHint } from "./tools";
+import { mediaPath } from "@shared/media";
 import { transcribe } from "./transcribe";
 import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePath, kvsStatus, listKvsVoices, makePresetVoice, presetVoice, saveRecording, speakWithKvs, syncKvsPresets } from "./kvs";
 import { removeVoices, type SeparationQuality } from "./separate";
@@ -34,7 +35,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: "kroma", privileges: { standard:
 const MIME: Record<string, string> = { ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif" };
 
 function serveMedia(request: Request): Response {
-	const path = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, "/"));
+	const path = mediaPath(new URL(request.url).pathname);
 	let size: number;
 	try {
 		size = statSync(path).size;
@@ -77,9 +78,12 @@ function createWindow(): void {
 		minWidth: 1100,
 		minHeight: 700,
 		backgroundColor: "#0e0f12",
-		titleBarStyle: "hiddenInset",
-		// Centred in the 44px title bar, which keeps its size at every interface zoom (see .title-bar in styles.css).
-		trafficLightPosition: { x: 16, y: 16 },
+		...(process.platform === "darwin"
+			? // Centred in the 44px title bar, which keeps its size at every interface zoom (see .title-bar in styles.css).
+				{ titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 16, y: 16 } }
+			: // Windows and Linux: Kroma's own title bar, with the system's minimize / maximize / close drawn on the right
+				// (recoloured to the theme by the editor, see window:titleBar).
+				{ titleBarStyle: "hidden" as const, titleBarOverlay: { color: "#0e0f12", symbolColor: "#e5e5e5", height: 44 }, icon: windowIcon() }),
 		show: false,
 		webPreferences: { preload: join(__dirname, "../preload/index.js"), sandbox: true, contextIsolation: true },
 	});
@@ -106,6 +110,13 @@ function createWindow(): void {
 	});
 	if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
 	else void win.loadFile(join(__dirname, "../renderer/index.html"));
+}
+
+/** Linux shows this in the taskbar (Windows and Mac take the icon from the app itself). */
+function windowIcon(): string | undefined {
+	if (process.platform !== "linux") return undefined;
+	const icon = [join(process.resourcesPath ?? "", "icon.png"), join(__dirname, "../../resources/icon.png")].find((p) => existsSync(p));
+	return icon;
 }
 
 // ── Interface size (⌘+ / ⌘− / ⌘0, like a browser) ──
@@ -136,10 +147,14 @@ function buildMenu(): void {
 		{ label: "Zoom In", accelerator: "CmdOrCtrl+Plus", visible: false, acceleratorWorksWhenHidden: true, click: () => stepZoom(1) },
 		{ label: "Zoom Out", accelerator: "CmdOrCtrl+-", click: () => stepZoom(-1) },
 	];
+	const mac = process.platform === "darwin";
 	Menu.setApplicationMenu(
 		Menu.buildFromTemplate([
-			{ role: "appMenu" },
-			{ label: "File", submenu: [{ label: "New Window", accelerator: "CmdOrCtrl+Shift+N", click: () => createWindow() }, { type: "separator" }, { role: "close" }] },
+			...(mac ? ([{ role: "appMenu" }] as Electron.MenuItemConstructorOptions[]) : []),
+			{
+				label: "File",
+				submenu: [{ label: "New Window", accelerator: "CmdOrCtrl+Shift+N", click: () => createWindow() }, { type: "separator" }, { role: "close" }, ...(mac ? [] : ([{ role: "quit", label: "Exit" }] as Electron.MenuItemConstructorOptions[]))],
+			},
 			{ role: "editMenu" },
 			{ label: "View", submenu: [...zoomItems, { type: "separator" }, { role: "togglefullscreen" }, ...(app.isPackaged ? [] : ([{ type: "separator" }, { role: "reload" }, { role: "toggleDevTools" }] as Electron.MenuItemConstructorOptions[]))] },
 			{ role: "windowMenu" },
@@ -164,6 +179,8 @@ function registerIpc(): void {
 	ipcMain.handle("app:info", (e) => ({
 		slot: slotOf(e.sender),
 		tools: { ffmpeg: Boolean(findTool("ffmpeg")), ffprobe: Boolean(findTool("ffprobe")), ytdlp: Boolean(findTool("yt-dlp")), uv: Boolean(findTool("uvx")) },
+		platform: process.platform,
+		installHints: { ffmpeg: installHint("ffmpeg"), ytdlp: installHint("yt-dlp"), uv: installHint("uvx") },
 		libraryDir: LIBRARY_DIR,
 		version: app.getVersion(),
 		smoke: process.env.KROMA_SMOKE === "1" || process.env.KROMA_E2E === "1",
@@ -333,6 +350,11 @@ const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "
 		}
 	});
 
+	// The window buttons on Windows and Linux follow the light / dark theme.
+	ipcMain.handle("window:titleBar", (e, color: string, symbolColor: string) => {
+		if (process.platform === "darwin") return;
+		BrowserWindow.fromWebContents(e.sender)?.setTitleBarOverlay({ color, symbolColor, height: 44 });
+	});
 	ipcMain.handle("file:exists", (_e, path: string) => existsSync(path));
 	ipcMain.handle("shell:show", (_e, path: string) => shell.showItemInFolder(path));
 	ipcMain.handle("shell:open", (_e, url: string) => {
@@ -340,7 +362,21 @@ const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "
 	});
 }
 
+// One Kroma at a time: opening it again (or "New Window" from the Windows taskbar) opens a window in the running app,
+// so two copies never write the same autosave. Test runs start their own copy.
+const testRun = process.env.KROMA_SMOKE === "1" || process.env.KROMA_E2E === "1";
+const firstCopy = testRun || app.requestSingleInstanceLock();
+if (!firstCopy) app.quit();
+app.on("second-instance", (_e, argv) => {
+	const existing = BrowserWindow.getAllWindows()[0];
+	if (argv.includes("--new-window") || !existing) return createWindow();
+	if (existing.isMinimized()) existing.restore();
+	existing.focus();
+});
+if (process.platform === "win32") app.setAppUserModelId("kh.kroma.studio");
+
 app.whenReady().then(() => {
+	if (!firstCopy) return;
 	protocol.handle("kroma", serveMedia);
 	// The editor may use the microphone (recording a voice to clone); nothing else (camera, screen, …).
 	const audioOnly = (permission: string, mediaTypes?: string[]) => permission === "media" && (mediaTypes ?? ["audio"]).every((t) => t === "audio");
@@ -349,8 +385,9 @@ app.whenReady().then(() => {
 	registerIpc();
 	buildMenu();
 	createWindow();
-	// Right-click the Dock icon → New Window.
+	// Right-click the Dock icon (Mac) or the taskbar button (Windows) → New Window.
 	app.dock?.setMenu(Menu.buildFromTemplate([{ label: "New Window", click: () => createWindow() }]));
+	if (process.platform === "win32") app.setUserTasks([{ program: process.execPath, arguments: "--new-window", iconPath: process.execPath, iconIndex: 0, title: "New Window", description: "Open another Kroma window" }]);
 	app.on("activate", () => {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});

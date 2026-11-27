@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportVideo, linesNeedingVoice, voiceSettings } from "@/lib/actions";
 import { totalDuration } from "@/lib/timeline";
+import { isMac } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { type Panel, useEditor } from "@/state/store";
 import { latestTask } from "./common";
@@ -112,7 +113,7 @@ export function StepBar() {
 
 const EXPORT_SIZES: { quality: ExportQuality; label: string; hint: string; icon: ReactNode }[] = [
 	{ quality: "small", label: "Small", hint: "For TikTok and Facebook: they shrink videos anyway.", icon: <Minimize2 className="mt-0.5" /> },
-	{ quality: "standard", label: "Standard", hint: "Fastest: uses the Mac's video chip. Good for YouTube.", icon: <Zap className="mt-0.5" /> },
+	{ quality: "standard", label: "Standard", hint: isMac ? "Fastest: uses the Mac's video chip. Good for YouTube." : "Quick to export. Good for YouTube.", icon: <Zap className="mt-0.5" /> },
 	{ quality: "high", label: "High", hint: "Best quality, about 3× slower to export.", icon: <Sparkles className="mt-0.5" /> },
 ];
 

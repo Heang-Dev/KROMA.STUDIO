@@ -3,7 +3,8 @@ import type { Cue, SubtitleStyle } from "@shared/types";
 // One renderer for both the preview and the export, so what you see is what gets burned in.
 // Chromium shapes Khmer correctly; Intl.Segmenter knows Khmer word boundaries (Khmer has no spaces).
 
-export const SUBTITLE_FONT = '"Kantumruy Pro Variable", "Khmer Sangam MN", "PingFang SC", sans-serif';
+// Kantumruy Pro comes with Kroma; the rest are each system's fallbacks (Khmer, Chinese, Thai, Lao).
+export const SUBTITLE_FONT = '"Kantumruy Pro Variable", "Khmer Sangam MN", "Khmer UI", "Leelawadee UI", "Noto Sans Khmer", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans Thai", "Noto Sans Lao", sans-serif';
 const LINE_HEIGHT = 1.55;
 const MAX_WIDTH = 0.88;
 

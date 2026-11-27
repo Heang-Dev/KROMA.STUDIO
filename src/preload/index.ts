@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, PostAccount, PostProfile, PublishRequest, PublishResult } from "@shared/types";
 
 const api = {
-	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
+	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; platform: string; installHints: { ffmpeg: string; ytdlp: string; uv: string }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
 	getSettings: (): Promise<SettingsView> => ipcRenderer.invoke("settings:get"),
 	saveSettings: (patch: Partial<Record<keyof Settings, string | number | boolean | null>>): Promise<SettingsView> => ipcRenderer.invoke("settings:save", patch),
 
@@ -30,6 +30,7 @@ const api = {
 		ipcRenderer.invoke("task:transcribe", taskId, path, duration, language),
 	translate: (taskId: string, lines: { id: string; text: string; seconds?: number }[], notes: string, language?: string): Promise<{ translations: Record<string, string>; fallback: number }> =>
 		ipcRenderer.invoke("task:translate", taskId, lines, notes, language),
+	setTitleBarColors: (color: string, symbolColor: string): Promise<void> => ipcRenderer.invoke("window:titleBar", color, symbolColor),
 	fileExists: (path: string): Promise<boolean> => ipcRenderer.invoke("file:exists", path),
 	postAccount: (): Promise<PostAccount> => ipcRenderer.invoke("post:account"),
 	postProfiles: (): Promise<PostProfile[]> => ipcRenderer.invoke("post:profiles"),
@@ -82,4 +83,5 @@ const api = {
 };
 
 export type KromaApi = typeof api;
+contextBridge.exposeInMainWorld("kromaPlatform", process.platform);
 contextBridge.exposeInMainWorld("kroma", api);

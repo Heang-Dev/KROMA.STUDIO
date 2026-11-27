@@ -11,7 +11,10 @@
 		"start": "electron-vite preview",
 		"typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
 		"test": "vitest run",
-		"dist": "electron-vite build && electron-builder --mac --dir"
+		"dist": "electron-vite build && electron-builder --mac --dir",
+		"fetch-tools": "node scripts/fetch-tools.mjs",
+		"dist:win": "electron-vite build && electron-builder --win --publish never",
+		"dist:linux": "electron-vite build && electron-builder --linux --publish never"
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^1.14.0",
@@ -75,6 +78,59 @@
 			"extendInfo": {
 				"NSMicrophoneUsageDescription": "Kroma Studio uses the microphone to record your voice for cloning."
 			}
+		},
+		"win": {
+			"target": [
+				{
+					"target": "nsis",
+					"arch": [
+						"x64"
+					]
+				}
+			],
+			"icon": "resources/icon.png",
+			"extraResources": [
+				{
+					"from": "vendor/bin",
+					"to": "bin"
+				}
+			]
+		},
+		"nsis": {
+			"oneClick": false,
+			"allowToChangeInstallationDirectory": true,
+			"perMachine": false,
+			"artifactName": "Kroma-Studio-Setup-${version}.${ext}",
+			"shortcutName": "Kroma Studio"
+		},
+		"linux": {
+			"target": [
+				"AppImage",
+				"deb"
+			],
+			"category": "AudioVideo",
+			"icon": "resources/icon.png",
+			"synopsis": "Turn online videos into Khmer-subtitled, voiced posts",
+			"maintainer": "Heang-Dev <Heang-Dev@users.noreply.github.com>",
+			"artifactName": "Kroma-Studio-${version}-${arch}.${ext}",
+			"extraResources": [
+				{
+					"from": "vendor/bin",
+					"to": "bin"
+				},
+				{
+					"from": "vendor/lib",
+					"to": "lib"
+				},
+				{
+					"from": "resources/icon.png",
+					"to": "icon.png"
+				}
+			]
 		}
-	}
+	},
+	"author": {
+		"name": "Heang-Dev"
+	},
+	"homepage": "https://github.com/Heang-Dev/KROMA.STUDIO"
 }

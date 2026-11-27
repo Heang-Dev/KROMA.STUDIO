@@ -1,0 +1,63 @@
+name: Build Windows and Linux
+
+# Builds the Windows installer and the Linux AppImage / .deb on real Windows and Linux machines, runs the smoke test
+# on each packaged app, and keeps the files as downloads on the run (and on a draft release for a v* tag).
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            app: dist/win-unpacked/Kroma Studio.exe
+            files: |
+              dist/*.exe
+          - os: ubuntu-latest
+            target: linux
+            app: dist/linux-unpacked/kroma-studio
+            files: |
+              dist/*.AppImage
+              dist/*.deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - name: Bundled tools (FFmpeg, yt-dlp)
+        run: node scripts/fetch-tools.mjs
+      - run: bun run typecheck
+      - run: bun run test
+      - name: Package
+        run: bunx electron-vite build && bunx electron-builder --${{ matrix.target }} --publish never
+      - name: Smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0 libnss3 libgbm1 libasound2t64
+          xvfb-run -a node scripts/ci-smoke.mjs "${{ matrix.app }}" smoke
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        run: node scripts/ci-smoke.mjs "${{ matrix.app }}" smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-${{ matrix.target }}
+          path: smoke/*.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kroma-studio-${{ matrix.target }}
+          path: ${{ matrix.files }}
+      - name: Draft release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: ${{ matrix.files }}

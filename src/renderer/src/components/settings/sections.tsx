@@ -192,7 +192,7 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 
 	return (
 		<>
-			<Group title="Khmer Voice Studio engine" description="Your KVS engine gives Kroma cloned voices (from a short recording) and designed voices (storyteller, news anchor, children…). It needs a GPU to be quick: run it on a free Google Colab GPU, or on this Mac if you don't mind waiting.">
+			<Group title="Khmer Voice Studio engine" description="Your KVS engine gives Kroma cloned voices (from a short recording) and designed voices (storyteller, news anchor, children…). It needs a GPU to be quick: run it on a free Google Colab GPU, or on this computer if you don't mind waiting.">
 				<Card>
 					<Row
 						label="Status"
@@ -200,7 +200,7 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 							status === null
 								? "Checking…"
 								: status.online
-									? `Online · ${status.device === "cuda" ? "GPU" : status.device === "mps" ? "this Mac (slower)" : (status.device ?? "")} · ${status.presets.length} designed voices${status.busy ? ` · ${status.busy} job(s) running` : ""}`
+									? `Online · ${status.device === "cuda" ? "GPU" : status.device === "mps" ? "this computer (slower)" : (status.device ?? "")} · ${status.presets.length} designed voices${status.busy ? ` · ${status.busy} job(s) running` : ""}`
 									: status.error
 						}
 						control={
@@ -212,14 +212,14 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 							</span>
 						}
 					/>
-					<Row label="Engine address" description="On this Mac it's http://127.0.0.1:7861. Colab prints an https://….trycloudflare.com address." control={<DraftInput className="w-72" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />} />
+					<Row label="Engine address" description="On this computer it's http://127.0.0.1:7861. Colab prints an https://….trycloudflare.com address." control={<DraftInput className="w-72" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />} />
 					<KeyRow label="Token" saved={settings.hasKvsToken} placeholder="Only needed for Colab" onSave={(v) => save({ kvsToken: v })} />
 				</Card>
 			</Group>
 			<Group title="Starting the engine">
 				<Card>
 					<Row label="On a free Colab GPU (fast)" description="Open KHMER.VOICE.STUDIO/engine/colab/KhmerVoiceStudio_Colab.ipynb in Google Colab, choose a T4 GPU, run the cells, then paste the address and token it prints here." />
-					<Row label="On this Mac (slower)" description={<span>In the KHMER.VOICE.STUDIO folder run <span className="font-mono">make engine</span>. The first time downloads the voice model (about 5 GB).</span>} />
+					<Row label="On this computer (slower)" description={<span>In the KHMER.VOICE.STUDIO folder run <span className="font-mono">make engine</span>. The first time downloads the voice model (about 5 GB).</span>} />
 				</Card>
 			</Group>
 		</>
@@ -374,7 +374,7 @@ function DownloadsSection({ settings, save }: SectionProps) {
 			<Card>
 				<Row
 					label="Use my logins from"
-					description="Sign in to the site in that browser first. Your Mac may ask to allow access; Safari also needs Full Disk Access."
+					description="Sign in to the site in that browser first. Your system may ask to allow access; Safari also needs Full Disk Access."
 					control={<AppSelect label="Browser logins" className="w-52" value={settings.cookiesBrowser} options={BROWSERS} onChange={(v) => void save({ cookiesBrowser: v })} />}
 				/>
 			</Card>
@@ -482,7 +482,7 @@ function AppearanceSection({ settings, save }: SectionProps) {
 			<Card>
 				<Row
 					label="Theme"
-					description="System follows your Mac's setting."
+					description="System follows your computer's setting."
 					control={
 						<Segmented
 							label="Theme"
@@ -548,8 +548,9 @@ function AboutSection() {
 	}, []);
 	if (!info) return null;
 	const tools: [string, boolean, string][] = [
-		["FFmpeg", info.tools.ffmpeg && info.tools.ffprobe, "brew install ffmpeg"],
-		["yt-dlp", info.tools.ytdlp, "brew install yt-dlp"],
+		["FFmpeg", info.tools.ffmpeg && info.tools.ffprobe, info.installHints.ffmpeg],
+		["yt-dlp", info.tools.ytdlp, info.installHints.ytdlp],
+		["uv (for removing voices)", info.tools.uv, info.installHints.uv],
 	];
 	return (
 		<>
@@ -558,7 +559,7 @@ function AboutSection() {
 					<Row label={`Kroma Studio ${info.version}`} description="Turns Chinese and online videos into Khmer-subtitled posts for YouTube, Facebook and TikTok." />
 				</Card>
 			</Group>
-			<Group title="Tools" description="Installed on this Mac with Homebrew; Kroma finds them on its own.">
+			<Group title="Tools" description={info.platform === "darwin" ? "Installed with Homebrew; Kroma finds them on its own." : "FFmpeg and yt-dlp come with Kroma. uv is only needed for removing the original voices."}>
 				<Card>
 					{tools.map(([name, ok, install]) => (
 						<Row
