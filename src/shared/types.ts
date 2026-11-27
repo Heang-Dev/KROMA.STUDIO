@@ -243,6 +243,18 @@ export interface Settings {
 	facebookPageId: string;
 	/** Download new versions in the background and offer "Restart to update". */
 	autoUpdate: boolean;
+	/** System notifications when work finishes or fails while Kroma is in the background (Settings → Notifications). */
+	notifySystem: boolean;
+	/** Only failures show a system notification. */
+	notifyOnlyErrors: boolean;
+	/** System notifications play the system sound. */
+	notifySound: boolean;
+	/** Which work notifies (system notification, and a toast when it worked); all of it still goes into the bell. */
+	notifyDownloads: boolean;
+	notifySubtitles: boolean;
+	notifyVoices: boolean;
+	notifyExport: boolean;
+	notifyUpdates: boolean;
 }
 
 export type Appearance = "system" | "light" | "dark";
@@ -409,6 +421,14 @@ export const DEFAULT_SETTINGS: Settings = {
 	uiZoom: 0.9,	postKey: "",
 	postProfile: "",
 	facebookPageId: "",	autoUpdate: true,
+	notifySystem: true,
+	notifyOnlyErrors: false,
+	notifySound: true,
+	notifyDownloads: true,
+	notifySubtitles: true,
+	notifyVoices: true,
+	notifyExport: true,
+	notifyUpdates: true,
 };
 
 export const UI_ZOOM_STEPS = [0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.4] as const;

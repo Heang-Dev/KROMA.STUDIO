@@ -104,18 +104,26 @@ export function StoryPage() {
 	};
 
 	const tell = async () => {
-		const made = await runTask(`story-${Date.now()}`, "Story", (id) => window.kroma.tellStory(id, { title, script, speakers }));
+		const made = await runTask(`story-${Date.now()}`, "Story", (id) => window.kroma.tellStory(id, { title, script, speakers }), {
+			kind: "voices",
+			done: (s) => ({ tone: "success", title: `Story ready: ${s.title}`, action: { kind: "view", view: "story" } }),
+			failed: "The story failed",
+			retry: () => tell(),
+		});
 		if (!made) return;
 		refresh();
 		open(made.id);
-		useEditor.getState().showToast("The story is ready");
 	};
 	const redo = async (from: StoryRecord, line: number) => {
-		const made = await runTask(`story-redo-${Date.now()}`, `Redo line ${line + 1}`, (id) => window.kroma.redoStoryLine(id, from.id, line));
+		const made = await runTask(`story-redo-${Date.now()}`, `Redo line ${line + 1}`, (id) => window.kroma.redoStoryLine(id, from.id, line), {
+			kind: "voices",
+			done: () => ({ tone: "success", title: `Line ${line + 1} spoken again`, detail: "The earlier version is still in your stories.", action: { kind: "view", view: "story" } }),
+			failed: `Couldn't redo line ${line + 1}`,
+			retry: () => redo(from, line),
+		});
 		if (!made) return;
 		refresh();
 		open(made.id);
-		useEditor.getState().showToast(`Line ${line + 1} spoken again`, "info", "The earlier version is still in your stories.");
 	};
 	const remove = (s: StoryRecord) => {
 		if (!window.confirm(`Delete the story "${s.title}"?`)) return;

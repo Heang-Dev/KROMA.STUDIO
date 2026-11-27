@@ -254,7 +254,11 @@ function MakeSampleButton({ name, offline, onMade }: { name: string; offline: bo
 			title={offline ? "Start the voice engine to make samples" : undefined}
 			onClick={async () => {
 				setBusy(true);
-				const made = await runTask(`preset-${Date.now()}`, `Make "${name}" sample`, (id) => window.kroma.makePresetVoice(id, name));
+				const made = await runTask(`preset-${Date.now()}`, `Make "${name}" sample`, (id) => window.kroma.makePresetVoice(id, name), {
+					kind: "voices",
+					done: () => ({ tone: "success", title: `"${name}" sample is ready`, action: { kind: "view", view: "voices" } }),
+					failed: `Couldn't make the "${name}" sample`,
+				});
 				setBusy(false);
 				if (made) onMade();
 			}}

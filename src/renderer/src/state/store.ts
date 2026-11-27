@@ -2,6 +2,8 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import { DEFAULT_STYLE, type Project } from "@shared/types";
 import { totalDuration } from "@/lib/timeline";
+import type { NoticeKind } from "@shared/notify";
+import { type NotifyAction, type NotifyInput, notify } from "@/lib/notify";
 
 export type Panel = "media" | "ai" | "voice" | "style" | "objects" | "post";
 
@@ -61,8 +63,11 @@ interface EditorState {
 	openDownloads: () => void;
 	select: (selection: Selection | null) => void;
 	setTask: (task: TaskState) => void;
-	/** A notice: short title, optional detail line. Errors stay longer and can be closed. */
-	showToast: (text: string, tone?: "info" | "error", description?: string) => void;
+	/**
+	 * A passing notice: short title, optional detail line and button. Errors stay longer and can be closed. Long work
+	 * finishing or failing goes through notify() (lib/notify.ts) instead, which also keeps it in the history.
+	 */
+	showToast: (text: string, tone?: "info" | "error", description?: string, action?: { label: string; onClick: () => void }) => void;
 }
 
 export function newProject(): Project {
@@ -128,30 +133,57 @@ export const useEditor = create<EditorState>((set, get) => ({
 	openDownloads: () => set({ playing: false, view: { name: "downloads" } }),
 	select: (selection) => set({ selection }),
 	setTask: (task) => set((s) => ({ tasks: { ...s.tasks, [task.id]: task } })),
-	showToast: (text, tone = "info", description) => {
+	showToast: (text, tone = "info", description, action) => {
 		set({ toast: { text, tone } });
-		if (tone === "error") toast.error(text, { description, duration: 9000, closeButton: true });
-		else toast.success(text, { description });
+		if (tone === "error") toast.error(text, { description, action, duration: 9000, closeButton: true });
+		else toast.success(text, { description, action, duration: action ? 6000 : undefined });
 		setTimeout(() => {
 			if (get().toast?.text === text) set({ toast: null });
 		}, tone === "error" ? 7000 : 3500);
 	},
 }));
 
-/** Runs a main-process task, mirroring its progress into the store. Returns null if it failed or was cancelled. */
-export async function runTask<T>(id: string, label: string, work: (taskId: string) => Promise<T>): Promise<T | null> {
-	const { setTask, showToast } = useEditor.getState();
+export interface RunTaskOptions<T> {
+	/** What it's about (Settings → Notifications → What to notify about). */
+	kind?: NoticeKind;
+	/**
+	 * The notice when it worked: default "<label> done". A function words it from the result (null: no notice), or
+	 * false when the caller notifies itself afterwards (it knows more, like how many lines).
+	 */
+	done?: false | ((result: T) => NotifyInput | null);
+	/** The title when it failed: default "<label> failed". The error is the detail. */
+	failed?: string;
+	/** Offered as "Retry" on the failure notice. */
+	retry?: () => unknown;
+	/** A button on the failure notice instead of Retry (e.g. open the settings it needs). */
+	failedAction?: NotifyAction;
+}
+
+/**
+ * Runs a main-process task, mirroring its progress into the store, and notifies when it's done or failed (not when
+ * cancelled). Returns null if it failed or was cancelled.
+ */
+export async function runTask<T>(id: string, label: string, work: (taskId: string) => Promise<T>, options: RunTaskOptions<T> = {}): Promise<T | null> {
+	const { setTask } = useEditor.getState();
 	setTask({ id, label, progress: -1, message: "Starting…", status: "running" });
+	let result: T;
 	try {
-		const result = await work(id);
-		setTask({ id, label, progress: 1, message: "Done", status: "done" });
-		return result;
+		result = await work(id);
 	} catch (err) {
 		const message = cleanError(err);
 		setTask({ id, label, progress: 0, message, status: "error", error: message });
-		if (message !== "Cancelled") showToast(`${label} failed`, "error", message);
+		if (message !== "Cancelled") {
+			const action = options.failedAction ?? (options.retry ? { kind: "retry" as const, run: options.retry } : undefined);
+			notify({ tone: "error", kind: options.kind, title: options.failed ?? `${label} failed`, detail: message, action });
+		}
 		return null;
 	}
+	setTask({ id, label, progress: 1, message: "Done", status: "done" });
+	if (options.done !== false) {
+		const notice = options.done ? options.done(result) : { tone: "success" as const, title: `${label} done` };
+		if (notice) notify({ kind: options.kind, ...notice });
+	}
+	return result;
 }
 
 /** Electron prefixes errors with "Error invoking remote method 'x': Error: "; people only need the last part. */

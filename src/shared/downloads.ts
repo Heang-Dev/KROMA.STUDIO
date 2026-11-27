@@ -296,25 +296,25 @@ export function queueSummary(items: DownloadItem[]): string {
 
 /** Sites people ask about, with what works. Shown above the searchable list of every site yt-dlp knows. */
 /** `partial`: free videos download, paid / VIP ones are locked (DRM) — shown as "Free only", not as a failure. */
-export const PLATFORMS: { name: string; support: "yes" | "partial"; note: string }[] = [
-	{ name: "Bilibili", support: "yes", note: "Videos, multi-part videos, collections (合集), series and channel uploads. 1080p and member videos need browser logins (Settings → Downloads)" },
-	{ name: "Bilibili paid / VIP 番剧", support: "partial", note: "Paid and VIP episodes are locked; free seasons may work" },
-	{ name: "Douyin", support: "yes", note: "Single videos and share messages. May need browser logins" },
-	{ name: "Ixigua / Toutiao", support: "yes", note: "Videos" },
-	{ name: "Xiaohongshu", support: "yes", note: "Video notes" },
-	{ name: "Weibo", support: "yes", note: "Videos and a user's videos" },
-	{ name: "AcFun", support: "yes", note: "Videos and bangumi" },
-	{ name: "Youku", support: "partial", note: "Free episodes only; VIP episodes are locked (DRM)" },
-	{ name: "iQiyi / iq.com", support: "partial", note: "Free episodes only; VIP episodes are locked (DRM)" },
-	{ name: "Tencent Video / WeTV", support: "partial", note: "Free episodes only; VIP episodes are locked (DRM)" },
-	{ name: "Mango TV", support: "partial", note: "Free episodes only; VIP episodes are locked (DRM)" },
-	{ name: "YouTube", support: "yes", note: "Videos, Shorts, playlists and whole channels" },
-	{ name: "TikTok", support: "yes", note: "Videos and profile pages" },
-	{ name: "Facebook", support: "yes", note: "Videos, posts and reels" },
-	{ name: "Instagram", support: "yes", note: "Posts and reels (some need browser logins)" },
-	{ name: "X (Twitter)", support: "yes", note: "Videos in posts" },
-	{ name: "Vimeo", support: "yes", note: "Videos and showcases" },
-	{ name: "Dailymotion", support: "yes", note: "Videos and playlists" },
+export const PLATFORMS: { name: string; support: "yes" | "partial"; note: string; url: string; region: "chinese" | "global" }[] = [
+	{ name: "Bilibili", support: "yes", note: "Videos, multi-part videos, collections (合集), series and channel uploads. 1080p and member videos need browser logins (Settings → Downloads)", url: "https://www.bilibili.com", region: "chinese" },
+	{ name: "Bilibili paid / VIP 番剧", support: "partial", note: "Paid and VIP episodes are locked; free seasons may work", url: "https://www.bilibili.com/anime/", region: "chinese" },
+	{ name: "Douyin", support: "yes", note: "Single videos and share messages. May need browser logins", url: "https://www.douyin.com", region: "chinese" },
+	{ name: "Ixigua / Toutiao", support: "yes", note: "Videos", url: "https://www.ixigua.com", region: "chinese" },
+	{ name: "Xiaohongshu", support: "yes", note: "Video notes", url: "https://www.xiaohongshu.com", region: "chinese" },
+	{ name: "Weibo", support: "yes", note: "Videos and a user's videos", url: "https://weibo.com", region: "chinese" },
+	{ name: "AcFun", support: "yes", note: "Videos and bangumi", url: "https://www.acfun.cn", region: "chinese" },
+	{ name: "Youku", support: "partial", note: "Free episodes only; VIP episodes are locked (DRM)", url: "https://www.youku.com", region: "chinese" },
+	{ name: "iQiyi / iq.com", support: "partial", note: "Free episodes only; VIP episodes are locked (DRM)", url: "https://www.iq.com", region: "chinese" },
+	{ name: "Tencent Video / WeTV", support: "partial", note: "Free episodes only; VIP episodes are locked (DRM)", url: "https://wetv.vip", region: "chinese" },
+	{ name: "Mango TV", support: "partial", note: "Free episodes only; VIP episodes are locked (DRM)", url: "https://www.mgtv.com", region: "chinese" },
+	{ name: "YouTube", support: "yes", note: "Videos, Shorts, playlists and whole channels", url: "https://www.youtube.com", region: "global" },
+	{ name: "TikTok", support: "yes", note: "Videos and profile pages", url: "https://www.tiktok.com", region: "global" },
+	{ name: "Facebook", support: "yes", note: "Videos, posts and reels", url: "https://www.facebook.com/watch", region: "global" },
+	{ name: "Instagram", support: "yes", note: "Posts and reels (some need browser logins)", url: "https://www.instagram.com", region: "global" },
+	{ name: "X (Twitter)", support: "yes", note: "Videos in posts", url: "https://x.com", region: "global" },
+	{ name: "Vimeo", support: "yes", note: "Videos and showcases", url: "https://vimeo.com", region: "global" },
+	{ name: "Dailymotion", support: "yes", note: "Videos and playlists", url: "https://www.dailymotion.com", region: "global" },
 ];
 
 /** `yt-dlp --list-extractors` → site names (sub-extractors like "youtube:tab" folded into "youtube"), broken ones marked. */

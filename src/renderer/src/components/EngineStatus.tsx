@@ -4,6 +4,7 @@ import type { KvsStatus } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
+import { notify as notifyDone } from "@/lib/notify";
 
 // The voice engine's state, shared by every place that shows it (status bar, Story studio): one poll for the whole
 // window, and one start at a time.
@@ -33,9 +34,9 @@ export async function startEngine(): Promise<void> {
 	notify();
 	try {
 		current = await window.kroma.kvsStart();
-		useEditor.getState().showToast("The voice engine is on");
+		notifyDone({ kind: "voices", tone: "success", title: "The voice engine is on" });
 	} catch (e) {
-		useEditor.getState().showToast("Couldn't start the voice engine", "error", clean(e));
+		notifyDone({ kind: "voices", tone: "error", title: "Couldn't start the voice engine", detail: clean(e), action: { kind: "view", view: "settings", section: "voice-engine" } });
 	} finally {
 		starting = false;
 		await refresh();

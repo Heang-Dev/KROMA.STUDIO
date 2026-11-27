@@ -15,6 +15,7 @@ import { VoicePanel } from "./components/VoicePanel";
 import { VoicesPage } from "./components/VoicesPage";
 import { StoryPage } from "./components/StoryPage";
 import { DownloadsPage } from "./components/DownloadsPage";
+import { NotificationBell } from "./components/NotificationBell";
 import kromaIcon from "./assets/kroma-icon.png";
 import { UpdateNotice } from "./components/UpdateButton";
 import { ExportMenu, StepBar } from "./components/StepBar";
@@ -28,6 +29,8 @@ import * as actions from "./lib/actions";
 import { exportVideo, openProject, restoreAutosave, saveProject, startAutosave, startNewProject } from "./lib/actions";
 import { planVoice } from "@shared/voice";
 import { applyAppearance } from "./lib/appearance";
+import { notify, startNotifications } from "./lib/notify";
+import { useNotifications } from "./state/notifications";
 import { objectsForExport } from "./lib/objects";
 import { ensureFonts, renderBandPng, subtitleBand } from "./lib/subtitleRender";
 import { cn } from "./lib/utils";
@@ -53,6 +56,7 @@ export function App() {
 	const [installHints, setInstallHints] = useState<Record<string, string>>({});
 
 	useEffect(() => subscribeProgress(), []);
+	useEffect(() => startNotifications(), []);
 	useEffect(() => {
 		let stop: (() => void) | undefined;
 		// An extra window (New Window) asks before closing when its project isn't saved to a file.
@@ -79,7 +83,7 @@ export function App() {
 		void window.kroma.info().then(({ tools, smoke, installHints: hints }) => {
 			setInstallHints(hints);
 			// The automated smoke test (scripts/smoke.mjs) drives the editor through this handle.
-			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, applyAppearance, toast, planVoice, objectsForExport, render: { ensureFonts, renderBandPng, subtitleBand } } });
+			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, notify, useNotifications, applyAppearance, toast, planVoice, objectsForExport, render: { ensureFonts, renderBandPng, subtitleBand } } });
 			setMissingTools(Object.entries(tools).filter(([name, ok]) => !ok && name !== "uv").map(([name]) => (name === "ytdlp" ? "yt-dlp" : name)));
 		});
 		void window.kroma.getSettings().then((s) => {
@@ -241,6 +245,8 @@ function TopBar() {
 						<ProgressBar value={exportTask.progress} />
 					</div>
 				)}
+				<NotificationBell />
+				<Separator orientation="vertical" className="mx-1.5 h-4!" />
 				<IconButton label="New project" shortcut="⌘N" onClick={startNewProject}>
 					<FilePlus />
 				</IconButton>
