@@ -31,7 +31,7 @@ export function MediaPanel() {
 						void submit();
 					}}
 				>
-					<Input className="h-8 text-xs" placeholder="Paste a link or a share message" value={url} onChange={(e) => setUrl(e.target.value)} disabled={downloading} aria-label="Video link" />
+					<Input className="text-xs" placeholder="Paste a link or a share message" value={url} onChange={(e) => setUrl(e.target.value)} disabled={downloading} aria-label="Video link" />
 					<Button type="submit" size="sm" disabled={downloading || !url.trim()}>
 						<Download /> Get
 					</Button>

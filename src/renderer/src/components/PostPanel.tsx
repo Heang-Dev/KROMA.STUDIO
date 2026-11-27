@@ -66,7 +66,7 @@ export function PostPanel() {
 				title="1 · Posts"
 				hint={`The AI reads the ${lang.name} subtitles and writes a title, text and hashtags for each platform. Edit anything before posting; it's saved with the project.`}
 			>
-				<Button variant={posts.length ? "outline" : "default"} className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!translated.length || writing} onClick={() => void writePosts()}>
+				<Button variant={posts.length ? "outline" : "default"} className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!translated.length || writing} onClick={() => void writePosts()}>
 					{writing ? <Loader2 className="animate-spin" /> : <WandSparkles />} {posts.length ? "Write them again" : "Write the posts"}
 				</Button>
 				{!translated.length && <p className="text-xs text-muted-foreground">Make the {lang.name} subtitles first.</p>}
@@ -173,7 +173,7 @@ export function PostPanel() {
 							/>
 						</Card>
 						<Button
-							className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug"
+							className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug"
 							disabled={!project.clips.length || !selected.length || busy || !translated.length}
 							onClick={() => void publishVideo({ platforms: selected, youtubePrivacy: privacy, tiktokMode, quality })}
 						>

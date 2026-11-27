@@ -52,7 +52,7 @@ export function AIPanel() {
 						<AppSelect label="Translate to" value={target.code} options={TARGET_LANGUAGES.map((l) => ({ value: l.code, label: l.code === l.native ? l.name : `${l.name} · ${l.native}` }))} onChange={setTargetLanguage} />
 					</div>
 				</div>
-				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!media || busy} onClick={() => void autoKhmer(language)}>
+				<Button className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!media || busy} onClick={() => void autoKhmer(language)}>
 					<Zap /> Make {target.name} subtitles
 				</Button>
 				{!media && <p className="text-xs text-muted-foreground">Add a video to the timeline first.</p>}

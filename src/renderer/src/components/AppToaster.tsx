@@ -38,7 +38,7 @@ export function AppToaster() {
 				unstyled: true,
 				classNames: {
 					toast:
-						"group/toast pointer-events-auto relative flex w-[360px] items-start gap-2.5 rounded-md border bg-popover p-3 pr-8 font-sans text-[13px] text-popover-foreground shadow-lg shadow-black/20",
+						"group/toast pointer-events-auto relative flex w-[360px] items-start gap-2.5 rounded-md border bg-popover p-3 pr-8 font-sans text-[13px] text-popover-foreground",
 					icon: "mt-px flex size-4 shrink-0 items-center justify-center",
 					content: "min-w-0 flex-1 space-y-0.5",
 					title: "leading-snug font-medium",

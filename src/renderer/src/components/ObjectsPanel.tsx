@@ -20,7 +20,7 @@ export function ObjectsPanel() {
 	return (
 		<>
 			<Section title="Add to the video" hint="Placed on the preview: drag to move, drag the corner to resize. Your subtitles always stay on top.">
-				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!hasVideo} onClick={coverOriginalSubtitles}>
+				<Button className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!hasVideo} onClick={coverOriginalSubtitles}>
 					<Subtitles /> Cover original subtitles
 				</Button>
 				<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-3">
@@ -83,7 +83,7 @@ function ObjectSettings({ o }: { o: VideoObject }) {
 							alignTop
 							control={
 								<Input
-									className="h-8 w-44 text-xs"
+									className="w-44 text-xs"
 									value={o.text ?? ""}
 									onFocus={begin}
 									onChange={(e) => updateObject(o.id, fitTextWidth({ ...o, text: e.target.value }, project), false)}

@@ -68,7 +68,7 @@ export function SettingsPage() {
 						<Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
 						<Input
 							ref={searchRef}
-							className="h-8 bg-background/60 pr-14 pl-8 text-[13px]"
+							className="bg-background/60 pr-14 pl-8 text-[13px]"
 							placeholder="Search settings"
 							aria-label="Search settings"
 							value={query}

@@ -72,7 +72,7 @@ export function UpdateNotice() {
 		<div
 			role="status"
 			aria-live="polite"
-			className="fixed right-4 bottom-10 z-50 flex w-[340px] items-start gap-2.5 rounded-md border bg-popover p-3 pr-8 text-[13px] text-popover-foreground shadow-lg shadow-black/20 animate-in fade-in-0 slide-in-from-bottom-2"
+			className="fixed right-4 bottom-10 z-50 flex w-[340px] items-start gap-2.5 rounded-md border bg-popover p-3 pr-8 text-[13px] text-popover-foreground animate-in fade-in-0 slide-in-from-bottom-2"
 		>
 			<span className="mt-px flex size-4 shrink-0 items-center justify-center text-muted-foreground">
 				{ready ? <RotateCw className="size-4 text-success" /> : state.status === "downloading" ? <Loader2 className="size-4 animate-spin" /> : <ArrowDownToLine className="size-4" />}

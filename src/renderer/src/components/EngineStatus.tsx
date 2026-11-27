@@ -85,24 +85,22 @@ export function EngineStatusItem() {
 	);
 }
 
-/** A compact chip with a Start button, for pages that need the engine (Story studio). */
+/** For pages that need the engine (Story studio): "● Voice engine on" (opens its settings), plus Start when it's off. */
 export function EngineChip() {
 	const { status, starting: isStarting } = useEngineStatus();
 	const { dot, text } = describe(status, isStarting);
 	const canStart = status && !status.online && status.local && !status.cannotStart;
 	return (
-		<div className="flex items-center gap-2 rounded-md border bg-card/50 py-1 pr-1 pl-2.5 text-xs">
-			<span aria-hidden className={cn("size-2 rounded-full", dot)} />
-			<span className="text-muted-foreground">
-				Voice engine <span className="text-foreground">{text.toLowerCase()}</span>
-			</span>
-			{canStart || isStarting ? (
-				<Button size="xs" disabled={isStarting} onClick={() => void startEngine()}>
+		<div className="flex items-center gap-2">
+			<Button variant="outline" size="sm" className="gap-2 font-normal" title="Voice engine settings" onClick={() => useEditor.getState().openSettings("voice-engine")}>
+				<span aria-hidden className={cn("size-2 rounded-full", dot)} />
+				<span className="text-muted-foreground">
+					Voice engine <span className="text-foreground">{text.toLowerCase()}</span>
+				</span>
+			</Button>
+			{(canStart || isStarting) && (
+				<Button variant="outline" size="sm" disabled={isStarting} onClick={() => void startEngine()}>
 					{isStarting ? <Loader2 className="animate-spin" /> : <Power />} Start
-				</Button>
-			) : (
-				<Button size="xs" variant="ghost" onClick={() => useEditor.getState().openSettings("voice-engine")}>
-					Settings
 				</Button>
 			)}
 		</div>

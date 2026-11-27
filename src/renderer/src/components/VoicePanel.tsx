@@ -195,7 +195,7 @@ export function VoicePanel() {
 					</>
 				)}
 
-				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!translated || busy || (isKvsVoice(voice.voice) && engineOffline)} onClick={() => void makeVoiceOver()}>
+				<Button className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!translated || busy || (isKvsVoice(voice.voice) && engineOffline)} onClick={() => void makeVoiceOver()}>
 					<Volume2 /> {voiced && missing ? `Voice the ${missing} new lines` : "Make voice-over"}
 				</Button>
 				{translated > 0 ? (

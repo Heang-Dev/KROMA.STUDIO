@@ -148,7 +148,7 @@ export function Preview() {
 				{placed.length === 0 ? (
 					<EmptyState />
 				) : (
-					<div className="relative overflow-hidden bg-black shadow-2xl shadow-black/50" style={{ width: box.width, height: box.height }} onClick={togglePlay}>
+					<div className="relative overflow-hidden bg-black ring-1 ring-border" style={{ width: box.width, height: box.height }} onClick={togglePlay}>
 						{project.fit === "blur" && (
 							<canvas ref={bgRef} width={64} height={Math.round((64 * output.height) / output.width)} className="absolute inset-0 size-full scale-110 blur-xl brightness-75" />
 						)}

@@ -47,10 +47,10 @@ export function CharactersSection({ clones, sample }: { clones: KvsVoice[]; samp
 				</div>
 			)}
 			<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-2">
-				<Button variant={cast.length ? "outline" : "default"} className="h-auto min-h-9 whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => void findCharacters()}>
+				<Button variant={cast.length ? "outline" : "default"} className="h-auto min-h-control whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => void findCharacters()}>
 					{busy ? <Loader2 className="animate-spin" /> : <Users />} {cast.length ? "Find again" : "Find automatically"}
 				</Button>
-				<Button variant="outline" className="h-auto min-h-9 whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => addCharacter()}>
+				<Button variant="outline" className="h-auto min-h-control whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => addCharacter()}>
 					<Plus /> Add a character
 				</Button>
 			</div>
@@ -95,7 +95,7 @@ export function VoiceSelect({ value, clones, onChange, label }: { value: string;
 	const lang = languageOf(useEditor((s) => s.project.language));
 	return (
 		<Select value={value} onValueChange={onChange}>
-			<SelectTrigger size="sm" className="h-7 min-w-0 flex-1 text-xs" aria-label={label}>
+			<SelectTrigger size="sm" className="min-w-0 flex-1 text-xs" aria-label={label}>
 				<SelectValue />
 			</SelectTrigger>
 			<SelectContent>
