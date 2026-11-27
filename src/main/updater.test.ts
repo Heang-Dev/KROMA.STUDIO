@@ -68,3 +68,23 @@ describe("update download", async () => {
 		expect(smoothSpeed(100, 200)).toBe(125);
 	});
 });
+
+describe("checking for updates with automatic downloads off", async () => {
+	const { checkForUpdates } = await import("./updater");
+	it("only says a new version is out, and downloads nothing", async () => {
+		const calls: string[] = [];
+		const realFetch = globalThis.fetch;
+		globalThis.fetch = (async (url: string) => {
+			calls.push(String(url));
+			return new Response(JSON.stringify({ tag_name: "v9.9.9", body: "notes", html_url: "https://example.com/r", assets: [{ name: "Kroma-Studio-9.9.9-arm64.dmg", browser_download_url: "https://example.com/k.dmg", size: 100 }] }), { status: 200 });
+		}) as typeof fetch;
+		try {
+			const state = await checkForUpdates(false);
+			expect(state.status).toBe("available");
+			expect(state.version).toBe("9.9.9");
+			expect(calls).toEqual(["https://api.github.com/repos/Heang-Dev/kroma/releases/latest"]);
+		} finally {
+			globalThis.fetch = realFetch;
+		}
+	});
+});
