@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 	description:
 		"Download videos from YouTube, Bilibili, Douyin and 1,000+ sites, translate the subtitles to Khmer, give every character a voice, and post to YouTube, Facebook and TikTok. A free desktop app for macOS, Windows and Linux.",
 	icons: { icon: asset("/assets/favicon.png") },
-	openGraph: { title: "Kroma Studio", description: "Turn any video into a Khmer video: subtitles, voices and one-click posting, in one desktop app.", images: [asset("/assets/editor-dark.jpg")] },
+	openGraph: { title: "Kroma Studio", description: "Turn any video into a Khmer video: subtitles, voices and one-click posting, in one desktop app.", images: [{ url: asset("/assets/og.png"), width: 1200, height: 630, alt: "Kroma Studio" }] },
 };
 
 // The theme before the page draws (no flash): the visitor's choice, else the system's.
