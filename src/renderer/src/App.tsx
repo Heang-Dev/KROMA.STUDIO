@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { BookOpenText, ChevronDown, Film, Library, Minimize2, Shapes, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
+import { BookOpenText, ChevronDown, Download, Film, Library, Minimize2, Shapes, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
 import { AIPanel } from "./components/AIPanel";
 import { AppToaster } from "./components/AppToaster";
 import { MediaPanel } from "./components/MediaPanel";
@@ -14,6 +14,7 @@ import { Timeline, deleteSelection, splitAtPlayhead } from "./components/Timelin
 import { VoicePanel } from "./components/VoicePanel";
 import { VoicesPage } from "./components/VoicesPage";
 import { StoryPage } from "./components/StoryPage";
+import { DownloadsPage } from "./components/DownloadsPage";
 import kromaIcon from "./assets/kroma-icon.png";
 import { UpdateNotice } from "./components/UpdateButton";
 import { ExportMenu, StepBar } from "./components/StepBar";
@@ -119,11 +120,13 @@ export function App() {
 				) : (
 					<>
 						<div className="flex min-h-0 flex-1">
-							<Rail panel={view === "editor" ? panel : null} page={view === "voices" || view === "story" ? view : null} />
+							<Rail panel={view === "editor" ? panel : null} page={view === "voices" || view === "story" || view === "downloads" ? view : null} />
 							{view === "voices" ? (
 								<VoicesPage />
 							) : view === "story" ? (
 								<StoryPage />
+							) : view === "downloads" ? (
+								<DownloadsPage />
 							) : (
 								<>
 									<div className="relative shrink-0 border-r bg-sidebar" style={{ width: leftWidth }}>
@@ -156,8 +159,8 @@ export function App() {
 	);
 }
 
-/** The left menu: the editor's tools, then the studios (Voices, Story), then Settings. */
-function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" | null }) {
+/** The left menu: the editor's tools, then the studios (Voices, Story, Downloads), then Settings. */
+function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" | "downloads" | null }) {
 	const item = (key: string, label: string, icon: ReactNode, active: boolean, onClick: () => void) => (
 		<button
 			key={key}
@@ -165,12 +168,12 @@ function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" |
 			onClick={onClick}
 			aria-current={active ? "page" : undefined}
 			className={cn(
-				"flex w-12 flex-col items-center gap-1 rounded-md py-2 text-[10px] transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-4",
+				"flex w-16 flex-col items-center gap-1 rounded-md py-2 text-[10px] transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-4",
 				active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-foreground/5 hover:text-sidebar-foreground",
 			)}
 		>
 			{icon}
-			{label}
+			<span className="max-w-full truncate px-0.5">{label}</span>
 		</button>
 	);
 	const openPanel = (id: Panel) => {
@@ -179,11 +182,12 @@ function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" |
 		s.setPanel(id);
 	};
 	return (
-		<nav className="flex w-[60px] shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-2" aria-label="Menu">
+		<nav className="flex w-[72px] shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-2" aria-label="Menu">
 			{PANELS.map((p) => item(p.id, p.label, p.icon, panel === p.id, () => openPanel(p.id)))}
-			<div className="my-1 h-px w-8 bg-border" />
+			<div className="my-1 h-px w-10 bg-border" />
 			{item("voices", "Voices", <Library />, page === "voices", () => useEditor.getState().openVoices())}
 			{item("story", "Story", <BookOpenText />, page === "story", () => useEditor.getState().openStory())}
+			{item("downloads", "Downloads", <Download />, page === "downloads", () => useEditor.getState().openDownloads())}
 			{/* Same style as the other menu items (icon over label), pinned to the bottom. */}
 			<div className="mt-auto">{item("settings", "Settings", <Settings />, false, () => useEditor.getState().openSettings())}</div>
 		</nav>

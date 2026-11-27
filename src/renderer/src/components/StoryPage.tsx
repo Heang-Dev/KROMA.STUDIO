@@ -9,6 +9,7 @@ import { runTask, useEditor } from "@/state/store";
 import { AppSelect, IconButton, Segmented, TaskProgress, useBusy, type Option } from "./common";
 import { EngineChip, useEngineStatus } from "./EngineStatus";
 import { WaveformPlayer } from "./WaveformPlayer";
+import { PageHeader } from "./PageHeader";
 
 // Story studio, laid out like an editor: your stories on the left; a top bar with the title, Write / Listen, the
 // engine and Generate; under it either the script (with the cast — a voice and style per speaker — beside it) or the
@@ -139,20 +140,47 @@ export function StoryPage() {
 	};
 
 	return (
-		<div className="flex min-h-0 min-w-0 flex-1 bg-background">
+		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+			<PageHeader
+				icon={<BookOpenText />}
+				title="Story"
+				description="A different voice for every character of a story."
+				actions={
+					<>
+						<EngineChip />
+						<Button size="sm" disabled={telling || offline || lineCount === 0} onClick={() => void tell()} title={offline ? "Start the voice engine first" : lineCount === 0 ? "Write a line first" : undefined}>
+							{telling ? <Loader2 className="animate-spin" /> : <Sparkles />} {telling ? "Working…" : "Generate story"}
+						</Button>
+					</>
+				}
+			>
+				<Segmented
+					label="Write or listen"
+					value={tab}
+					options={[
+						{ value: "write", label: "1 · Write" },
+						{ value: "listen", label: "2 · Listen" },
+					]}
+					onChange={(t) => (t === "listen" && !story ? stories[0] && open(stories[0].id) : setTab(t))}
+				/>
+			</PageHeader>
+			{telling && (
+				<div className="shrink-0 border-b px-4 py-2.5">
+					<TaskProgress prefix="story-" />
+				</div>
+			)}
+			<div className="flex min-h-0 flex-1">
 			{/* Your stories */}
 			<aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar">
-				<div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
-					<span className="flex items-center gap-2 text-[13px] font-semibold">
-						<BookOpenText className="size-4" /> Stories
-					</span>
+				<div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2">
+					<span className="text-xs font-medium text-muted-foreground">Your stories · {stories.length}</span>
 					<Button variant="outline" size="xs" onClick={newStory}>
-						<Plus /> New
+						<Plus /> New story
 					</Button>
 				</div>
 				<div className="min-h-0 flex-1 overflow-y-auto p-2">
 					{stories.length === 0 ? (
-						<p className="px-2 py-3 text-xs leading-relaxed text-muted-foreground">Stories you make are kept here. Write a script and press Generate.</p>
+						<p className="px-2 py-3 text-xs leading-relaxed text-muted-foreground">Stories you make are kept here. Write a script on the right, then press Generate story.</p>
 					) : (
 						<ul className="space-y-0.5">
 							{stories.map((s) => (
@@ -178,49 +206,25 @@ export function StoryPage() {
 			</aside>
 
 			<div className="flex min-w-0 flex-1 flex-col">
-				{/* Top bar */}
-				<header className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
-					<Segmented
-						label="Write or listen"
-						size="sm"
-						value={tab}
-						options={[
-							{ value: "write", label: "Write" },
-							{ value: "listen", label: "Listen" },
-						]}
-						onChange={(t) => (t === "listen" && !story ? stories[0] && open(stories[0].id) : setTab(t))}
-					/>
-					{tab === "write" ? (
-						<Input
-							aria-label="Story title"
-							title={title || undefined}
-							className="max-w-sm truncate text-[13px] font-medium"
-							maxLength={120}
-							placeholder="Untitled story"
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-						/>
-					) : (
-						<p lang="km" className="min-w-0 truncate text-[13px] font-medium">
-							{story?.title}
-						</p>
-					)}
-					<span className="flex-1" />
-					<EngineChip />
-					<Button size="sm" disabled={telling || offline || lineCount === 0} onClick={() => void tell()} title={offline ? "Start the voice engine first" : undefined}>
-						{telling ? <Loader2 className="animate-spin" /> : <Sparkles />} {telling ? "Working…" : "Generate"}
-					</Button>
-				</header>
-				{telling && (
-					<div className="shrink-0 border-b px-4 py-2.5">
-						<TaskProgress prefix="story-" />
-					</div>
-				)}
-
 				{tab === "write" ? (
 					<div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px]">
 						{/* Script */}
 						<section className="flex min-h-0 flex-col border-r">
+							<div className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
+								<label htmlFor="story-title" className="shrink-0 text-xs text-muted-foreground">
+									Title
+								</label>
+								<Input
+									id="story-title"
+									aria-label="Story title"
+									title={title || undefined}
+									className="max-w-md truncate text-[13px] font-medium"
+									maxLength={120}
+									placeholder="Untitled story"
+									value={title}
+									onChange={(e) => setTitle(e.target.value)}
+								/>
+							</div>
 							<div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b px-4 py-2 [scrollbar-width:none]">
 								<span className="mr-1 shrink-0 text-[11px] text-muted-foreground">Insert</span>
 								<Button variant="outline" size="xs" className="shrink-0" onClick={() => insert(" [pause 1s] ")}>
@@ -303,6 +307,7 @@ export function StoryPage() {
 					<div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">Choose a story on the left to listen to it.</div>
 				)}
 			</div>
+			</div>
 		</div>
 	);
 }
@@ -340,6 +345,9 @@ function StoryResult({ story, busy, offline, onRedo, onEdit, onDelete }: { story
 	const speakers = Object.keys(story.speakers);
 	return (
 		<div className="mx-auto w-full max-w-5xl space-y-5 px-6 py-5">
+			<h2 lang="km" className="truncate text-base font-semibold" title={story.title}>
+				{story.title}
+			</h2>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<p className="flex items-center gap-2 text-xs text-muted-foreground">
 					<Headphones className="size-4" /> {story.cues.length} lines · {formatClock(story.seconds)} · {new Date(story.created).toLocaleString()}

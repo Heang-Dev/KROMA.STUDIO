@@ -57,6 +57,11 @@ export function normalizeLink(input: string): string {
 /** People-friendly reason for a failed download, from yt-dlp's error text. */
 export function downloadErrorMessage(error: string): string {
 	const e = error.toLowerCase();
+	// Too many downloads in a row from YouTube. Checked before "sign in": the message says both.
+	if (/confirm you.?re not a bot/.test(e))
+		return "YouTube wants to check you're not a bot (too many downloads in a row). Wait a while and try again, or turn on browser logins in Settings → Downloads.";
+	if (e.includes("blocked by server (412)") || e.includes("rejected by server (352)") || e.includes("http error 412"))
+		return "Bilibili is blocking requests for now (too many in a row). Wait a few minutes and try again, or turn on browser logins in Settings → Downloads.";
 	if (e.includes("drm") || e.includes("encrypted")) return "This video is protected (encrypted), so it can't be downloaded.";
 	if (e.includes("unsupported url") || e.includes("generic information extractor") || e.includes("unusual and will be skipped"))
 		return "This link isn't a video page Kroma can download from. Open the video itself and copy its link, or check the site is supported.";

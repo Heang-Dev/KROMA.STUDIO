@@ -3,7 +3,7 @@ import { extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, session, shell, systemPreferences } from "electron";
 import { parseSubtitles } from "@shared/srt";
-import { type CaptionRequest, type ExportRequest, type Project, type PublishRequest, type Settings, type StoryRequest, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
+import { type CaptionRequest, type ExportRequest, type MediaItem, type Project, type PublishRequest, type Settings, type StoryRequest, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
 import { fallbackCount, translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
 import { defaultDownloadDir, downloadLink, LIBRARY_DIR } from "./download";
 
@@ -24,6 +24,8 @@ import { instantSample, synthesizeLines } from "./voice";
 import { type CharacterLine, type VoiceChoice, findCharacters } from "./characters";
 import { checkForUpdates, downloadUpdate, installUpdate, startUpdater, updateState } from "./updater";
 import { connectLink, ensureProfile, facebookPages, postAccount, postProfiles, publish } from "./publish";
+import { addDownloads, importProjects, pickImport, cancelDownload, clearFinished, downloadState, fetchTitles, listLinks, listPlatforms, listSource, removeDownload, retryDownload, retryFailed, setDownloadOptions, setDownloadsPaused, showDownload, startDownloadCenter, stopDownloads } from "./downloads";
+import type { DownloadOptions, ListedVideo } from "@shared/downloads";
 
 // Media files are streamed to the editor through kroma://media/<path>, with Range support so long videos seek instantly.
 // The automated smoke test gets its own settings and autosave, so it never touches yours.
@@ -359,6 +361,25 @@ function registerIpc(): void {
 		writeFileSync(target, JSON.stringify(project, null, "\t"));
 		return target;
 	});
+	// Opens a project by its path (the Download Center's "Open project").
+	ipcMain.handle("project:read", (_e, path: string) => JSON.parse(readFileSync(path, "utf8")) as Project);
+	// Download Center (src/main/downloads.ts).
+	ipcMain.handle("downloads:list", (_e, text: string) => listLinks(text));
+	ipcMain.handle("downloads:listMore", (_e, url: string, start: number) => listSource(url, start));
+	ipcMain.handle("downloads:titles", (_e, urls: string[]) => fetchTitles(urls));
+	ipcMain.handle("downloads:add", (_e, videos: ListedVideo[], group: string, groupSize: number | undefined) => addDownloads(videos, group, groupSize));
+	ipcMain.handle("downloads:state", () => downloadState());
+	ipcMain.handle("downloads:retry", (_e, id: string) => retryDownload(id));
+	ipcMain.handle("downloads:retryFailed", () => retryFailed());
+	ipcMain.handle("downloads:cancel", (_e, id: string) => cancelDownload(id));
+	ipcMain.handle("downloads:remove", (_e, id: string) => removeDownload(id));
+	ipcMain.handle("downloads:clearFinished", () => clearFinished());
+	ipcMain.handle("downloads:setOptions", (_e, options: Partial<DownloadOptions>) => setDownloadOptions(options));
+	ipcMain.handle("downloads:pause", (_e, paused: boolean) => setDownloadsPaused(paused));
+	ipcMain.handle("downloads:show", (_e, id: string) => showDownload(id));
+	ipcMain.handle("downloads:platforms", () => listPlatforms());
+	ipcMain.handle("downloads:pickImport", (_e, kind: "files" | "folder") => pickImport(focused(), kind));
+	ipcMain.handle("downloads:import", (_e, files: { media: MediaItem; index: number }[], group: string, groupSize: number) => importProjects(files, group, groupSize));
 	ipcMain.handle("project:open", async () => {
 		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], defaultPath: LIBRARY_DIR, filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
 		if (res.canceled) return null;
@@ -415,6 +436,8 @@ app.whenReady().then(() => {
 	session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => callback(audioOnly(permission, (details as { mediaTypes?: string[] }).mediaTypes)));
 	session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === "media");
 	registerIpc();
+	// The download queue carries on from last time (not in the smoke test, which must stay offline).
+	startDownloadCenter(process.env.KROMA_SMOKE !== "1");
 	buildMenu();
 	createWindow();
 	startUpdater(() => loadSettings().autoUpdate);
@@ -434,7 +457,10 @@ app.whenReady().then(() => {
 });
 
 // An engine Kroma started stops with Kroma.
-app.on("will-quit", () => stopEngine());
+app.on("will-quit", () => {
+	stopEngine();
+	stopDownloads();
+});
 
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();

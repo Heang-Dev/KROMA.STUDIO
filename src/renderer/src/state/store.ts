@@ -33,7 +33,7 @@ interface EditorState {
 	zoom: number; // pixels per second
 	panel: Panel;
 	/** The editor, or the full-page Settings (Orca-style) open at one section. */
-	view: { name: "editor" } | { name: "settings"; section: string } | { name: "voices" } | { name: "story" };
+	view: { name: "editor" } | { name: "settings"; section: string } | { name: "voices" } | { name: "story" } | { name: "downloads" };
 	selection: Selection | null;
 	tasks: Record<string, TaskState>;
 	toast: { text: string; tone: "info" | "error" } | null;
@@ -57,6 +57,8 @@ interface EditorState {
 	closeVoices: () => void;
 	/** Story studio: a voice for every character of a story. */
 	openStory: () => void;
+	/** Download Center: playlists and channels, a project per video. */
+	openDownloads: () => void;
 	select: (selection: Selection | null) => void;
 	setTask: (task: TaskState) => void;
 	/** A notice: short title, optional detail line. Errors stay longer and can be closed. */
@@ -123,6 +125,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 	openVoices: () => set({ playing: false, view: { name: "voices" } }),
 	closeVoices: () => set({ view: { name: "editor" } }),
 	openStory: () => set({ playing: false, view: { name: "story" } }),
+	openDownloads: () => set({ playing: false, view: { name: "downloads" } }),
 	select: (selection) => set({ selection }),
 	setTask: (task) => set((s) => ({ tasks: { ...s.tasks, [task.id]: task } })),
 	showToast: (text, tone = "info", description) => {

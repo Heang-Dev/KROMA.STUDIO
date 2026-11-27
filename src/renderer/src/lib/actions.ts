@@ -239,6 +239,20 @@ export async function openProject(): Promise<void> {
 	if (res) state().load(res.project, res.path);
 }
 
+/** Opens a project file (from the Download Center) in the editor, asking first when the open one isn't saved. */
+export async function openProjectAt(path: string): Promise<boolean> {
+	const { dirty, projectPath, project, load, showToast } = state();
+	if (dirty && project.clips.length && !window.confirm(projectPath ? "Open another project? Changes to this one since you last saved are lost." : "Open another project? The current one isn't saved to a file (it stays in autosave until you open another).")) return false;
+	try {
+		load(await window.kroma.readProject(path), path);
+	} catch {
+		showToast("Couldn't open the project", "error", "The file was moved or deleted.");
+		return false;
+	}
+	useEditor.setState({ view: { name: "editor" }, panel: "media" });
+	return true;
+}
+
 export const voiceSettings = (project: Project): VoiceSettings => project.voice ?? DEFAULT_VOICE;
 
 /** The voice that speaks a line: its character's, or the project's default voice. */

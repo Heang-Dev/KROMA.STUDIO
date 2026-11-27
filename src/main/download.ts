@@ -20,6 +20,49 @@ function videosDir(): string {
 
 // Chinese first (Bilibili's AI subtitles are "ai-zh"), then English as a fallback source.
 const SUB_LANGS = "zh-Hans,zh-Hant,zh,zh-CN,zh-TW,ai-zh,en";
+export const SUB_ARGS = ["--write-subs", "--write-auto-subs", "--sub-langs", SUB_LANGS, "--convert-subs", "srt"];
+
+/** Best video up to this height, as MP4 when the site has it (so it plays everywhere without converting). */
+export const formatFor = (height: "1080" | "720" | "480") => `bv*[height<=${height}][ext=mp4]+ba[ext=m4a]/bv*[height<=${height}]+ba/b[height<=${height}]/bv*+ba/b`;
+
+/** Progress, title and the final file, in lines Kroma reads (see readProgress). */
+export const PROGRESS_ARGS = [
+	// --print makes yt-dlp quiet, which hides the progress lines too unless asked for.
+	"--progress",
+	"--newline",
+	"--no-simulate",
+	"--merge-output-format",
+	"mp4",
+	"--progress-template",
+	"download:KROMA_PROGRESS %(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress.speed)s|%(progress.eta)s",
+	"--print",
+	"before_dl:KROMA_TITLE %(title)s",
+	"--print",
+	"before_dl:KROMA_FORMAT %(format_id)s",
+	"--print",
+	"after_move:KROMA_FILE %(filepath)s",
+];
+
+/**
+ * What every yt-dlp run needs: Kroma's ffmpeg (bundled on Windows and Linux), your browser's logins when chosen, and
+ * a JavaScript runtime for YouTube. YouTube's pages need JavaScript solved (without it some formats go missing);
+ * Kroma's own Electron runs as Node for that (ELECTRON_RUN_AS_NODE), so nothing else has to be installed.
+ */
+export function ytdlpCommon(cookiesBrowser: string): { args: string[]; env: Record<string, string> } {
+	const ffmpeg = findTool("ffmpeg");
+	return {
+		args: [
+			...(ffmpeg ? ["--ffmpeg-location", ffmpeg] : []),
+			// Only this one: yt-dlp would otherwise pick Deno when it happens to be installed.
+			"--no-js-runtimes",
+			"--js-runtimes",
+			`node:${process.execPath}`,
+			// Your browser's logins unlock 1080p on Bilibili and videos that need an account.
+			...(cookiesBrowser ? ["--cookies-from-browser", cookiesBrowser] : []),
+		],
+		env: { ELECTRON_RUN_AS_NODE: "1" },
+	};
+}
 
 export const defaultDownloadDir = () => join(LIBRARY_DIR, "downloads");
 
@@ -35,29 +78,17 @@ export async function downloadLink(
 	const dir = join(downloadDir || defaultDownloadDir(), String(Date.now()));
 	mkdirSync(dir, { recursive: true });
 
-	// yt-dlp joins video and sound with ffmpeg: point it at the one Kroma uses (bundled on Windows and Linux).
-	const ffmpeg = findTool("ffmpeg");
+	const { args, env } = ytdlpCommon(cookiesBrowser);
 	const baseArgs = [
-		...(ffmpeg ? ["--ffmpeg-location", ffmpeg] : []),
+		...args,
 		"--no-playlist",
-		"--newline",
-		"--no-simulate",
 		"-f",
-		"bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b",
-		"--merge-output-format",
-		"mp4",
+		formatFor("1080"),
 		"-o",
 		join(dir, "%(id)s.%(ext)s"),
-		"--progress-template",
-		"download:KROMA_PROGRESS %(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s",
-		"--print",
-		"before_dl:KROMA_TITLE %(title)s",
-		"--print",
-		"after_move:KROMA_FILE %(filepath)s",
-		// Your browser's logins unlock 1080p on Bilibili and videos that need an account.
-		...(cookiesBrowser ? ["--cookies-from-browser", cookiesBrowser] : []),
+		...PROGRESS_ARGS,
 	];
-	const subArgs = ["--write-subs", "--write-auto-subs", "--sub-langs", SUB_LANGS, "--convert-subs", "srt"];
+	const subArgs = SUB_ARGS;
 
 	let title = "";
 	let file = "";
@@ -75,7 +106,7 @@ export async function downloadLink(
 	onProgress(-1, "Reading the link…");
 	try {
 		try {
-			await run(ytdlp, [...baseArgs, ...subArgs, url], { onLine, signal });
+			await run(ytdlp, [...baseArgs, ...subArgs, url], { onLine, signal, env });
 		} catch (err) {
 			if (signal?.aborted) throw err;
 			const message = err instanceof Error ? err.message : String(err);
@@ -83,7 +114,7 @@ export async function downloadLink(
 			// A link yt-dlp can't read at all fails the same way twice, so don't retry those.
 			if (file || /unsupported url|generic information extractor|drm|private|sign in/i.test(message)) throw err;
 			onProgress(-1, "Retrying without the site's subtitles…");
-			await run(ytdlp, [...baseArgs, url], { onLine, signal });
+			await run(ytdlp, [...baseArgs, url], { onLine, signal, env });
 		}
 	} catch (err) {
 		if (signal?.aborted) throw err;
