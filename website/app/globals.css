@@ -21,6 +21,18 @@
 	* {
 		@apply border-border;
 	}
+	/* Tailwind v4 gives buttons the arrow cursor; everything clickable here shows the hand. */
+	button:not(:disabled),
+	[role="button"]:not([aria-disabled="true"]),
+	[role="tab"],
+	[role="menuitem"],
+	[role="menuitemradio"],
+	[role="option"],
+	summary,
+	select,
+	label[for] {
+		cursor: pointer;
+	}
 	html {
 		scroll-behavior: smooth;
 		scroll-padding-top: 72px;
