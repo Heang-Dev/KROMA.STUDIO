@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { DocsPage } from "@/components/pages/docs";
+import { DocsIndex } from "@/components/docs/docs-pages";
+import { latestVersion } from "@/lib/docs";
 import { messages } from "@/lib/i18n";
 
-export const metadata: Metadata = { title: messages.km.meta.docsTitle, alternates: { languages: { en: "/docs/", km: "/km/docs/" } } };
+// /docs/: the latest version's start page.
+export const metadata: Metadata = { title: messages.km.meta.docsTitle };
 
 export default function Page() {
-	return <DocsPage lang="km" />;
+	return <DocsIndex version={latestVersion()} lang="km" />;
 }

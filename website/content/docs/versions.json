@@ -1,0 +1,4 @@
+{
+	"_about": "Docs versions, newest first. To start docs for a new version: copy the latest folder (e.g. 0.1 → 0.2), add it here first, then edit what changed.",
+	"versions": [{ "version": "0.1", "label": "0.1.x", "released": "2026-11-27" }]
+}
