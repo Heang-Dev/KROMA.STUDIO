@@ -23,14 +23,14 @@ export function ObjectsPanel() {
 				<Button className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!hasVideo} onClick={coverOriginalSubtitles}>
 					<Subtitles /> Cover original subtitles
 				</Button>
-				<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-3">
-					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5" disabled={!hasVideo} onClick={addBlurBox}>
+				<div className="grid grid-cols-1 gap-1.5 @[17rem]:grid-cols-3">
+					<Button variant="outline" size="sm" disabled={!hasVideo} onClick={addBlurBox}>
 						<Droplets /> Blur area
 					</Button>
-					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5" disabled={!hasVideo} onClick={() => void addImage()}>
-						<ImagePlus /> Image / logo
+					<Button variant="outline" size="sm" disabled={!hasVideo} onClick={() => void addImage()}>
+						<ImagePlus /> Image
 					</Button>
-					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5" disabled={!hasVideo} onClick={addText}>
+					<Button variant="outline" size="sm" disabled={!hasVideo} onClick={addText}>
 						<Type /> Text
 					</Button>
 				</div>

@@ -529,7 +529,7 @@ function DownloadsSection({ settings, save }: SectionProps) {
 				<Row
 					label="Use my logins from"
 					description="Sign in to the site in that browser first. Your system may ask to allow access; Safari also needs Full Disk Access."
-					control={<AppSelect label="Browser logins" className="w-52" value={settings.cookiesBrowser} options={BROWSERS} onChange={(v) => void save({ cookiesBrowser: v })} />}
+					control={<AppSelect label="Browser logins" className="w-64" value={settings.cookiesBrowser} options={BROWSERS} onChange={(v) => void save({ cookiesBrowser: v })} />}
 				/>
 			</Card>
 		</Group>

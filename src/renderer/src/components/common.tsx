@@ -40,8 +40,24 @@ export function Card({ children, className }: { children: ReactNode; className?:
 	return <div className={cn("overflow-hidden rounded-lg border bg-card/50 px-3.5 [&>*+*]:border-t", className)}>{children}</div>;
 }
 
-/** Orca's settings row: label and description on the left, the control on the right. */
-export function Row({ label, description, control, htmlFor, alignTop }: { label: ReactNode; description?: ReactNode; control?: ReactNode; htmlFor?: string; alignTop?: boolean }) {
+/**
+ * Orca's settings row: label and description on the left, the control on the right. `stack` puts the control under
+ * the label at full width, for side panels, where a switch group or picker should span the panel.
+ */
+export function Row({ label, description, control, htmlFor, alignTop, stack }: { label: ReactNode; description?: ReactNode; control?: ReactNode; htmlFor?: string; alignTop?: boolean; stack?: boolean }) {
+	if (stack) {
+		return (
+			<div className="space-y-2 py-3">
+				<div className="space-y-1">
+					<Label htmlFor={htmlFor} className="text-[13px] font-normal">
+						{label}
+					</Label>
+					{description && <p className="text-xs leading-relaxed text-muted-foreground select-text">{description}</p>}
+				</div>
+				{control !== undefined && <div className="w-full">{control}</div>}
+			</div>
+		);
+	}
 	return (
 		<div className={cn("flex flex-wrap gap-x-4 gap-y-2", description ? "py-3" : "py-2.5", alignTop ? "items-start" : "items-center justify-between")}>
 			<div className="min-w-0 grow basis-32 space-y-1">

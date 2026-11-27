@@ -193,7 +193,8 @@ export function StoryPage() {
 					{tab === "write" ? (
 						<Input
 							aria-label="Story title"
-							className="max-w-sm text-[13px] font-medium"
+							title={title || undefined}
+							className="max-w-sm truncate text-[13px] font-medium"
 							maxLength={120}
 							placeholder="Untitled story"
 							value={title}
@@ -220,14 +221,14 @@ export function StoryPage() {
 					<div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px]">
 						{/* Script */}
 						<section className="flex min-h-0 flex-col border-r">
-							<div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b px-4 py-2">
-								<span className="mr-1 text-[11px] text-muted-foreground">Insert</span>
-								<Button variant="outline" size="xs" onClick={() => insert(" [pause 1s] ")}>
+							<div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b px-4 py-2 [scrollbar-width:none]">
+								<span className="mr-1 shrink-0 text-[11px] text-muted-foreground">Insert</span>
+								<Button variant="outline" size="xs" className="shrink-0" onClick={() => insert(" [pause 1s] ")}>
 									<Pause /> Pause
 								</Button>
 								{names.map((name, i) => (
-									<Button key={name} variant="outline" size="xs" onClick={() => insert(`${name}: `, true)}>
-										<span aria-hidden className={cn("size-2 rounded-full", DOTS[i % DOTS.length])} /> {name}
+									<Button key={name} variant="outline" size="xs" className="max-w-44 shrink-0" title={`Insert "${name}: "`} onClick={() => insert(`${name}: `, true)}>
+										<span aria-hidden className={cn("size-2 shrink-0 rounded-full", DOTS[i % DOTS.length])} /> <span className="truncate">{name}</span>
 									</Button>
 								))}
 								<span className="flex-1" />

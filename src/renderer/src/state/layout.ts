@@ -5,9 +5,17 @@ import { create } from "zustand";
 
 export type PanelKey = "left" | "right" | "timeline";
 
+/** A size that fits the window: `share` of its width, kept between `low` and `high`. */
+const fit = (share: number, low: number, high: number) => {
+	const width = typeof window === "undefined" ? 1440 : window.innerWidth;
+	return Math.round(Math.min(high, Math.max(low, width * share)));
+};
+
+// The tools panel opens wide enough for its buttons and rows to sit on one line (about a quarter of the window), so
+// nobody has to drag it wider first; the subtitles panel likewise.
 export const PANEL_LIMITS: Record<PanelKey, { min: number; max: number; default: number }> = {
-	left: { min: 240, max: 560, default: 320 },
-	right: { min: 280, max: 680, default: 380 },
+	left: { min: 300, max: 600, default: fit(0.25, 360, 440) },
+	right: { min: 300, max: 680, default: fit(0.24, 360, 440) },
 	timeline: { min: 140, max: 520, default: 210 },
 };
 

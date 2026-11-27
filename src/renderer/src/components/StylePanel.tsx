@@ -41,18 +41,19 @@ export function StylePanel() {
 			<Section title="Format" hint="Where the video is going. Export the same project in each format.">
 				<ChoiceTiles label="Format" columns={3} value={project.aspect} options={ASPECTS} onChange={(v) => update((p) => ({ ...p, aspect: v }))} />
 				<Card>
-					<Row label="When it doesn't fit" control={<Segmented label="When the video doesn't fit" size="sm" value={project.fit} options={FITS} onChange={(v) => update((p) => ({ ...p, fit: v }))} />} />
+					<Row stack label="When it doesn't fit" control={<Segmented label="When the video doesn't fit" equalWidth value={project.fit} options={FITS} onChange={(v) => update((p) => ({ ...p, fit: v }))} />} />
 				</Card>
 			</Section>
 
 			<Section title="Subtitle style">
 				<Card>
 					<Row
+						stack
 						label="Preset"
 						control={
 							<Segmented<Preset | "">
 								label="Preset"
-								size="sm"
+								equalWidth
 								value={currentPreset(style)}
 								options={[
 									{ value: "classic", label: "Classic" },

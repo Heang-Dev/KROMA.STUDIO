@@ -116,9 +116,11 @@ export function PostPanel() {
 						<Card>
 							{selected.includes("youtube") && (
 								<Row
+									stack
 									label="YouTube"
 									control={
 										<Segmented
+											equalWidth
 											label="YouTube visibility"
 											size="sm"
 											value={privacy}
@@ -134,10 +136,12 @@ export function PostPanel() {
 							)}
 							{selected.includes("tiktok") && (
 								<Row
+									stack
 									label="TikTok"
 									description={tiktokMode === "draft" ? "Goes to your TikTok drafts: add music or effects in the app, then post." : undefined}
 									control={
 										<Segmented
+											equalWidth
 											label="TikTok"
 											size="sm"
 											value={tiktokMode}
@@ -151,6 +155,7 @@ export function PostPanel() {
 								/>
 							)}
 							<Row
+								stack
 								label="Video"
 								description={reuse ? "Uses your last export (nothing changed since)." : "Exported now, at this size."}
 								control={
@@ -158,8 +163,8 @@ export function PostPanel() {
 										<CircleCheck className="size-4 text-success" />
 									) : (
 										<Segmented
+											equalWidth
 											label="Export size"
-											size="sm"
 											value={quality}
 											options={[
 												{ value: "small", label: "Small" },
@@ -213,11 +218,11 @@ export function PostPanel() {
 			)}
 
 			<Section title="Subtitle files" hint="For YouTube's subtitle upload, or to keep a copy.">
-				<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-2">
-					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!translated.length} onClick={() => void exportSrt("khmer")}>
+				<div className="grid grid-cols-1 gap-1.5 @[17rem]:grid-cols-2">
+					<Button variant="outline" size="sm" disabled={!translated.length} onClick={() => void exportSrt("khmer")}>
 						<FileDown /> {lang.name} .srt
 					</Button>
-					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!project.cues.length} onClick={() => void exportSrt("source")}>
+					<Button variant="outline" size="sm" disabled={!project.cues.length} onClick={() => void exportSrt("source")}>
 						<FileDown /> Original .srt
 					</Button>
 				</div>
