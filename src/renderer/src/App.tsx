@@ -145,9 +145,10 @@ export function App() {
 							)}
 						</div>
 						{view === "editor" && <Timeline />}
-						{view === "editor" && <StepBar />}
 					</>
 				)}
+				{/* The status bar is on every page: the steps, the voice engine and updates are always in reach. */}
+				<StepBar />
 				<AppToaster />
 				<UpdateNotice />
 			</div>
