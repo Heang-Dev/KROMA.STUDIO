@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { type Lang, messages } from "@/lib/i18n";
 import { asset } from "@/lib/site";
@@ -25,17 +25,27 @@ export function Showcase({ lang }: { lang: Lang }) {
 	const [active, setActive] = useState(0);
 	const [paused, setPaused] = useState(false);
 	const reduced = useReducedMotion();
-	const auto = !paused && !reduced;
 
+	// The progress line drives the timing: when it finishes filling, the next tab opens. Hover pauses the line
+	// where it is (and so the timer); with reduced motion there's no line and no autoplay.
+	const bar = useRef<HTMLSpanElement>(null);
+	const run = useRef<Animation | null>(null);
 	useEffect(() => {
-		if (!auto) return;
-		const t = setTimeout(() => setActive((a) => (a + 1) % TABS.length), SECONDS * 1000);
-		return () => clearTimeout(t);
-	}, [active, auto]);
+		const el = bar.current;
+		if (reduced || !el) return;
+		const a = el.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: SECONDS * 1000, easing: "linear", fill: "both" });
+		a.onfinish = () => setActive((n) => (n + 1) % TABS.length);
+		run.current = a;
+		return () => a.cancel();
+	}, [active, reduced]);
+	useEffect(() => {
+		const a = run.current;
+		if (a && a.playState !== "finished") paused ? a.pause() : a.play();
+	}, [paused, active]);
 
 	return (
 		<div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-			<div role="tablist" aria-label={t.label} className="mx-auto mb-5 flex w-fit max-w-full overflow-x-auto rounded-lg border bg-background p-1">
+			<div role="tablist" aria-label={t.label} className="mx-auto mb-6 flex w-full max-w-3xl gap-1 overflow-x-auto rounded-xl border bg-background p-1.5 [scrollbar-width:none]">
 				{TABS.map((tab, i) => (
 					<button
 						key={tab.id}
@@ -44,14 +54,21 @@ export function Showcase({ lang }: { lang: Lang }) {
 						aria-selected={i === active}
 						aria-controls="showcase-shot"
 						onClick={() => setActive(i)}
-						className={cn("relative shrink-0 rounded-md px-3 py-1.5 text-[13px] whitespace-nowrap transition-colors", i === active ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
+						className={cn("relative flex-1 shrink-0 rounded-lg px-4 py-2.5 text-sm whitespace-nowrap transition-colors", i === active ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
 					>
-						{i === active && <motion.span layoutId="showcase-pill" className="absolute inset-0 rounded-md bg-accent" transition={{ type: "spring", stiffness: 420, damping: 36 }} />}
-						<span className="relative">{t.tabs[tab.id as keyof typeof t.tabs]}</span>
-						{/* How long until the next tab. */}
-						{i === active && auto && (
-							<motion.span key={`bar-${active}`} className="absolute inset-x-2 bottom-0 h-px origin-left bg-foreground/50" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: SECONDS, ease: "linear" }} />
+						{i === active && (
+							// The highlight glides to the chosen tab; a soft tint sweeps across it as the time to the next tab runs.
+							<motion.span layoutId="showcase-pill" className="absolute inset-0 overflow-hidden rounded-lg bg-accent" transition={{ type: "spring", stiffness: 380, damping: 34, mass: 0.8 }}>
+								{!reduced && (
+									<span
+										ref={bar}
+										className="absolute inset-0 origin-left bg-foreground/[0.07] dark:bg-foreground/[0.09]"
+										style={{ transform: "scaleX(0)" }}
+									/>
+								)}
+							</motion.span>
 						)}
+						<span className="relative">{t.tabs[tab.id as keyof typeof t.tabs]}</span>
 					</button>
 				))}
 			</div>

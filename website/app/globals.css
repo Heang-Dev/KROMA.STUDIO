@@ -187,3 +187,5 @@
 .docs-prose em {
 	color: var(--muted-foreground);
 }
+
+/* The showcase tabs: the time to the next tab, filling the highlight's bottom edge (see showcase.tsx). */
