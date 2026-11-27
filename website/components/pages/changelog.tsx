@@ -1,6 +1,7 @@
 import { Reveal } from "@/components/site/reveal";
 import { type Lang, messages } from "@/lib/i18n";
-import { RELEASES_URL, releases } from "@/lib/site";
+import { releases } from "@/lib/github";
+import { RELEASES_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 

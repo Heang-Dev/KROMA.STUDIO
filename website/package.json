@@ -4,8 +4,8 @@
 	"type": "module",
 	"scripts": {
 		"sync-tokens": "node scripts/sync-tokens.mjs",
-		"dev": "node scripts/sync-tokens.mjs && next dev",
-		"build": "node scripts/sync-tokens.mjs && node -e \"require('fs').rmSync('.next/cache/fetch-cache',{recursive:true,force:true})\" && next build",
+		"dev": "node scripts/sync-tokens.mjs && node scripts/fetch-github.mjs && next dev",
+		"build": "node scripts/sync-tokens.mjs && node scripts/fetch-github.mjs && next build",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run"
 	},

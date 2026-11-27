@@ -118,7 +118,7 @@ export function FooterBar({ latest }: { latest: { version: string; date: string 
 		},
 	];
 	return (
-		<footer className="mt-24 border-t text-[13px] text-muted-foreground">
+		<footer className="mt-20 border-t text-[13px] text-muted-foreground">
 			<div className={cn(wrap, "grid gap-10 py-12 md:grid-cols-[1.4fr_repeat(3,1fr)]")}>
 				<div className="text-foreground">
 					<Logo size={24} href={localize("/", lang)} />

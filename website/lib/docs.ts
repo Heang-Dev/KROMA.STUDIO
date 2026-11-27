@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Marked } from "marked";
 import { type Lang, localize } from "./i18n";
-import { releases } from "./site";
+import { releases } from "./github";
 
 // Versioned docs, like Laravel's: content/docs/<version>/<lang>/<page>.md, read when the site is built.
 // Each page has a small header (title, group, section, order); links between pages are written as the page's file

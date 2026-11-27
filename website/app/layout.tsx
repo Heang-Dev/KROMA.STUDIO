@@ -26,9 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 			<head>
 				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>
-			<body>
+			{/* At least a full screen tall, so the footer sits at the bottom even on a short page. */}
+			<body className="flex min-h-svh flex-col">
 				<Header />
-				{children}
+				<div className="flex-1">{children}</div>
 				<Footer />
 			</body>
 		</html>

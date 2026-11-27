@@ -1,4 +1,4 @@
-import { githubStars, releases } from "@/lib/site";
+import { githubStars, releases } from "@/lib/github";
 import { FooterBar, HeaderBar } from "./chrome-bars";
 
 // The header and footer on every page. The star count is read when the site is built; the bars follow the page's
