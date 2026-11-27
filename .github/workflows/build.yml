@@ -12,6 +12,10 @@ on:
   push:
     tags: ["v*"]
 
+# The draft release on a v* tag needs to write to the repo.
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
