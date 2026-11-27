@@ -64,6 +64,17 @@ A new minor or major version gets its own docs version, like Laravel's docs. Bef
 
 The site's own links into the docs, such as the Download and Voices pages, follow the latest docs version automatically. Only the READMEs name a version.
 
+## Repository protection
+
+Both repos are public, so GitHub rulesets protect them. The repo admin (Heang-Dev) bypasses every rule, so the steps above work as written. Anyone else is blocked:
+- **`main`** (both repos): it can't be deleted or force-pushed, and changes must come in through a pull request.
+- **`gh-pages`** (`Heang-Dev/kroma`): only the admin can update it; `publish.sh` force-pushes it. Nobody else can delete it.
+- **Release tags `v*`** (both repos): only the admin can create them, and nobody else can move or delete them. A wrong tag still needs fixing by hand.
+- **Secrets:** secret scanning and push protection are on, so a commit containing an API key is blocked. Never commit keys; the app keeps them in the system keychain.
+- **Actions:** workflows from outside contributors' pull requests wait for approval, and the default `GITHUB_TOKEN` is read-only.
+
+Don't loosen these rules, or add collaborators, unless the owner asks.
+
 ## Conventions
 
 - **Site text** lives in `website/lib/i18n/en.ts` and `km.ts`. They share one type, so a missing Khmer string fails `bun run typecheck`.
