@@ -77,7 +77,10 @@ export async function downloadUpdate(): Promise<void> {
 
 async function checkWithElectronUpdater(download: boolean): Promise<void> {
 	if (!autoUpdaterRef) {
-		const { autoUpdater } = await import("electron-updater");
+		// electron-updater is a CommonJS package: loaded from the bundled main process it can arrive as `default`.
+		const mod = (await import("electron-updater")) as typeof import("electron-updater") & { default?: typeof import("electron-updater") };
+		const autoUpdater = mod.autoUpdater ?? mod.default?.autoUpdater;
+		if (!autoUpdater) throw new Error("The updater couldn't start.");
 		autoUpdaterRef = autoUpdater;
 		autoUpdater.autoInstallOnAppQuit = true;
 		autoUpdater.logger = null;
