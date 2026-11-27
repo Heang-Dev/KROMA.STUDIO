@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { accessSync, constants, createWriteStream, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { accessSync, constants, createWriteStream, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -20,7 +20,8 @@ const CHECK_EVERY = 4 * 60 * 60 * 1000;
 type Method = "auto" | "mac" | "deb";
 
 let state: UpdateState = { status: "idle", current: app.getVersion() };
-let method: Method = "auto";
+// Known from the start, so a check from the button works even before the timed checks begin (and in dev builds).
+const method: Method = process.platform === "darwin" ? "mac" : process.platform === "linux" && !process.env.APPIMAGE ? "deb" : "auto";
 let macStaged: string | null = null;
 let debFile: string | null = null;
 let autoUpdaterRef: typeof import("electron-updater").autoUpdater | null = null;
@@ -47,7 +48,6 @@ export function isNewer(latest: string, current: string): boolean {
 export function startUpdater(downloadAutomatically: () => boolean): void {
 	const testRun = process.env.KROMA_SMOKE === "1" || process.env.KROMA_E2E === "1";
 	if ((!app.isPackaged || testRun) && process.env.KROMA_UPDATE_TEST !== "1") return;
-	method = process.platform === "darwin" ? "mac" : process.platform === "linux" && !process.env.APPIMAGE ? "deb" : "auto";
 	const check = () => void checkForUpdates(downloadAutomatically()).catch(() => undefined);
 	setTimeout(check, 8000);
 	setInterval(check, CHECK_EVERY);
@@ -86,12 +86,16 @@ async function checkWithElectronUpdater(download: boolean): Promise<void> {
 		autoUpdater.logger = null;
 		autoUpdater.on("update-available", (info) => publish({ status: "available", version: info.version, notes: notesOf(info.releaseNotes) }));
 		autoUpdater.on("update-not-available", () => publish({ status: "none" }));
-		autoUpdater.on("download-progress", (p) => publish({ status: "downloading", progress: p.percent / 100 }));
-		autoUpdater.on("update-downloaded", (info) => publish({ status: "ready", version: info.version, progress: 1 }));
+		autoUpdater.on("download-progress", (p) =>
+			publish({ status: "downloading", progress: p.percent / 100, speed: p.bytesPerSecond, secondsLeft: p.bytesPerSecond > 0 ? (p.total - p.transferred) / p.bytesPerSecond : undefined }),
+		);
+		autoUpdater.on("update-downloaded", (info) => publish({ status: "ready", version: info.version, progress: 1, speed: undefined, secondsLeft: undefined }));
 		autoUpdater.on("error", (err) => publish({ status: "error", error: friendly(err) }));
 	}
 	autoUpdaterRef.autoDownload = download;
-	await autoUpdaterRef.checkForUpdates();
+	const result = await autoUpdaterRef.checkForUpdates();
+	// electron-updater skips the check without any event outside an installed app; don't stay on "checking".
+	if (!result && state.status === "checking") publish({ status: "none" });
 }
 
 function notesOf(notes: unknown): string | undefined {
@@ -122,10 +126,12 @@ async function checkWithGitHub(download: boolean): Promise<void> {
 	if (!asset || !download) return;
 
 	const dir = join(app.getPath("userData"), "updates");
-	rmSync(dir, { recursive: true, force: true });
-	mkdirSync(dir, { recursive: true });
 	const file = join(dir, asset.name);
-	await downloadFile(asset.browser_download_url, file, asset.size);
+	// Keep a half-finished download of this same file (it resumes); everything else in the folder is from before.
+	mkdirSync(dir, { recursive: true });
+	for (const name of readdirSync(dir)) if (name !== `${asset.name}.part`) rmSync(join(dir, name), { recursive: true, force: true });
+	await downloadFile(asset.browser_download_url, file, asset.size, (progress, speed, secondsLeft) => publish({ status: "downloading", progress, speed, secondsLeft }));
+	publish({ speed: undefined, secondsLeft: undefined });
 
 	if (method === "deb") {
 		debFile = file;
@@ -148,20 +154,71 @@ async function checkWithGitHub(download: boolean): Promise<void> {
 	publish({ status: "ready", progress: 1 });
 }
 
-async function downloadFile(url: string, to: string, size: number): Promise<void> {
-	const res = await fetch(url);
-	if (!res.ok || !res.body) throw new Error(`Download failed (${res.status})`);
-	let done = 0;
-	let last = 0;
-	const body = Readable.fromWeb(res.body as import("node:stream/web").ReadableStream);
-	body.on("data", (chunk: Buffer) => {
-		done += chunk.length;
-		if (Date.now() - last > 400) {
-			last = Date.now();
-			publish({ status: "downloading", progress: size ? Math.min(0.99, done / size) : undefined });
+/** Smoothed download speed: each new reading moves the average a quarter of the way, so the time left doesn't jump. */
+export function smoothSpeed(previous: number | undefined, sample: number): number {
+	return previous === undefined ? sample : previous * 0.75 + sample * 0.25;
+}
+
+const RETRIES = 6;
+
+/**
+ * Downloads `url` to `to` through `<to>.part`. A connection that drops is picked up where it stopped (an HTTP Range
+ * request), up to 6 times with a growing wait; a `.part` left by an earlier run (Kroma quit mid-download) resumes too.
+ * `onProgress(fraction 0–0.99, bytes a second, seconds left)` about twice a second.
+ */
+export async function downloadFile(
+	url: string,
+	to: string,
+	size: number,
+	onProgress: (progress: number | undefined, speed: number | undefined, secondsLeft: number | undefined) => void,
+	wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<void> {
+	const part = `${to}.part`;
+	let speed: number | undefined;
+	for (let attempt = 0; ; attempt++) {
+		let have = existsSync(part) ? statSync(part).size : 0;
+		if (size && have > size) {
+			rmSync(part, { force: true });
+			have = 0;
 		}
-	});
-	await pipeline(body, createWriteStream(to));
+		if (!size || have < size) {
+			try {
+				const res = await fetch(url, { headers: have ? { Range: `bytes=${have}-` } : {} });
+				// 416: the server has nothing past what we have (it's complete); 200 to a Range request: start over.
+				if (res.status !== 416) {
+					if (!res.ok || !res.body) throw new Error(`Download failed (${res.status})`);
+					if (have && res.status !== 206) have = 0;
+					let done = have;
+					let mark = { at: Date.now(), bytes: have };
+					const body = Readable.fromWeb(res.body as import("node:stream/web").ReadableStream);
+					body.on("data", (chunk: Buffer) => {
+						done += chunk.length;
+						const now = Date.now();
+						if (now - mark.at >= 500) {
+							speed = smoothSpeed(speed, ((done - mark.bytes) * 1000) / (now - mark.at));
+							mark = { at: now, bytes: done };
+							onProgress(size ? Math.min(0.99, done / size) : undefined, speed, size && speed ? (size - done) / speed : undefined);
+						}
+					});
+					await pipeline(body, createWriteStream(part, { flags: have ? "a" : "w" }));
+				}
+			} catch (err) {
+				if (attempt >= RETRIES) throw err;
+				onProgress(size ? Math.min(0.99, (existsSync(part) ? statSync(part).size : 0) / size) : undefined, undefined, undefined);
+				await wait(Math.min(30_000, 2000 * 2 ** attempt));
+				continue;
+			}
+		}
+		const got = existsSync(part) ? statSync(part).size : 0;
+		if (size && got !== size) {
+			// Shorter than GitHub says: the connection ended early, so carry on from there.
+			if (got < size && attempt < RETRIES) continue;
+			rmSync(part, { force: true });
+			throw new Error(`The download was incomplete (${got} of ${size} bytes). It will try again.`);
+		}
+		renameSync(part, to);
+		return;
+	}
 }
 
 // ── Installing ──

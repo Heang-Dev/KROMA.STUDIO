@@ -497,6 +497,9 @@ export interface UpdateState {
 	version?: string;
 	/** Download progress 0–1. */
 	progress?: number;
+	/** While downloading: bytes a second (smoothed) and the seconds left, once they are known. */
+	speed?: number;
+	secondsLeft?: number;
 	notes?: string;
 	/** The release page. */
 	url?: string;

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { ArrowDownToLine, Loader2, RotateCw, X } from "lucide-react";
+import { ArrowDownToLine, Loader2, Minimize2, RefreshCw, RotateCw } from "lucide-react";
 import type { UpdateState } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { useEditor } from "@/state/store";
+import { cn } from "@/lib/utils";
 import { ProgressBar } from "./common";
 
 /** The update state from the main process, kept current. */
@@ -19,7 +20,17 @@ const clean = (e: unknown) => (e instanceof Error ? e.message : String(e)).repla
 const install = () => window.kroma.installUpdate().catch((e) => useEditor.getState().showToast("Couldn't update", "error", clean(e)));
 const download = () => window.kroma.downloadUpdate().catch((e) => useEditor.getState().showToast("Couldn't download the update", "error", clean(e)));
 
-// "Later" hides the card for that version; the status bar keeps a small "Restart to update" so it's never lost.
+/** "2.4 MB/s · 35 s left" while downloading, once the speed is known. */
+export function transferText(state: Pick<UpdateState, "speed" | "secondsLeft">): string {
+	if (!state.speed) return "";
+	const speed = state.speed >= 1024 * 1024 ? `${(state.speed / (1024 * 1024)).toFixed(1)} MB/s` : `${Math.max(1, Math.round(state.speed / 1024))} KB/s`;
+	const left = state.secondsLeft;
+	if (left === undefined || !Number.isFinite(left)) return speed;
+	const time = left < 60 ? `${Math.max(1, Math.round(left))} s` : left < 3600 ? `${Math.round(left / 60)} min` : `${(left / 3600).toFixed(1)} h`;
+	return `${speed} · ${time} left`;
+}
+
+// Minimize (or "Later") tucks the card into the status bar for that version; the status bar keeps a small "Restart to update" so it's never lost.
 // Shared between the card and the status bar (one window, one update).
 let hiddenFor: string | null = null;
 const listeners = new Set<() => void>();
@@ -55,7 +66,7 @@ export function UpdateNotice() {
 
 	const ready = state.status === "ready";
 	const title = ready ? `Kroma ${state.version} is ready` : state.status === "downloading" ? `Downloading Kroma ${state.version ?? ""}` : `Kroma ${state.version} is available`;
-	const detail = ready ? "Restart to finish updating. Your project is saved and opens again." : state.status === "downloading" ? "It downloads in the background. Keep working." : "A new version of Kroma is out.";
+	const detail = ready ? "Restart to finish updating. Your project is saved and opens again." : state.status === "downloading" ? "It downloads in the background and picks up where it stopped if the connection drops. Keep working." : "A new version of Kroma is out.";
 
 	return (
 		<div
@@ -75,6 +86,7 @@ export function UpdateNotice() {
 						{state.progress !== undefined && <span className="w-8 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums">{Math.round(state.progress * 100)}%</span>}
 					</div>
 				)}
+				{state.status === "downloading" && transferText(state) && <p className="text-[11px] text-muted-foreground tabular-nums">{transferText(state)}</p>}
 				{state.status !== "downloading" && (
 					<div className="flex gap-2 pt-2">
 						{ready ? (
@@ -94,26 +106,36 @@ export function UpdateNotice() {
 			</div>
 			<button
 				type="button"
-				aria-label="Hide"
+				aria-label="Minimize to the status bar"
+				title="Minimize to the status bar"
 				onClick={hide}
 				className="absolute top-2.5 right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground opacity-70 transition-opacity hover:text-foreground hover:opacity-100"
 			>
-				<X className="size-3.5" />
+				<Minimize2 className="size-3.5" />
 			</button>
 		</div>
 	);
 }
 
-/** The status bar's quiet reminder once the card is hidden: progress, or "Restart to update". */
+/**
+ * The status bar's end: a minimized update (its progress, or "Restart to update"; click to open the card again), or,
+ * when there's no update going on, a small button to check for one now.
+ */
 export function UpdateStatus() {
 	const state = useUpdateState();
 	const [hidden] = useHidden(state?.version);
-	if (!state || !hidden) return null;
+	const [checking, setChecking] = useState(false);
+	if (!state) return null;
+	const active = state.status === "available" || state.status === "downloading" || state.status === "ready";
+	if (active && !hidden) return null; // the card is showing
+
 	if (state.status === "downloading") {
+		const left = transferText(state).split(" · ")[1];
 		return (
-			<span className="flex items-center gap-1 text-muted-foreground tabular-nums">
+			<button type="button" onClick={() => showCard()} title="Show the update" className="flex items-center gap-1 rounded-sm px-1 text-muted-foreground tabular-nums hover:text-foreground">
 				<Loader2 className="size-3 animate-spin" /> Updating{state.progress !== undefined ? ` ${Math.round(state.progress * 100)}%` : "…"}
-			</span>
+				{left && <span className="opacity-70">· {left}</span>}
+			</button>
 		);
 	}
 	if (state.status === "ready" || state.status === "available") {
@@ -124,5 +146,31 @@ export function UpdateStatus() {
 			</button>
 		);
 	}
-	return null;
+
+	const busy = checking || state.status === "checking";
+	const check = async () => {
+		setChecking(true);
+		try {
+			const next = await window.kroma.checkForUpdates();
+			if (next.status === "none") useEditor.getState().showToast(`Kroma is up to date (${next.current})`);
+			else if (next.status === "error") useEditor.getState().showToast("Couldn't check for updates", "error", next.error);
+			else showCard();
+		} catch (e) {
+			useEditor.getState().showToast("Couldn't check for updates", "error", clean(e));
+		} finally {
+			setChecking(false);
+		}
+	};
+	return (
+		<button
+			type="button"
+			disabled={busy}
+			onClick={() => void check()}
+			title={`Kroma ${state.current}`}
+			className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors outline-none hover:bg-foreground/5 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+		>
+			<RefreshCw className={cn("size-3", busy && "animate-spin")} />
+			{busy ? "Checking…" : "Check for updates"}
+		</button>
+	);
 }
