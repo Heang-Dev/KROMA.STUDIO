@@ -10,7 +10,7 @@ export function DocsIndex({ version, lang }: { version: string; lang: Lang }) {
 	const label = docsVersions().find((v) => v.version === version)?.label ?? version;
 	return (
 		<DocsShell version={version} lang={lang}>
-			<p className="text-[12.5px] tracking-[0.08em] text-muted-foreground uppercase">v{label}</p>
+			<p className="text-[12.5px] font-medium tracking-[0.08em] text-brand uppercase">v{label}</p>
 			<h1 className="mt-2 text-[clamp(30px,4.5vw,44px)] font-semibold">{t.docs}</h1>
 			<p className="mt-3 max-w-[60ch] text-muted-foreground">{t.intro}</p>
 			<div className="mt-10 grid gap-3 sm:grid-cols-2">
@@ -38,7 +38,7 @@ export async function DocsArticle({ version, lang, slug }: { version: string; la
 	const page = await docPage(version, lang, slug);
 	return (
 		<DocsShell version={version} lang={lang} page={page}>
-			<p className="text-[12.5px] tracking-[0.08em] text-muted-foreground uppercase">{page.group}</p>
+			<p className="text-[12.5px] font-medium tracking-[0.08em] text-brand uppercase">{page.group}</p>
 			<h1 className="mt-2 text-[clamp(28px,4vw,40px)] font-semibold">{page.title}</h1>
 			<div className="docs-prose mt-6" dangerouslySetInnerHTML={{ __html: page.html }} />
 		</DocsShell>

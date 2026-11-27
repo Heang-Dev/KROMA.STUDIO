@@ -8,12 +8,16 @@
 	--font-sans: var(--font-geist-mono), var(--font-kantumruy), ui-monospace, Menlo, monospace;
 	--font-khmer: var(--font-kantumruy), "Khmer Sangam MN", sans-serif;
 	--color-glow: var(--glow);
+	--color-brand: var(--brand);
 }
 
 :root {
+	/* Kroma's purple (Orca's AI violet): active links and highlights. */
+	--brand: var(--color-violet-600);
 	--glow: rgb(127 34 254 / 0.1);
 }
 .dark {
+	--brand: var(--color-violet-400);
 	--glow: rgb(127 34 254 / 0.17);
 }
 
@@ -201,3 +205,24 @@
 }
 
 /* The showcase tabs: the time to the next tab, filling the highlight's bottom edge (see showcase.tsx). */
+
+/* Release notes (changelog and download page). */
+.release-notes p,
+.release-notes ul,
+.release-notes ol {
+	margin-top: 0.75rem;
+}
+.release-notes ul {
+	list-style: disc;
+	padding-left: 1.25rem;
+	display: grid;
+	gap: 0.375rem;
+}
+.release-notes strong {
+	color: var(--foreground);
+	font-weight: 600;
+}
+.release-notes a {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}

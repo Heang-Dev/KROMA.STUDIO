@@ -83,6 +83,8 @@ export function docHref(href: string, version: string, lang: Lang): string {
 }
 
 const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+/** Turns the HTML escapes marked writes (&quot; &#39; …) back into characters, for "On this page" and ids. */
+const unescape = (s: string) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 const slugify = (s: string) =>
 	s
 		.toLowerCase()
@@ -111,7 +113,7 @@ export async function docPage(version: string, lang: Lang, slug: string): Promis
 		renderer: {
 			heading({ tokens, depth }) {
 				const text = this.parser.parseInline(tokens);
-				const plain = text.replace(/<[^>]+>/g, "");
+				const plain = unescape(text.replace(/<[^>]+>/g, ""));
 				let id = slugify(plain);
 				const n = used.get(id) ?? 0;
 				used.set(id, n + 1);

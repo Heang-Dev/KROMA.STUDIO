@@ -240,7 +240,7 @@ export function HomePage({ lang }: { lang: Lang }) {
 					<p className="max-w-[58ch] text-muted-foreground">{t.community.text}</p>
 					<div className="mt-2 flex flex-wrap justify-center gap-2.5">
 						<Button asChild size="lg" className="h-11 px-5 text-[15px]">
-							<Link href={L("/#download")}>{t.nav.download}</Link>
+							<Link href={L("/download/")}>{t.nav.download}</Link>
 						</Button>
 						<Button asChild size="lg" variant="outline" className="h-11 px-5 text-[15px]">
 							<a href={GITHUB_URL} target="_blank" rel="noreferrer">

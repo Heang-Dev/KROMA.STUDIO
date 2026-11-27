@@ -5,6 +5,7 @@ import { type DocPage, docGroups, docPages, docsVersions } from "@/lib/docs";
 import { GITHUB_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { CodeCopy } from "./code-copy";
+import { DocsToc } from "./docs-toc";
 import { VersionPicker } from "./version-picker";
 
 // The docs layout, like Laravel's and Tailwind's: versions and pages on the left, the page in the middle,
@@ -46,7 +47,7 @@ export function DocsShell({ version, lang, page, children }: { version: string; 
 										<Link
 											href={href(p.slug)}
 											aria-current={p.slug === page?.slug ? "page" : undefined}
-											className={cn("-ml-px block border-l py-1 pl-3 text-[13px] no-underline transition-colors", p.slug === page?.slug ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground")}
+											className={cn("-ml-px block border-l py-1 pl-3 text-[13px] no-underline transition-colors", p.slug === page?.slug ? "rounded-r-md border-brand bg-brand/10 font-medium text-brand" : "border-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground")}
 										>
 											{p.title}
 										</Link>
@@ -102,15 +103,7 @@ export function DocsShell({ version, lang, page, children }: { version: string; 
 			{page && page.toc.length > 0 && (
 				<aside className="hidden xl:sticky xl:top-[84px] xl:block xl:self-start">
 					<p className="text-xs tracking-wider text-muted-foreground uppercase">{t.onThisPage}</p>
-					<ul className="mt-3 grid list-none gap-1.5 p-0 text-[13px]">
-						{page.toc.map((h) => (
-							<li key={h.id} className={h.depth === 3 ? "pl-3" : undefined}>
-								<a href={`#${h.id}`} className="text-muted-foreground no-underline hover:text-foreground">
-									{h.text}
-								</a>
-							</li>
-						))}
-					</ul>
+					<DocsToc items={page.toc} />
 				</aside>
 			)}
 		</div>

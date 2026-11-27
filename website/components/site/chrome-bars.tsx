@@ -20,11 +20,12 @@ const wrap = "mx-auto w-[min(1180px,100%-32px)]";
 const compact = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
 
 export function HeaderBar({ stars }: { stars: number | null }) {
-	const lang = langOf(usePathname());
+	const pathname = usePathname();
+	const lang = langOf(pathname);
 	const t = messages[lang].nav;
 	const nav = [
 		{ href: localize("/#features", lang), label: t.features },
-		{ href: localize("/#voices", lang), label: t.voices },
+		{ href: localize("/voices/", lang), label: t.voices },
 		{ href: localize("/docs/", lang), label: t.docs },
 		{ href: localize("/changelog/", lang), label: t.changelog },
 		{ href: localize("/#faq", lang), label: t.faq },
@@ -35,11 +36,15 @@ export function HeaderBar({ stars }: { stars: number | null }) {
 			<div className={cn(wrap, "relative flex h-[60px] items-center gap-6")}>
 				<Logo href={localize("/", lang)} />
 				<nav aria-label="Main" className="hidden gap-5 text-[13.5px] md:flex">
-					{nav.map((l) => (
-						<Link key={l.href} href={l.href} className="text-muted-foreground no-underline hover:text-foreground">
-							{l.label}
-						</Link>
-					))}
+					{nav.map((l) => {
+						// The page you're on (Voices, Docs, Changelog) is marked in Kroma's purple.
+						const on = !l.href.includes("#") && pathname.startsWith(l.href);
+						return (
+							<Link key={l.href} href={l.href} aria-current={on ? "page" : undefined} className={cn("no-underline transition-colors", on ? "font-medium text-brand" : "text-muted-foreground hover:text-foreground")}>
+								{l.label}
+							</Link>
+						);
+					})}
 				</nav>
 				{/* GitHub, language and theme sit together in one slim toolbar, as tall as the Download button. */}
 				<div className="ml-auto flex items-center gap-2">
@@ -67,11 +72,11 @@ export function HeaderBar({ stars }: { stars: number | null }) {
 						<ThemeToggle label={t.theme} className={cn(TOOL, "w-7")} />
 					</div>
 					<Button asChild size="sm" className="hidden sm:inline-flex">
-						<Link href={localize("/#download", lang)}>{t.download}</Link>
+						<Link href={localize("/download/", lang)}>{t.download}</Link>
 					</Button>
 					<MobileMenu
 						labels={{ open: t.menuOpen, close: t.menuClose }}
-						links={[...nav, { href: localize("/#download", lang), label: t.download }, { href: GITHUB_URL, label: t.github }, ...communityLinks().map((c) => ({ href: c.href, label: c.label }))]}
+						links={[...nav, { href: localize("/download/", lang), label: t.download }, { href: GITHUB_URL, label: t.github }, ...communityLinks().map((c) => ({ href: c.href, label: c.label }))]}
 					/>
 				</div>
 			</div>
@@ -98,8 +103,8 @@ export function FooterBar({ latest }: { latest: { version: string; date: string 
 			title: t.product,
 			links: [
 				{ href: localize("/#features", lang), label: m.nav.features },
-				{ href: localize("/#voices", lang), label: m.nav.voices },
-				{ href: localize("/#download", lang), label: m.nav.download },
+				{ href: localize("/voices/", lang), label: m.nav.voices },
+				{ href: localize("/download/", lang), label: m.nav.download },
 				{ href: localize("/changelog/", lang), label: m.nav.changelog },
 			],
 		},

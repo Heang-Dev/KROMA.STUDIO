@@ -1,0 +1,181 @@
+[
+ {
+  "title": "Narration",
+  "voices": [
+   {
+    "name": "Narrator (deep male)",
+    "description": "A middle-aged man with a deep, clear, confident male narrator voice"
+   },
+   {
+    "name": "Narrator (clear female)",
+    "description": "A young woman with a clear, bright and friendly female narrator voice"
+   },
+   {
+    "name": "News anchor (male)",
+    "description": "A professional adult male news anchor, a man with a low, formal male voice and a steady pace"
+   },
+   {
+    "name": "News anchor (female)",
+    "description": "A professional adult female news anchor, a woman with a formal female voice and a steady pace"
+   },
+   {
+    "name": "Storyteller (warm grandfather)",
+    "description": "An elderly Cambodian grandfather, an old man with a low, warm, slow and gentle male storytelling voice"
+   },
+   {
+    "name": "Storyteller (kind grandmother)",
+    "description": "An elderly Cambodian grandmother, an old woman with a soft, kind, calm female voice, clearly a woman"
+   }
+  ]
+ },
+ {
+  "title": "Palace & royalty",
+  "voices": [
+   {
+    "name": "King (majestic)",
+    "description": "A powerful middle-aged king, a man with a deep, commanding, majestic and slow male voice full of authority"
+   },
+   {
+    "name": "Emperor (cold)",
+    "description": "A young emperor in his twenties, a man with a cold, calm and authoritative male voice"
+   },
+   {
+    "name": "Queen (elegant)",
+    "description": "A graceful noble queen, a mature woman with an elegant, calm and dignified female voice"
+   },
+   {
+    "name": "Empress dowager (stern)",
+    "description": "A stern elderly empress dowager, an old woman with a cold, slow and commanding female voice"
+   },
+   {
+    "name": "Prince (young noble)",
+    "description": "A young prince in his twenties, a man with a clear, confident and refined male voice"
+   },
+   {
+    "name": "Princess (gentle)",
+    "description": "A gentle young princess, a young woman with a soft, sweet and graceful female voice"
+   },
+   {
+    "name": "Concubine (scheming)",
+    "description": "A scheming palace concubine, a young woman with a sweet but sly and flirtatious female voice"
+   },
+   {
+    "name": "Minister (old official)",
+    "description": "An elderly court minister, an old man with a careful, polite and slightly hoarse male voice"
+   },
+   {
+    "name": "Eunuch (palace servant)",
+    "description": "A palace eunuch, a man with a thin, high, sly and slightly nasal voice who speaks very politely"
+   },
+   {
+    "name": "Maid (timid servant)",
+    "description": "A timid young maid, a young woman with a small, polite and slightly nervous female voice"
+   }
+  ]
+ },
+ {
+  "title": "Heroes & fighters",
+  "voices": [
+   {
+    "name": "Young man (hero)",
+    "description": "A brave young man in his twenties, clearly a grown man (not a woman or a child) with a warm, clear, medium-low and energetic male voice"
+   },
+   {
+    "name": "Young woman (heroine)",
+    "description": "A kind young woman in her twenties, a woman with a bright, clear and lively female voice"
+   },
+   {
+    "name": "General (bold warrior)",
+    "description": "A middle-aged army general, clearly a man with a very deep, low, rough and commanding male voice, calm and steady"
+   },
+   {
+    "name": "Swordswoman (fierce)",
+    "description": "A fierce female warrior, a young woman with a strong, confident and sharp female voice"
+   },
+   {
+    "name": "Assassin (cold killer)",
+    "description": "A cold assassin, a man with a quiet, flat, emotionless and low male voice"
+   }
+  ]
+ },
+ {
+  "title": "Modern drama",
+  "voices": [
+   {
+    "name": "CEO (cold boss)",
+    "description": "A rich company boss in his thirties, a man with a deep, calm, confident and slightly cold male voice"
+   },
+   {
+    "name": "Secretary (office woman)",
+    "description": "A capable young office woman, a woman with a clear, polite and professional female voice"
+   },
+   {
+    "name": "Rich young master (arrogant)",
+    "description": "An arrogant rich young master, a young man with a proud, mocking and lazy male voice"
+   },
+   {
+    "name": "Shopkeeper (cheerful)",
+    "description": "A friendly middle-aged shopkeeper, clearly a man with a deep, warm, relaxed and chatty male voice"
+   }
+  ]
+ },
+ {
+  "title": "Family & elders",
+  "voices": [
+   {
+    "name": "Father (strict)",
+    "description": "A strict middle-aged father, a man with a firm, steady and serious male voice"
+   },
+   {
+    "name": "Mother (caring)",
+    "description": "A caring middle-aged mother, a woman with a warm, gentle and motherly female voice"
+   },
+   {
+    "name": "Old man (village elder)",
+    "description": "A village elder, an old man with a rough, slow and kind male voice"
+   },
+   {
+    "name": "Old monk (wise)",
+    "description": "A wise elderly Buddhist monk, an old man with a calm, slow, peaceful and kind male voice"
+   }
+  ]
+ },
+ {
+  "title": "Children & teens",
+  "voices": [
+   {
+    "name": "Young boy",
+    "description": "A cheerful ten-year-old boy, a child with a high-pitched, energetic young voice"
+   },
+   {
+    "name": "Young girl",
+    "description": "A sweet eight-year-old girl, a child with a high, playful young voice"
+   },
+   {
+    "name": "Teenage boy (cheeky)",
+    "description": "A teenage boy of about fifteen, a boy with a casual, cheeky voice that is just starting to break"
+   },
+   {
+    "name": "Teenage girl (cheerful)",
+    "description": "A teenage girl of about fifteen, a girl with a bright, quick and cheerful voice"
+   }
+  ]
+ },
+ {
+  "title": "Villains & mood",
+  "voices": [
+   {
+    "name": "Villain (dark, slow)",
+    "description": "A menacing man with a dark, low, raspy and slow male voice"
+   },
+   {
+    "name": "Villainess (cruel)",
+    "description": "A cruel and cunning woman, a middle-aged villainess with a sharp, cold and mocking female voice"
+   },
+   {
+    "name": "Ghost story (whisper)",
+    "description": "A mysterious woman whispering softly, suspenseful female voice"
+   }
+  ]
+ }
+]
