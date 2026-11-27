@@ -86,7 +86,10 @@ export function App() {
 		};
 	}, []);
 	useEffect(() => {
-		void window.kroma.info().then(({ tools, smoke, installHints: hints }) => {
+		void window.kroma.info().then(({ tools, smoke, installHints: hints, firstRun }) => {
+			// Only the very first start opens the settings (to add a key). After a restart or an update, Kroma
+			// opens where you work; a missing key is asked for when a step needs it.
+			if (firstRun) useEditor.getState().openSettings("translation");
 			setInstallHints(hints);
 			// The automated smoke test (scripts/smoke.mjs) drives the editor through this handle.
 			if (smoke) Object.assign(window, { __kroma: { useEditor, actions, batch, notify, useNotifications, applyAppearance, toast, planVoice, objectsForExport, render: { ensureFonts, renderBandPng, subtitleBand } } });
@@ -95,8 +98,6 @@ export function App() {
 		void window.kroma.getSettings().then((s) => {
 			applyAppearance(s.theme);
 			setZoomVar(s.uiZoom);
-			// First run: no keys yet, so open the settings for them.
-			if (!s.hasAnthropicKey && !s.hasGeminiKey && !s.hasAsrKey && s.translateProvider !== "google") useEditor.getState().openSettings("translation");
 		});
 		// Browser-style notice when the interface size changes.
 		const stopZoom = window.kroma.onZoomChanged((zoom) => {
@@ -320,8 +321,6 @@ function TopBar() {
 						<ProgressBar value={exportTask.progress} />
 					</div>
 				)}
-				<NotificationBell />
-				<Separator orientation="vertical" className="mx-1.5 h-4!" />
 				<IconButton label="New project" shortcut="⌘N" disabled={locked} onClick={startNewProject}>
 					<FilePlus />
 				</IconButton>
@@ -331,6 +330,7 @@ function TopBar() {
 				<IconButton label="Save project" shortcut="⌘S" disabled={locked} onClick={() => void saveProject()}>
 					<Save />
 				</IconButton>
+				<NotificationBell />
 				<Separator orientation="vertical" className="mx-1.5 h-4!" />
 				{exporting ? (
 					<Button variant="outline" size="sm" onClick={() => exportTask && void window.kroma.cancel(exportTask.id)}>

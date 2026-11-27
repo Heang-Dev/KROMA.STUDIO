@@ -249,8 +249,11 @@ export interface Settings {
 	notifySystem: boolean;
 	/** Only failures show a system notification. */
 	notifyOnlyErrors: boolean;
-	/** System notifications play the system sound. */
+	/** Notifications play a sound (system notifications, and notices in Kroma). */
 	notifySound: boolean;
+	/** The sound for finished work, and for a failure: a macOS system sound name (other systems use their own). */
+	notifySoundDone: string;
+	notifySoundFailed: string;
 	/** Which work notifies (system notification, and a toast when it worked); all of it still goes into the bell. */
 	notifyDownloads: boolean;
 	notifySubtitles: boolean;
@@ -321,6 +324,8 @@ export interface SettingsView extends Omit<Settings, "anthropicKey" | "asrKey" |
 	hasAnthropicKey: boolean;
 	hasGeminiKey: boolean;
 	hasAsrKey: boolean;
+	/** Keys that are saved but this build can't read (the keychain didn't let it in); kept until replaced. */
+	lockedKeys: string[];
 }
 
 export interface SourceCue {
@@ -426,6 +431,8 @@ export const DEFAULT_SETTINGS: Settings = {
 	notifySystem: true,
 	notifyOnlyErrors: false,
 	notifySound: true,
+	notifySoundDone: "Glass",
+	notifySoundFailed: "Basso",
 	notifyDownloads: true,
 	notifySubtitles: true,
 	notifyVoices: true,
