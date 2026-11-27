@@ -1,40 +1,49 @@
 # Kroma Studio
 
-A desktop video editor for turning Chinese (and other) videos into Khmer-subtitled posts for YouTube, Facebook and TikTok.
+**Turn any video into a Khmer video.** A free, open-source desktop app for macOS, Windows and Linux: download from YouTube, Bilibili, Douyin and 1,000+ sites, get the subtitles, translate them to Khmer, give every character their own voice, and post to YouTube, Facebook and TikTok.
 
-The heavy work runs in the cloud, so long movies are fast on any Mac:
+**Website:** https://heang-dev.github.io/kroma/ · **Download:** [latest release](https://github.com/Heang-Dev/kroma/releases/latest) (macOS Apple silicon, Windows 10/11, Linux AppImage / .deb)
+
+The heavy AI work runs in the cloud with your own keys (many free), so long videos are fast on any computer.
 
 | Step | How |
 | --- | --- |
 | Download | `yt-dlp` from YouTube, Bilibili, Douyin, Youku, iQiyi and 1,000+ sites, with the site's own subtitles when it has them |
-| Speech to text | Groq Whisper large-v3 (whole movie in seconds), OpenAI, or Gemini with your Gemini key (2-minute parts, exact mode) |
-| Translate to Khmer | Your choice in Settings: **Gemini** (free tier, default), **Google Translate** (free, no key, basic) or **Claude** (paid, best). Gemini and Claude work in batches of 60 lines with your notes (names, tone) |
-| Edit | CapCut-style editor: preview, timeline (split, trim, ripple), subtitle list, styles, 16:9 / 9:16 / 1:1 |
-| Export | ffmpeg with the Mac's hardware encoder. Subtitles are drawn by Chromium (correct Khmer shaping) and laid over the video, so the export matches the preview |
-| Voice-over | **Instant**: Microsoft's neural Khmer voices (Sreymom, Piseth) through the free Edge read-aloud service. **Designed / Cloned**: your Khmer Voice Studio engine (VoxCPM2) on a free Colab GPU or this Mac, all lines in one story job then cut per line; each line is sped up (max 1.6x) to fit before the next, mixed over the original sound turned down |
-| Post | Gemini or Claude writes the YouTube / Facebook / TikTok title, description and hashtags in Khmer |
+| Speech to text | Groq Whisper large-v3 (a whole movie in seconds), OpenAI, or Gemini |
+| Translate | Gemini (free tier, default), Google Translate (free, no key) or Claude, into Khmer, Thai, Vietnamese, Lao, English, Indonesian or Malay; lines written to fit their time on screen |
+| Characters & voices | Finds who says each line; 36 Khmer preset voices (Khmer Voice Studio engine), voice cloning from a recording, free instant voices; the original voices removed with audio-separator |
+| Edit | Preview, timeline (split, trim, reorder), subtitle list, styles, blur boxes / logos / text, 16:9 · 9:16 · 1:1 |
+| Export | FFmpeg, Small / Standard / High; subtitles drawn by Chromium (correct Khmer shaping) so the export matches the preview |
+| Post | AI-written titles, text and hashtags; one-click posting to YouTube, Facebook and TikTok through Upload-Post |
 
-Also: downloads can use your browser's logins (Settings → Downloads) for 1080p Bilibili and members-only videos; the open project autosaves and reopens at launch; drag clips on the timeline to reorder them (their subtitles move with them).
-
-## Run
+## Run from source
 
 ```bash
-brew install ffmpeg yt-dlp
+# macOS: brew install ffmpeg yt-dlp   ·   Windows / Linux: node scripts/fetch-tools.mjs (bundles FFmpeg and yt-dlp)
 bun install
-bun run dev          # editor with hot reload
-bun run dist         # build dist/mac-arm64/Kroma Studio.app, then copy it to /Applications
+bun run dev          # the editor with hot reload
+bun run dist         # macOS app in dist/   ·   bun run dist:win / dist:linux on those systems
 ```
 
-Open Settings (⌘,) and add a free Gemini key from Google AI Studio (translation, posts; or pick Google Translate, which needs no key) and a free Groq key (speech to text).
+Open Settings (⌘, or Ctrl+,) and add a free Gemini key from Google AI Studio (translation and posts; or choose Google Translate, which needs no key) and a free Groq key (speech to text).
 
 ## Checks
 
 ```bash
 bun run typecheck
 bun run test
-bun run build && node scripts/smoke.mjs <video.mp4> <out-dir> [--download]   # launches the app, voices, screenshots, exports
-KROMA_APP="dist/mac-arm64/Kroma Studio.app/Contents/MacOS/Kroma Studio" node scripts/smoke.mjs ...      # same, against the packaged app
+bun run build && node scripts/smoke.mjs <video.mp4> <out-dir> [--download]   # launches the app, screenshots, exports
 ```
+
+Windows and Linux builds are made and smoke-tested on GitHub Actions (`.github/workflows/build.yml`). The website is in `website/` (Next.js, on the app's own design tokens).
+
+## Use it responsibly
+
+Only download, translate and repost videos you have the right to use, and only clone voices that are your own or that you have the speaker's permission for.
+
+## License
+
+[MIT](LICENSE) © 2026 Heang-Dev
 
 ## Design
 

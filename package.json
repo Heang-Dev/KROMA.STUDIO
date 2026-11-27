@@ -132,5 +132,10 @@
 	"author": {
 		"name": "Heang-Dev"
 	},
-	"homepage": "https://github.com/Heang-Dev/KROMA.STUDIO"
+	"homepage": "https://github.com/Heang-Dev/KROMA.STUDIO",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Heang-Dev/KROMA.STUDIO.git"
+	}
 }
