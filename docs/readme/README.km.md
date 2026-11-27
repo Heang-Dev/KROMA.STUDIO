@@ -1,0 +1,150 @@
+<h1 align="center">
+  <a href="https://heang-dev.github.io/kroma/km/"><img src="../assets/readme-icon.png" alt="Kroma Studio" width="72" valign="middle" /></a> Kroma Studio
+</h1>
+
+<p align="center">
+  <a href="https://github.com/Heang-Dev/kroma/releases/latest"><img src="https://img.shields.io/github/v/release/Heang-Dev/kroma?style=flat&label=release&color=7F22FE" alt="កំណែថ្មីបំផុត" /></a>
+  <a href="https://github.com/Heang-Dev/kroma/releases"><img src="https://img.shields.io/github/downloads/Heang-Dev/kroma/total?style=flat&label=downloads&color=7F22FE" alt="ចំនួនទាញយកសរុប" /></a>
+  <a href="https://github.com/Heang-Dev/KROMA.STUDIO"><img src="https://img.shields.io/github/stars/Heang-Dev/KROMA.STUDIO?style=flat&label=%E2%98%85&color=7F22FE" alt="ផ្កាយលើ GitHub" /></a>
+  <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-MIT-7F22FE?style=flat" alt="អាជ្ញាប័ណ្ណ MIT" /></a>
+  <img src="https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-171717?style=flat" alt="macOS, Windows និង Linux" />
+</p>
+
+<p align="center">
+  <sub><a href="../../README.md">English</a> · <b>ខ្មែរ</b></sub>
+</p>
+
+<h2 align="center">ប្រែវីដេអូណាមួយ ឱ្យទៅជាវីដេអូខ្មែរ។</h2>
+
+<p align="center">
+  ទាញយកពី YouTube, Bilibili, Douyin និងគេហទំព័រជាង ១០០០។ យកអក្សររត់ បកប្រែជាភាសាខ្មែរ ផ្តល់សំឡេងផ្ទាល់ខ្លួនឱ្យតួអង្គនីមួយៗ ហើយបង្ហោះទៅ YouTube, Facebook និង TikTok។ កម្មវិធីកុំព្យូទ័រតែមួយ ឥតគិតថ្លៃ និងជាកូដបើកចំហ។
+</p>
+
+<h3 align="center">
+  <a href="https://heang-dev.github.io/kroma/km/download/"><ins>ទាញយក Kroma Studio</ins></a> &nbsp;·&nbsp;
+  <a href="https://heang-dev.github.io/kroma/km/docs/"><ins>អានឯកសារណែនាំ →</ins></a>
+</h3>
+
+<p align="center">
+  <img src="../assets/readme-editor-dark.jpg" alt="កម្មវិធីកែរបស់ Kroma Studio៖ វីដេអូដែលមានអក្សររត់ខ្មែរ ផ្ទាំងតួអង្គ បញ្ជីអក្សររត់ និងបន្ទាត់ពេលវេលា" width="960" />
+</p>
+
+## មុខងារ
+
+<table>
+<tr>
+<td width="50%" valign="middle">
+
+### ទាញយកពីគេហទំព័រជាង ១០០០
+
+បិទភ្ជាប់តំណពី YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook ឬ TikTok ឬសារចែករំលែកទាំងមូល។ Kroma យកអក្សររត់ផ្ទាល់របស់គេហទំព័រមកជាមួយ ពេលវាមាន ឬអ្នកនាំចូលឯកសារពីកុំព្យូទ័ររបស់អ្នក។
+
+[ការទាញយកវីដេអូ →](https://heang-dev.github.io/kroma/km/docs/0.1/downloading/)
+
+</td>
+<td width="50%">
+  <img src="../assets/readme-media-dark.jpg" alt="ផ្ទាំង Media ដែលមានតំណបិទភ្ជាប់ និងវីដេអូដែលបានទាញយក" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### ភាសាខ្មែរដែលស្តាប់ទៅដូចខ្មែរ
+
+Gemini (ឥតគិតថ្លៃ), Google Translate (ឥតគិតថ្លៃ គ្មាន key) ឬ Claude បកប្រែអត្ថន័យតាមរបៀបដែលមនុស្សនិយាយ៖ ពាក្យគួរសមត្រឹមត្រូវ ការសរសេរពាក្យបរទេសតាមទម្លាប់ ហើយបន្ទាត់នីមួយៗខ្លីល្មមអានទាន់ពេល។ មានភាសាថៃ វៀតណាម ឡាវ អង់គ្លេស ឥណ្ឌូនេស៊ី និងម៉ាឡេផងដែរ។
+
+[ការបកប្រែ →](https://heang-dev.github.io/kroma/km/docs/0.1/translation/)
+
+</td>
+<td width="50%">
+  <img src="../assets/readme-translate-dark.jpg" alt="ផ្ទាំង Translate ដែលមានកំណត់ចំណាំសម្រាប់អ្នកបកប្រែ និងបន្ទាត់អក្សររត់ខ្មែរ" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### តួអង្គនីមួយៗមានសំឡេងផ្ទាល់ខ្លួន
+
+Kroma អានការសន្ទនា រកថាអ្នកណានិយាយបន្ទាត់នីមួយៗ ហើយផ្តល់សំឡេងដាច់ដោយឡែកដល់អ្នកនិទានរឿង ស្តេច និងវីរបុរស។ សំឡេងដើមត្រូវបានដកចេញ ចំណែកតន្ត្រី និងបែបផែនសំឡេងនៅដដែល។
+
+[តួអង្គ និងសំឡេង →](https://heang-dev.github.io/kroma/km/docs/0.1/characters-and-voices/)
+
+</td>
+<td width="50%">
+  <img src="../assets/readme-voices-dark.jpg" alt="បណ្ណាល័យសំឡេង ដែលមានសំឡេងខ្មែរតាមប្រភេទ" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### សំឡេងខ្មែរ ៣៦ ឬសំឡេងរបស់អ្នក
+
+ស្តេច មហាក្សត្រី វីរបុរស ព្រះសង្ឃ តួអាក្រក់ និងកុមារ សំឡេងនីមួយៗស្តាប់ទៅដូចគ្នាក្នុងគ្រប់វីដេអូ។ ចម្លងសំឡេងរបស់អ្នក ដោយអានអត្ថបទខ្លីមួយក្នុងកម្មវិធី ឬប្រើសំឡេងរហ័សឥតគិតថ្លៃ ដែលមិនត្រូវការ key។
+
+[បណ្ណាល័យសំឡេង →](https://heang-dev.github.io/kroma/km/voices/)
+
+</td>
+<td width="50%">
+  <img src="../assets/readme-editor-light.jpg" alt="កម្មវិធីកែក្នុងរចនាប័ទ្មភ្លឺ" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### រចនាតាមចិត្តអ្នក
+
+អក្សររត់ខ្មែរតាមរចនាប័ទ្មរបស់អ្នក អក្សររត់ដើមត្រូវបានធ្វើឱ្យព្រិល ហើយដាក់ឡូហ្គោ និងអក្សររបស់អ្នកពីលើ។ 16:9 សម្រាប់ YouTube, 9:16 សម្រាប់ TikTok និង Reels, 1:1 ពីគម្រោងតែមួយ។
+
+[រចនាប័ទ្ម និងវត្ថុ →](https://heang-dev.github.io/kroma/km/docs/0.1/style-and-objects/)
+
+</td>
+<td width="50%">
+  <img src="../assets/readme-style-dark.jpg" alt="ផ្ទាំង Style ដែលមានការកំណត់អក្សររត់ និងប្រអប់ព្រិលលើអក្សររត់ដើម" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### បង្ហោះគ្រប់កន្លែងដោយចុចតែម្តង
+
+AI សរសេរចំណងជើង អត្ថបទ និង hashtag សម្រាប់វេទិកានីមួយៗ។ ភ្ជាប់ YouTube, Facebook និង TikTok តែម្តង ជ្រើសកន្លែងបង្ហោះ ហើយ Kroma នាំចេញ ផ្ទុកឡើង និងតាមដានការបង្ហោះនីមួយៗរហូតដល់ចប់។
+
+[ការបង្ហោះ →](https://heang-dev.github.io/kroma/km/docs/0.1/posting/)
+
+</td>
+<td width="50%">
+  <img src="../assets/readme-post-dark.jpg" alt="ផ្ទាំង Post ដែលមានចំណងជើង អត្ថបទ និង hashtag ជាភាសាខ្មែរ" width="100%" />
+</td>
+</tr>
+</table>
+
+## ទាញយក
+
+| ប្រព័ន្ធ | ឯកសារ | |
+| --- | --- | --- |
+| **macOS** (Apple silicon, M1 ឡើងទៅ) | `Kroma-Studio-<version>-arm64.dmg` | [ទាញយក](https://github.com/Heang-Dev/kroma/releases/latest) |
+| **Windows** 10 / 11 (x64) | `Kroma-Studio-Setup-<version>.exe` | [ទាញយក](https://github.com/Heang-Dev/kroma/releases/latest) |
+| **Linux** (x64) | `.AppImage` (គ្រប់ distro) ឬ `.deb` (Ubuntu, Debian) | [ទាញយក](https://github.com/Heang-Dev/kroma/releases/latest) |
+
+Kroma ធ្វើបច្ចុប្បន្នភាពខ្លួនឯង៖ កំណែថ្មីទាញយកនៅពីក្រោយ ហើយប្រអប់ **Restart to update** លេចឡើងនៅជ្រុងខាងក្រោមស្តាំ។
+
+<details>
+<summary><b>កម្មវិធីដំឡើងមិនទាន់មានហត្ថលេខានៅឡើយទេ</b></summary>
+
+- **macOS:** បើវាបង្ហាញថាកម្មវិធីខូច ឬបើកមិនកើត សូមដំណើរការម្តងក្នុង Terminal៖ `xattr -cr "/Applications/Kroma Studio.app"`
+- **Windows:** ពេលឃើញ «Windows protected your PC» ចុច **More info → Run anyway**។
+- **Linux:** `chmod +x Kroma-Studio-*.AppImage` រួចដំណើរការវា។
+
+</details>
+
+## ប្រើប្រាស់ដោយទទួលខុសត្រូវ
+
+ទាញយក បកប្រែ និងបង្ហោះឡើងវិញ តែវីដេអូដែលអ្នកមានសិទ្ធិប្រើប៉ុណ្ណោះ ហើយចម្លងតែសំឡេងរបស់អ្នក ឬសំឡេងអ្នកដែលបានយល់ព្រម។ វីដេអូដែលការពារដោយ DRM មិនអាចទាញយកបានទេ។
+
+## ការរួមចំណែក
+
+យើងស្វាគមន៍ការរាយការណ៍បញ្ហា គំនិត និងការកែលម្អ៖ [បើក issue](https://github.com/Heang-Dev/KROMA.STUDIO/issues) ឬផ្ញើ pull request។
+
+## អាជ្ញាប័ណ្ណ
+
+[MIT](../../LICENSE) © 2026 Heang-Dev
