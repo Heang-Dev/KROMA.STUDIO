@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 
-export type ToolName = "ffmpeg" | "ffprobe" | "yt-dlp" | "uvx";
+export type ToolName = "ffmpeg" | "ffprobe" | "yt-dlp" | "uvx" | "uv";
 
 const isWindows = process.platform === "win32";
 
@@ -37,7 +37,7 @@ function searchDirs(): string[] {
 	return dirs.filter((d): d is string => Boolean(d));
 }
 
-export function findTool(name: ToolName | "psql"): string | null {
+export function findTool(name: ToolName): string | null {
 	const file = isWindows ? `${name}.exe` : name;
 	for (const dir of searchDirs()) {
 		const candidate = join(dir, file);

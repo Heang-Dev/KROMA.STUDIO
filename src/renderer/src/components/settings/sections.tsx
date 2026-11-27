@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { AudioLines, CircleCheck, CircleX, Download, Loader2, Power, RefreshCw, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
+import { AudioLines, CircleCheck, CircleX, Download, Loader2, Power, RefreshCw, Trash2, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
 import { type Appearance, type KvsStatus, type PostAccount, type PostProfile, type PublishPlatform, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,10 @@ import { Kbd } from "@/components/ui/kbd";
 import { keyCaps } from "@/lib/platform";
 import { applyAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
-import { useEditor } from "@/state/store";
+import { runTask, useEditor } from "@/state/store";
 import { useUpdateState } from "../UpdateButton";
-import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented, SwitchRow } from "../common";
+import { refreshEngineStatus } from "../EngineStatus";
+import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented, SwitchRow, TaskProgress, useBusy } from "../common";
 
 // The settings registry. Each entry is one page in the settings nav; add a page by adding an entry here.
 
@@ -182,9 +183,12 @@ function SpeechSection({ settings, save }: SectionProps) {
 }
 
 const LOCAL_ENGINE = "http://127.0.0.1:7861";
-const COLAB_NOTEBOOK = "engine/colab/KhmerVoiceStudio_Colab.ipynb";
+const COLAB_URL = "https://colab.research.google.com/github/Heang-Dev/KROMA.STUDIO/blob/main/engine/colab/Kroma_Voice_Engine.ipynb";
 const isLocal = (url: string) => /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?\/?$/i.test(url.trim());
+/** Colab chosen but no address pasted yet. */
+const noAddress = (url: string) => !/^https?:\/\/[^/\s]+/i.test(url.trim());
 const deviceName = (device?: string) => (device === "cuda" ? "a GPU" : device === "mps" ? "this Mac's Apple GPU" : device === "cpu" ? "this computer's processor (slow)" : (device ?? "unknown"));
+const cleanError = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, "");
 
 /** A numbered step in a how-to list. */
 function Step({ n, title, children }: { n: number; title: string; children?: React.ReactNode }) {
@@ -200,24 +204,32 @@ function Step({ n, title, children }: { n: number; title: string; children?: Rea
 }
 
 /**
- * The Khmer Voice Studio engine: what it is, whether it's on, and how to turn it on (Start here, or a Colab GPU).
- * Kroma can start it on this computer from the KVS folder; see src/main/engine.ts.
+ * Kroma's voice engine: what it is, whether it's installed and on, and how to turn it on — installed and started on
+ * this computer by Kroma (src/main/engine.ts), or on a free Colab GPU.
  */
 function VoiceEngineSection({ settings, save }: SectionProps) {
 	const [status, setStatus] = useState<KvsStatus | null>(null);
 	const [checking, setChecking] = useState(false);
 	const [starting, setStarting] = useState(false);
 	const [startError, setStartError] = useState<string | null>(null);
+	const installing = useBusy("engine-install-") || Boolean(status?.installing);
 	const local = isLocal(settings.kvsUrl);
 	const check = () => {
 		setChecking(true);
+		void refreshEngineStatus();
 		void window.kroma
 			.kvsStatus()
 			.then(setStatus)
 			.finally(() => setChecking(false));
 	};
-	useEffect(check, [settings.kvsUrl, settings.hasKvsToken, settings.kvsProjectDir]);
+	useEffect(check, [settings.kvsUrl, settings.hasKvsToken]);
 
+	const install = async () => {
+		setStartError(null);
+		const done = await runTask(`engine-install-${Date.now()}`, "Install the voice engine", (id) => window.kroma.installEngine(id));
+		check();
+		if (done !== null) useEditor.getState().showToast("The voice engine is installed", "info", "Press Start to turn it on. The first start downloads the voice model (about 5 GB).");
+	};
 	const start = async () => {
 		setStarting(true);
 		setStartError(null);
@@ -225,7 +237,7 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 			await window.kroma.kvsStart();
 			useEditor.getState().showToast("The voice engine is on");
 		} catch (e) {
-			setStartError((e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, ""));
+			setStartError(cleanError(e));
 		} finally {
 			setStarting(false);
 			check();
@@ -235,64 +247,87 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 		await window.kroma.kvsStop();
 		setTimeout(check, 800);
 	};
+	const remove = async () => {
+		if (!window.confirm("Remove the voice engine from this computer? It frees about 2 GB. You can install it again any time.")) return;
+		try {
+			await window.kroma.removeEngine();
+			useEditor.getState().showToast("The voice engine was removed");
+		} catch (e) {
+			useEditor.getState().showToast("Couldn't remove the voice engine", "error", cleanError(e));
+		}
+		check();
+	};
 
 	const online = status?.online ?? false;
-	const notInstalled = status?.cannotStart?.includes("make engine-setup");
+	const installed = status?.installed ?? "missing";
+	const state = status === null ? "checking" : installing ? "installing" : starting ? "starting" : online ? "on" : local && installed === "missing" ? "missing" : "off";
+	const headline = { checking: "Checking…", installing: "Installing…", starting: "Starting…", on: "On", missing: "Not installed", off: "Off" }[state];
+	const detail = {
+		checking: "",
+		installing: "Setting up Python and the engine's packages (about 2 GB). Keep Kroma open; it takes a few minutes.",
+		starting: "Loading the voice model. The first start downloads it (about 5 GB) and can take a while.",
+		on: `Running on ${deviceName(status?.device)} · ${status?.presets.length ?? 0} preset voices${status?.busy ? ` · ${status.busy} job(s) running` : ""}${status?.startedByKroma ? " · stops when Kroma quits" : ""}`,
+		missing: "Install it once (about 2 GB, a few minutes) to make cloned voices, preset voices and stories on this computer.",
+		off: local
+			? "Installed. Press Start to turn it on."
+			: noAddress(settings.kvsUrl)
+				? "Paste the address your Colab notebook printed (step 3 below)."
+				: "Kroma can't reach your Colab engine. Check that the notebook is still running, and its address and token below.",
+	}[state];
 
 	return (
 		<>
-			<Group title="Voice engine" description="The engine makes Kroma's Khmer voices: your cloned voices, the preset voices (storyteller, news anchor, children…) and Story studio. It's part of Khmer Voice Studio and runs on this computer or on a free Google Colab GPU.">
+			<Group title="Voice engine" description="Makes Kroma's Khmer voices: your cloned voices, the preset voices (storyteller, news anchor, children…) and Story studio. It runs on this computer, or on a free Google Colab GPU when you want more speed.">
 				<Card>
 					<div className="flex flex-wrap items-center gap-3 py-3.5">
-						<span className={cn("size-2.5 shrink-0 rounded-full", status === null || starting ? "animate-pulse bg-muted-foreground" : online ? "bg-success" : "bg-destructive")} aria-hidden />
+						<span
+							aria-hidden
+							className={cn("size-2.5 shrink-0 rounded-full", state === "on" ? "bg-success" : state === "off" ? "bg-destructive" : state === "missing" ? "bg-muted-foreground/50" : "animate-pulse bg-warning")}
+						/>
 						<div className="min-w-0 flex-1">
-							<p className="text-[13px] font-medium">{status === null ? "Checking…" : starting ? "Starting the engine…" : online ? "On" : "Off"}</p>
-							<p className="text-xs leading-relaxed text-muted-foreground">
-								{starting
-									? "The first start loads the voice model and can take up to a minute."
-									: online
-										? `Running on ${deviceName(status?.device)} · ${status?.presets.length ?? 0} preset voices${status?.busy ? ` · ${status.busy} job(s) running` : ""}${status?.startedByKroma ? " · started by Kroma, stops when Kroma quits" : ""}`
-										: status === null
-											? ""
-											: local
-												? "Not running. Press Start to turn it on."
-												: "Kroma can't reach your Colab engine. Check that the notebook is still running, and its address and token below."}
-							</p>
+							<p className="text-[13px] font-medium">{headline}</p>
+							{detail && <p className="text-xs leading-relaxed text-muted-foreground">{detail}</p>}
 						</div>
 						<span className="flex shrink-0 gap-2">
-							{!online && local && (
-								<Button variant="outline" size="sm" disabled={starting || Boolean(status?.cannotStart)} onClick={() => void start()} title={status?.cannotStart ?? undefined}>
-									{starting ? <Loader2 className="animate-spin" /> : <Power />} {starting ? "Starting…" : "Start engine"}
+							{local && state === "missing" && (
+								<Button size="sm" onClick={() => void install()}>
+									<Download /> Install voice engine
 								</Button>
 							)}
-							{online && status?.startedByKroma && (
+							{local && state === "off" && (
+								<Button variant="outline" size="sm" disabled={Boolean(status?.cannotStart)} onClick={() => void start()} title={status?.cannotStart ?? undefined}>
+									<Power /> Start engine
+								</Button>
+							)}
+							{state === "on" && status?.startedByKroma && (
 								<Button variant="outline" size="sm" onClick={() => void stop()}>
 									<Power /> Stop
 								</Button>
 							)}
-							<Button variant="outline" size="sm" disabled={checking || starting} onClick={check}>
-								<RefreshCw className={checking ? "animate-spin" : ""} /> Check
-							</Button>
+							{state !== "missing" && state !== "installing" && (
+								<Button variant="outline" size="sm" disabled={checking || starting} onClick={check}>
+									<RefreshCw className={checking ? "animate-spin" : ""} /> Check
+								</Button>
+							)}
 						</span>
 					</div>
-					{!online && local && status?.cannotStart && !starting && (
-						<p className="py-2.5 text-xs leading-relaxed text-warning">
-							{notInstalled ? (
-								<>
-									The engine isn't installed yet. Open Terminal and run this once (a few minutes):
-									<code className="mt-1.5 block rounded-md bg-muted px-2 py-1.5 font-mono text-[11px] text-foreground select-text">
-										cd "{settings.kvsProjectDir}" && make engine-setup
-									</code>
-								</>
-							) : (
-								status.cannotStart
-							)}
-						</p>
+					{installing && (
+						<div className="py-3">
+							<TaskProgress prefix="engine-install-" />
+						</div>
+					)}
+					{local && installed === "outdated" && !installing && (
+						<div className="flex flex-wrap items-center justify-between gap-2 py-3 text-xs">
+							<span className="text-muted-foreground">This version of Kroma has a newer engine. Update it to get the latest voices and fixes.</span>
+							<Button variant="outline" size="sm" onClick={() => void install()}>
+								<Download /> Update
+							</Button>
+						</div>
 					)}
 					{startError && (
-						<p className="flex flex-wrap items-center gap-2 py-2.5 text-xs text-destructive">
+						<p className="flex flex-wrap items-center gap-2 py-3 text-xs text-destructive">
 							{startError}
-							<Button variant="ghost" size="xs" onClick={() => void window.kroma.kvsShowLog()}>
+							<Button variant="outline" size="xs" onClick={() => void window.kroma.kvsShowLog()}>
 								Show the log
 							</Button>
 						</p>
@@ -311,72 +346,46 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 					]}
 					onChange={(where) => {
 						if (where === "here" && !local) void save({ kvsUrl: LOCAL_ENGINE });
-						if (where === "colab" && local) void save({ kvsUrl: "https://" });
+						if (where === "colab" && local) void save({ kvsUrl: "" });
 					}}
 				/>
 				{local ? (
 					<Card>
-						<Row
-							label="Khmer Voice Studio folder"
-							description={settings.kvsProjectDir ? <span className="font-mono break-all">{settings.kvsProjectDir}</span> : "Choose the folder where Khmer Voice Studio is. Kroma starts the engine from it."}
-							control={<KvsFolderButtons settings={settings} save={save} />}
-						/>
 						<SwitchRow label="Start the engine with Kroma" description="Turns the engine on each time you open Kroma, so voices are ready when you need them." checked={settings.kvsAutoStart} onChange={(v) => void save({ kvsAutoStart: v })} />
 						<Row
 							label="Good to know"
-							description="On a Mac the engine uses the Apple GPU: fine for short lines, slower for long stories (Colab is several times faster). The very first start downloads the voice model, about 5 GB. An engine Kroma starts stops when Kroma quits."
+							description="On a Mac the engine uses the Apple GPU: fine for short lines, slower for long stories (Colab is several times faster). The first start downloads the voice model, about 5 GB. An engine Kroma starts stops when Kroma quits."
 						/>
+						{installed !== "missing" && !installing && (
+							<Row
+								label="Installed engine"
+								description="Python and the engine's packages, in Kroma's own folder (about 2 GB)."
+								control={
+									<Button variant="outline" size="sm" onClick={() => void remove()}>
+										<Trash2 /> Remove
+									</Button>
+								}
+							/>
+						)}
 					</Card>
 				) : (
 					<Card>
-						<Step n={1} title="Open the notebook in Google Colab">
-							In your Khmer Voice Studio folder it's <span className="font-mono">{COLAB_NOTEBOOK}</span>. In Colab: File → Upload notebook.
+						<Step n={1} title="Open Kroma's engine in Google Colab">
+							<Button variant="outline" size="sm" className="mt-0.5" onClick={() => void window.kroma.openExternal(COLAB_URL)}>
+								<ExternalLink /> Open in Colab
+							</Button>
 						</Step>
-						<Step n={2} title="Choose a GPU and run it">Runtime → Change runtime type → T4 GPU, then Runtime → Run all. The last cell prints an address and a token.</Step>
-						<Step n={3} title="Paste them here">
-							<div className="space-y-2 pt-1">
-								<DraftInput className="w-full" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />
+						<Step n={2} title="Choose a GPU and run it">Runtime → Change runtime type → T4 GPU, then Runtime → Run all. The last cell prints an address and a token (the first run takes about 5 minutes).</Step>
+						<Step n={3} title="Paste the address here">
+							<div className="pt-1">
+								<DraftInput className="w-full" placeholder="https://….trycloudflare.com" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />
 							</div>
 						</Step>
 						<KeyRow label="Token" saved={settings.hasKvsToken} placeholder="The token Colab printed" onSave={(v) => save({ kvsToken: v })} />
 					</Card>
 				)}
 			</Group>
-
-			<Group title="Your Khmer Voice Studio voices" description="Voices you made in the Khmer Voice Studio dashboard can come into Kroma: open Voices → Import from KVS. It reads them from the folder above.">
-				{!local && (
-					<Card>
-						<Row
-							label="Khmer Voice Studio folder"
-							description={settings.kvsProjectDir ? <span className="font-mono break-all">{settings.kvsProjectDir}</span> : "Not set: importing from KVS is off."}
-							control={<KvsFolderButtons settings={settings} save={save} />}
-						/>
-					</Card>
-				)}
-			</Group>
 		</>
-	);
-}
-
-function KvsFolderButtons({ settings, save }: SectionProps) {
-	return (
-		<span className="flex gap-2">
-			<Button
-				variant="outline"
-				size="sm"
-				onClick={async () => {
-					const picked = await window.kroma.chooseFolder(settings.kvsProjectDir);
-					if (picked) await save({ kvsProjectDir: picked });
-				}}
-			>
-				<FolderOpen /> {settings.kvsProjectDir ? "Change…" : "Choose…"}
-			</Button>
-			{settings.kvsProjectDir && (
-				<Button variant="outline" size="sm" onClick={() => void save({ kvsProjectDir: "" })}>
-					Clear
-				</Button>
-			)}
-		</span>
 	);
 }
 
@@ -855,9 +864,9 @@ function KeyRow({ label, saved, placeholder, keyUrl, onSave }: { label: string; 
 }
 
 /** A text field that saves when you leave it or press Enter. */
-function DraftInput({ value, onCommit, className }: { value: string; onCommit: (v: string) => void; className?: string }) {
+function DraftInput({ value, onCommit, className, placeholder }: { value: string; onCommit: (v: string) => void; className?: string; placeholder?: string }) {
 	const [draft, setDraft] = useState(value);
 	useEffect(() => setDraft(value), [value]);
 	const commit = () => draft.trim() && draft !== value && onCommit(draft.trim());
-	return <Input className={`h-8 text-xs ${className ?? ""}`} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && commit()} />;
+	return <Input className={`text-xs ${className ?? ""}`} placeholder={placeholder} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && commit()} />;
 }

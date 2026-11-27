@@ -11,6 +11,7 @@ import { linesNeedingVoice, makeVoiceOver, removeOriginalVoices, setVoice, voice
 import { runTask, useEditor } from "@/state/store";
 import { CharactersSection } from "./CharactersSection";
 import { VoiceRecorder } from "./VoiceRecorder";
+import { startEngine } from "./EngineStatus";
 import { mediaUrl } from "./Preview";
 import { Card, ProgressBar, Row, Section, Segmented, SliderField, SwitchRow, TaskProgress, useBusy } from "./common";
 
@@ -18,7 +19,7 @@ type Source = "microsoft" | "designed" | "cloned";
 
 const sourceOf = (voice: string): Source => (voice.startsWith("kvs-design:") ? "designed" : voice.startsWith("kvs-clone:") ? "cloned" : "microsoft");
 
-/** The KVS engine's status and the cloned voices on this computer, refreshed on demand. */
+/** The voice engine's status and the cloned voices on this computer, refreshed on demand. */
 function useKvs() {
 	const [status, setStatus] = useState<KvsStatus | null>(null);
 	const [voices, setVoices] = useState<KvsVoice[]>([]);
@@ -109,16 +110,26 @@ export function VoicePanel() {
 					<>
 						{lang.code !== "km" && (
 							<p className="rounded-md border border-dashed p-2.5 text-xs leading-relaxed text-muted-foreground">
-								These voices are made for Khmer. For {lang.name}, the Instant voices sound right; a KVS voice may read {lang.name} with a Khmer accent.
+								These voices are made for Khmer. For {lang.name}, the Instant voices sound right; these may read {lang.name} with a Khmer accent.
 							</p>
 						)}
 						{engineOffline ? (
 							<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs leading-relaxed text-destructive">
-								The KVS voice engine isn't reachable. {kvs.status?.error}
+								{kvs.status?.local && kvs.status.installed === "missing"
+									? "These voices need the voice engine. Install it once in Settings (about 2 GB)."
+									: kvs.status?.local
+										? "The voice engine is off."
+										: `Kroma can't reach your Colab voice engine. ${kvs.status?.error ?? ""}`}
 								<div className="mt-2 flex gap-1.5">
-									<Button size="xs" variant="outline" onClick={() => useEditor.getState().openSettings("voice-engine")}>
-										Set up the engine
-									</Button>
+									{kvs.status?.local && kvs.status.installed !== "missing" && !kvs.status.cannotStart ? (
+										<Button size="xs" variant="outline" onClick={() => void startEngine().then(kvs.refresh)}>
+											Start engine
+										</Button>
+									) : (
+										<Button size="xs" variant="outline" onClick={() => useEditor.getState().openSettings("voice-engine")}>
+											{kvs.status?.local && kvs.status.installed === "missing" ? "Install the engine" : "Set up the engine"}
+										</Button>
+									)}
 									<Button size="xs" variant="ghost" onClick={kvs.refresh}>
 										Try again
 									</Button>
@@ -126,7 +137,7 @@ export function VoicePanel() {
 							</div>
 						) : (
 							<p className="text-xs text-muted-foreground">
-								Your KVS engine{kvs.status?.device ? ` (${kvs.status.device === "cuda" ? "GPU" : kvs.status.device === "mps" ? "this computer, slower" : kvs.status.device})` : ""}: natural, expressive voices. Slower than Instant, so voice once the subtitles are final.
+								The voice engine{kvs.status?.device ? ` (${kvs.status.device === "cuda" ? "GPU" : kvs.status.device === "mps" ? "this computer, slower" : kvs.status.device})` : ""}: natural, expressive voices. Slower than Instant, so voice once the subtitles are final.
 							</p>
 						)}
 
@@ -366,7 +377,7 @@ function VoiceRow({ selected, title, subtitle, onSelect, sample }: { selected: b
 	);
 }
 
-/** Make a cloned voice from a 5–20 s recording, with the speaker's consent (the same rule as KVS). */
+/** Make a cloned voice from a 5–20 s recording, with the speaker's consent. */
 export function CloneDialog({ open, onOpenChange, onCloned }: { open: boolean; onOpenChange: (open: boolean) => void; onCloned: (voice: KvsVoice) => void }) {
 	const [name, setName] = useState("");
 	const [file, setFile] = useState<string | null>(null);

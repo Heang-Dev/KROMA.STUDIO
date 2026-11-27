@@ -7,9 +7,9 @@ order: 3
 Kroma has two kinds of voices that sound very different:
 
 - **Instant voices** are Microsoft's free voices. They work straight away, with no key and no setup. You only need an internet connection.
-- **Designed** and **cloned** voices are natural, expressive Khmer voices. They come from a separate program called the **Khmer Voice Studio engine** (KVS for short). It runs an AI voice model called VoxCPM2.
+- **Designed** and **cloned** voices are natural, expressive Khmer voices. They come from **Kroma's voice engine**, which is built into Kroma. You don't need any other program.
 
-This page explains how to run the engine and connect Kroma to it. If you only use instant voices, you can skip it.
+This page explains how to install and run the engine. If you only use instant voices, you can skip it.
 
 ## Instant voices: nothing to set up
 
@@ -31,46 +31,61 @@ When you make a voice-over with an engine voice, Kroma sends all the lines for t
 
 The engine doesn't keep your voices. They're kept on your computer, and Kroma sends the recording along with each job.
 
-The engine needs a graphics card (GPU) to be quick. You have two choices.
+The engine is quicker with a graphics card (GPU). You choose where it runs in **Settings → Voice Engine**: on this computer, or on a free Google Colab GPU.
 
-## Option 1: a free Google Colab GPU (fast)
+## Install the engine
 
-Google Colab lets you run programs on Google's computers in your browser, including a free GPU.
+Open **Settings** (⌘,) → **Voice Engine**. The status at the top shows one of: "Not installed", "Installing…", "Starting…", "On" or "Off". Next to it is the button for that state.
 
-1. Open `KHMER.VOICE.STUDIO/engine/colab/KhmerVoiceStudio_Colab.ipynb` in Google Colab.
-2. Choose a **T4 GPU**.
-3. Run the cells.
-4. The notebook prints an **address** (it looks like `https://….trycloudflare.com`) and a **token** (a password for the engine).
-5. In Kroma, open **Settings → Voice Engine**. Paste the address into **Engine address** and the token into **Token**.
+If it says "Not installed", press **Install voice engine**. This is a one-time step. Kroma sets up Python and the engine's packages in its own folder. It takes a few minutes and about 2 GB. If your computer has no Python installer, Kroma downloads a small one (uv) by itself.
 
-## Option 2: your own computer (slower)
+| Status | Button | What it does |
+|---|---|---|
+| Not installed | **Install voice engine** | Installs the engine, once. |
+| Off | **Start engine** | Starts the engine. |
+| On | **Stop** | Stops it. An engine Kroma started stops when Kroma quits. |
+| Any | **Check** | Looks again. |
+| Newer engine | **Update** | Shown with "This version of Kroma has a newer engine", after a Kroma update. |
 
-In the KHMER.VOICE.STUDIO folder, run:
+If the engine fails to start, **Show the log** appears so you can see why.
 
-```bash
-make engine
-```
+## Where it runs
 
-The first time, this downloads the voice model (about 5 GB). After that it starts quickly.
+A switch under **Where it runs** chooses **This computer** or **Google Colab (free GPU)**.
 
-On your own computer the engine is at `http://127.0.0.1:7861`. That's already Kroma's default **Engine address**, so you don't need to change anything. You don't need a token either.
+### This computer
 
-On a Mac, the engine runs on the Mac itself. It works, just more slowly than on a Colab GPU. Kroma shows this as "this computer, slower".
+- Turn on **Start the engine with Kroma** to start it each time Kroma opens.
+- On a Mac it uses the Apple GPU. That's fine for short lines but slower for long stories. Colab is several times faster.
+- The first start downloads the voice model (about 5 GB). After that it starts quickly.
+- Under **Installed engine**, **Remove** frees about 2 GB. You can install it again any time.
 
-## Connecting Kroma
+The engine address is `http://127.0.0.1:7861`, which is already the default. You don't need a token.
 
-Open **Settings** (⌘,) → **Voice Engine**.
+### Google Colab (free GPU)
+
+Google Colab lets you run programs on Google's computers in your browser, including a free GPU. There are three steps:
+
+1. Press **Open in Colab**. It opens Kroma's notebook (`engine/colab/Kroma_Voice_Engine.ipynb` in the public Heang-Dev/KROMA.STUDIO repository on GitHub). You don't need a GitHub account or token.
+2. In Colab choose **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all**. The first run takes about 5 minutes. The last cell prints an **Address** (it looks like `https://….trycloudflare.com`) and a **Token** (a password for the engine).
+3. In Kroma, paste the address into **Engine address** and the token into **Token**.
+
+Keep the Colab tab open while you use Kroma.
+
+## Settings
 
 | Setting | What to put | Default |
 |---|---|---|
-| **Engine address** | The engine's address. Your own computer: `http://127.0.0.1:7861`. Colab: the `https://….trycloudflare.com` address it prints. | `http://127.0.0.1:7861` |
-| **Token** | The token Colab prints. Only needed for Colab. | Empty |
+| **Where it runs** | **This computer** or **Google Colab (free GPU)**. | This computer |
+| **Start the engine with Kroma** | Turns the engine on each time Kroma opens. | Off |
+| **Engine address** | Colab only. The `https://….trycloudflare.com` address it prints. On this computer it's `http://127.0.0.1:7861`. | `http://127.0.0.1:7861` |
+| **Token** | Colab only. The token it prints. | Empty |
 
 ### Check the status
 
-The **Status** row checks the engine each time you change the address or token. Press **Check** to check again.
+Kroma checks the engine each time you change a setting. Press **Check** to check again. The status bar at the bottom of every page also shows "● Voice engine on", "off" or "not installed". Click it to start the engine (when it's installed and off), or to open **Settings → Voice Engine**. The Story studio's top bar shows the same status with a **Start** button.
 
-When it works, you see a green tick and something like:
+When it works, you see "On" and something like:
 
 > Online · GPU · 36 designed voices · 1 job(s) running
 
@@ -79,19 +94,23 @@ When it works, you see a green tick and something like:
 - The number of designed voices is the engine's own list.
 - "job(s) running" appears when the engine is busy with work.
 
-When it doesn't work, you see a red cross and the reason. The usual ones:
+When it doesn't work, you see the reason. The usual ones:
 
 | Message | What to do |
 |---|---|
-| "Can't reach the voice engine at … Start it (KVS: make engine, or the Colab notebook) and check Settings → Voice Engine." | The engine isn't running, or the address is wrong. Start it, then check the address. |
+| "Can't reach the voice engine at <address>. Start it in Settings → Voice Engine (or keep its Colab notebook running)." | The engine isn't running, or the address is wrong. Start it, then check the address. |
 | "The voice engine refused the token. Copy the token from the engine (Colab prints it) into Settings → Voice Engine." | Paste the token again, exactly as Colab printed it. |
 | "Voice engine error …" | The engine had a problem with the job. The message says what. |
 
-## When the engine isn't connected
+## When the engine isn't available
 
 Kroma keeps working. Only the engine voices wait:
 
-- In the **Voice** panel, when you choose **Designed** or **Cloned**, a red box says "The KVS voice engine isn't reachable." with the reason. Press **Set up the engine** to open **Settings → Voice Engine**, or **Try again** once it's running.
+- In the **Voice** panel, when you choose **Designed** or **Cloned**, a box says one of:
+  - "These voices need the voice engine. Install it once in Settings (about 2 GB)." Press **Install the engine**.
+  - "The voice engine is off." Press **Start engine**.
+  - "Kroma can't reach your Colab voice engine. …" Press **Set up the engine**.
+- When the engine is on, the panel says "The voice engine (this computer, slower / GPU): natural, expressive voices…".
 - **Make voice-over** is greyed out while the chosen voice is an engine voice.
 - The designed voices are still listed (Kroma has its own copy of the list), so you can choose voices for characters ahead of time.
 - Voices that already have a saved sample can still be played with ▶.

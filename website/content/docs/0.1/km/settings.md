@@ -106,15 +106,17 @@ key ត្រូវបានអ៊ិនគ្រីបដោយ keychain នៃ
 
 ក្រុម៖ **AI services**
 
-ភ្ជាប់ Kroma ទៅម៉ាស៊ីន Khmer Voice Studio របស់អ្នក ដែលផ្តល់សំឡេងក្លូន និងសំឡេងរចនា។ សំឡេងរហ័សមិនត្រូវការវាទេ។ មើល [ម៉ាស៊ីនសំឡេង](voice-engine)។
+ដំឡើង និងដំណើរការម៉ាស៊ីនសំឡេងផ្ទាល់ខ្លួនរបស់ Kroma ដែលផ្តល់សំឡេងចម្លង និងសំឡេងរចនា។ សំឡេងរហ័សមិនត្រូវការវាទេ។ មើល [ម៉ាស៊ីនសំឡេង](voice-engine)។
 
 | ជម្រើស | លំនាំដើម | អ្វីដែលវាធ្វើ |
 |---|---|---|
-| **Status** | — | **Online** ជាមួយឧបករណ៍ (GPU ឬ "this computer (slower)") ចំនួនសំឡេងរចនា និងការងារដែលកំពុងដំណើរការ។ ឬមូលហេតុដែលវាភ្ជាប់មិនបាន។ **Check** សាកល្បងម្តងទៀត។ |
-| **Engine address** | `http://127.0.0.1:7861` | ម៉ាស៊ីននៅលើកុំព្យូទ័រនេះ។ Google Colab បោះពុម្ពអាសយដ្ឋាន `https://….trycloudflare.com` ជំនួសវិញ។ |
-| **Token** | គ្មាន | ត្រូវការតែសម្រាប់ Colab។ បិទភ្ជាប់ token ដែល notebook បោះពុម្ព។ |
+| **Status** | — | **Not installed**, **Installing…**, **Starting…**, **On** ឬ **Off** ជាមួយប៊ូតុងសម្រាប់ស្ថានភាពនោះ៖ **Install voice engine**, **Start engine**, **Stop**, **Update** ឬ **Check**។ **Show the log** លេចឡើងបើការចាប់ផ្តើមបរាជ័យ។ |
+| **Where it runs** | This computer | **This computer** ឬ **Google Colab (free GPU)**។ |
+| **Start the engine with Kroma** | បិទ | បើកម៉ាស៊ីនរាល់ពេល Kroma បើក (លើកុំព្យូទ័រនេះប៉ុណ្ណោះ)។ |
+| **Engine address** | `http://127.0.0.1:7861` | សម្រាប់ Colab ប៉ុណ្ណោះ។ អាសយដ្ឋាន `https://….trycloudflare.com` ដែល notebook បោះពុម្ព។ លើកុំព្យូទ័រនេះ ប្រើលំនាំដើម។ |
+| **Token** | គ្មាន | សម្រាប់ Colab ប៉ុណ្ណោះ។ បិទភ្ជាប់ token ដែល notebook បោះពុម្ព។ |
 
-**Starting the engine** ខាងក្រោម រំលឹកវិធីពីរដើម្បីដំណើរការវា៖ លើ GPU Colab ឥតគិតថ្លៃ (លឿន) ឬលើកុំព្យូទ័រនេះ (យឺតជាង)។
+[ម៉ាស៊ីនសំឡេង](voice-engine) ពន្យល់ពីការដំឡើងវា និងកន្លែងពីរដែលវាអាចដំណើរការ៖ កុំព្យូទ័រនេះ ឬ GPU Colab ឥតគិតថ្លៃ (លឿនជាង)។
 
 ## Posting
 

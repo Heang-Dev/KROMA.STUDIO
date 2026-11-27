@@ -86,6 +86,10 @@
 }
 
 @theme inline {
+	/* One height for every control (buttons, text fields, dropdowns, tabs, segmented switches): h-control.
+	   h-control-xs is the compact size for dense toolbars and lists. */
+	--spacing-control: 2rem;
+	--spacing-control-xs: 1.5rem;
 	/* Orca set to a monospace app font, as in the reference screenshots; Khmer falls back to Kantumruy Pro. */
 	--font-sans: 'Geist Mono Variable', 'Kantumruy Pro Variable', ui-monospace, Menlo, monospace;
 	--font-mono: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, monospace;

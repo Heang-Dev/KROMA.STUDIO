@@ -8,6 +8,7 @@ import { isMac } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { SETTINGS_SECTIONS, type SettingsPatch } from "./sections";
+import { refreshEngineStatus } from "../EngineStatus";
 
 // Full-page settings in Orca's layout: nav (back, search, grouped pages) on the left, a breadcrumb header and a
 // centred column of cards on the right. Changes save as you make them.
@@ -44,6 +45,7 @@ export function SettingsPage() {
 
 	const save = async (patch: SettingsPatch) => {
 		setSettings(await window.kroma.saveSettings(patch));
+		void refreshEngineStatus();
 	};
 
 	const visible = useMemo(() => {

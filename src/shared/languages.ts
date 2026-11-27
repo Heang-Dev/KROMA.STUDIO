@@ -1,4 +1,4 @@
-// The languages Kroma translates into. Khmer is the home language (designed and cloned KVS voices speak it);
+// The languages Kroma translates into. Khmer is the home language (the voice engine's designed and cloned voices speak it);
 // the others get Microsoft's free instant voices for the voice-over.
 
 export interface TargetLanguage {

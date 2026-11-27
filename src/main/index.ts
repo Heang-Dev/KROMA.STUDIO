@@ -16,10 +16,10 @@ import { loadSettings, saveSettings, viewOf } from "./settings";
 import { findTool, installHint } from "./tools";
 import { mediaPath } from "@shared/media";
 import { transcribe } from "./transcribe";
-import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePath, kvsStatus, listKvsVoices, makePresetVoice, presetVoice, saveRecording, speakWithKvs, syncKvsPresets } from "./kvs";
+import { cloneVoice, deleteKvsVoice, kvsSamplePath, kvsStatus, listKvsVoices, makePresetVoice, presetVoice, saveRecording, speakWithKvs } from "./kvs";
 import { removeVoices, type SeparationQuality } from "./separate";
 import { deleteStory, listStories, readStory, tellStory } from "./story";
-import { cannotStart, engineLog, engineStartedByKroma, isLocalEngine, startEngine, stopEngine } from "./engine";
+import { cannotStart, engineLog, engineStartedByKroma, installEngine, installState, isInstalling, isLocalEngine, removeEngine, startEngine, stopEngine } from "./engine";
 import { instantSample, synthesizeLines } from "./voice";
 import { type CharacterLine, type VoiceChoice, findCharacters } from "./characters";
 import { checkForUpdates, downloadUpdate, installUpdate, startUpdater, updateState } from "./updater";
@@ -215,38 +215,30 @@ function registerIpc(): void {
 			if (!isKvsVoice(voice)) return synthesizeLines(lines, voice, rate, p, s);
 			// A template without its saved sample gets one first, so every line (now and later) sounds the same.
 			const name = voice.startsWith("kvs-design:") ? voice.slice("kvs-design:".length) : null;
-			if (name && !presetVoice(name)) await presetFromKvsOrDesign(name, (v, m) => p(-1, `Preparing the voice "${name}" (once): ${m.replace(/^Voice engine: /, "")}`), s);
+			if (name && !presetVoice(name)) await makePresetVoice(loadSettings(), name, (v, m) => p(-1, `Preparing the voice "${name}" (once): ${m.replace(/^Voice engine: /, "")}`), s);
 			return speakWithKvs(loadSettings(), lines, voice, p, s);
 		}),
 	);
 	ipcMain.handle("voice:sample", (_e, voice: string, rate: number) => (isKvsVoice(voice) ? kvsSamplePath(voice) : instantSample(voice, rate)));
-	ipcMain.handle("task:presetVoice", (_e, taskId: string, name: string) => task(taskId, (p, s) => presetFromKvsOrDesign(name, p, s)));
+	ipcMain.handle("task:presetVoice", (_e, taskId: string, name: string) => task(taskId, (p, s) => (presetVoice(name) ? Promise.resolve(presetVoice(name)) : makePresetVoice(loadSettings(), name, p, s))));
 	ipcMain.handle("kvs:status", async () => {
 		const settings = loadSettings();
-		return { ...(await kvsStatus(settings)), local: isLocalEngine(settings.kvsUrl), cannotStart: cannotStart(settings), startedByKroma: engineStartedByKroma() };
+		return {
+			...(await kvsStatus(settings)),
+			local: isLocalEngine(settings.kvsUrl),
+			cannotStart: cannotStart(settings),
+			startedByKroma: engineStartedByKroma(),
+			installed: installState(),
+			installing: isInstalling(),
+		};
 	});
 	ipcMain.handle("kvs:start", () => startEngine(loadSettings()));
 	ipcMain.handle("kvs:stop", () => stopEngine());
 	ipcMain.handle("kvs:engineLog", () => shell.showItemInFolder(engineLog()));
-	// Every look at the library first brings over KVS's preset samples (at most every 20 s), so both apps sound the same.
-	let synced = 0;
-	ipcMain.handle("kvs:voices", async () => {
-		if (Date.now() - synced > 20_000) {
-			synced = Date.now();
-			await syncKvsPresets(kvsDir()).catch(() => 0);
-		}
-		return listKvsVoices();
-	});
-	/** A template's sample: KVS's own when it has one (so both apps match), otherwise designed here once. */
-async function presetFromKvsOrDesign(name: string, p: (v: number, m: string) => void, s?: AbortSignal) {
-	await syncKvsPresets(kvsDir()).catch(() => 0);
-	return presetVoice(name) ?? makePresetVoice(loadSettings(), name, p, s);
-}
-
-/** The Khmer Voice Studio folder chosen in Settings → Voice Engine ("" when none: importing from KVS is then off). */
-const kvsDir = () => loadSettings().kvsProjectDir;
-	ipcMain.handle("kvs:importable", () => kvsImportable(kvsDir()));
-	ipcMain.handle("kvs:import", (_e, ids: number[]) => importKvsVoices(kvsDir(), ids));
+	ipcMain.handle("kvs:voices", () => listKvsVoices());
+	// The voice engine itself (src/main/engine.ts): install once, then start / stop.
+	ipcMain.handle("task:installEngine", (_e, taskId: string) => task(taskId, (p, s) => installEngine(p, s)));
+	ipcMain.handle("kvs:removeEngine", () => removeEngine());
 	ipcMain.handle("kvs:delete", (_e, id: string) => deleteKvsVoice(id));
 	ipcMain.handle("kvs:pickRecording", async () => {
 		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: "Recording", extensions: ["wav", "mp3", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm"] }] });

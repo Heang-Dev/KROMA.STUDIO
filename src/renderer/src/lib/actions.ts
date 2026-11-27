@@ -372,7 +372,7 @@ async function removeVoicesUnlessOff(): Promise<void> {
 	if (!ok) state().showToast("The original voices are still in", "error", "Removing them didn't work, so the original sound plays quietly under the voice-over. Try again from Voice → Mix.");
 }
 
-/** The voices the character finder may choose from: the language's instant voices, and the KVS templates for Khmer (not clones of real people). */
+/** The voices the character finder may choose from: the language's instant voices, and the engine's templates for Khmer (not clones of real people). */
 function castableVoices(languageCode?: string): { id: string; label: string; description: string }[] {
 	const lang = languageOf(languageCode);
 	return [

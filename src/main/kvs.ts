@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { KvsStatus, KvsVoice, Settings, VoiceLine } from "@shared/types";
 import { LIBRARY_DIR } from "./download";
-import { findTool, requireTool, run } from "./tools";
+import { requireTool, run } from "./tools";
 
-// Client for the Khmer Voice Studio engine (../KHMER.VOICE.STUDIO/engine): VoxCPM2 cloned and designed Khmer voices.
-// It runs on this computer or on a free Colab GPU (its notebook prints a URL + token). The engine keeps no
+// Client for Kroma's voice engine (engine/, installed and started by src/main/engine.ts): VoxCPM2 cloned and designed
+// Khmer voices. It runs on this computer or on a free Colab GPU (engine/colab prints a URL + token). The engine keeps no
 // voices: each job carries the reference recording. Kroma sends all lines as one "story" job so the voice stays
 // consistent, then cuts the result into one clip per subtitle line using the engine's own timings.
 
@@ -28,11 +28,12 @@ const base = (settings: Settings) => settings.kvsUrl.replace(/\/$/, "");
 const headers = (settings: Settings): Record<string, string> => (settings.kvsToken ? { Authorization: `Bearer ${settings.kvsToken}` } : {});
 
 export async function call<T>(settings: Settings, path: string, init: RequestInit = {}, timeoutMs = 20_000): Promise<T> {
+	if (!/^https?:\/\/[^/\s]+/i.test(settings.kvsUrl.trim())) throw new Error("Paste the address your Colab notebook printed in Settings → Voice Engine (step 3).");
 	let response: Response;
 	try {
 		response = await fetch(`${base(settings)}${path}`, { ...init, headers: { ...headers(settings), ...(init.headers as Record<string, string>) }, signal: init.signal ?? AbortSignal.timeout(timeoutMs) });
 	} catch {
-		throw new Error(`Can't reach the voice engine at ${settings.kvsUrl}. Start it (on this computer, or in its Colab notebook) and check Settings → Voice Engine.`);
+		throw new Error(`Can't reach the voice engine at ${settings.kvsUrl}. Start it in Settings → Voice Engine (or keep its Colab notebook running).`);
 	}
 	if (response.status === 401 || response.status === 403) throw new Error("The voice engine refused the token. Copy the token from the engine (Colab prints it) into Settings → Voice Engine.");
 	if (!response.ok) {
@@ -84,7 +85,7 @@ export async function download(settings: Settings, id: string, name: string, to:
 
 // ── Voice library (clones and template samples live on this Mac) ──
 
-// Like KVS: each template is designed once into a ~10 s sample (its sentence picked by keyword), checked for the
+// Each template is designed once into a ~10 s sample (its sentence picked by keyword), checked for the
 // right pitch, and then used as a reference, so the voice sounds the same in every job.
 const SAMPLE_SENTENCES: Record<string, string> = {
 	"emperor": "យើងបានស្ដាប់របាយការណ៍របស់អ្នករួចហើយ។ ពីថ្ងៃនេះតទៅ គ្មាននរណាម្នាក់អាចប្រើអំណាចតាមចិត្តបានទៀតទេ។ ចូរអនុវត្តតាមបញ្ជារបស់យើងភ្លាម។",
@@ -173,7 +174,7 @@ export function presetVoice(presetName: string): KvsVoice | undefined {
 	return listKvsVoices().find((v) => v.preset === presetName);
 }
 
-/** Designs a template once into a saved sample voice (pitch-checked), like KVS's preset voices. */
+/** Designs a template once into a saved sample voice (pitch-checked). */
 export async function makePresetVoice(settings: Settings, presetName: string, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<KvsVoice> {
 	const status = await kvsStatus(settings);
 	if (!status.online) throw new Error(status.error);
@@ -195,7 +196,7 @@ export async function makePresetVoice(settings: Settings, presetName: string, on
 	return { id, ...voice };
 }
 
-/** The file to play for a KVS voice's sample (its recording or saved sample), if there is one. */
+/** The file to play for an engine voice's sample (its recording or saved sample), if there is one. */
 export function kvsSamplePath(voice: string): string | null {
 	if (voice.startsWith("kvs-clone:")) {
 		const path = join(VOICES_DIR, voice.slice(10), "ref.wav");
@@ -324,94 +325,6 @@ function wavSeconds(path: string): number {
 	const byteRate = header.readUInt32LE(28);
 	const dataBytes = header.readUInt32LE(40);
 	return byteRate ? dataBytes / byteRate : 0;
-}
-
-// ── Import from the Khmer Voice Studio dashboard (its database + storage) ──
-
-export interface KvsImportable {
-	kvsId: number;
-	name: string;
-	kind: "preset" | "clone";
-	seconds: number;
-	transcript: string;
-	imported: boolean;
-}
-
-const hashes = new Map<string, { mtime: number; hash: string }>();
-/** A recording's fingerprint (cached until the file changes). */
-function fileHash(path: string): string {
-	try {
-		const mtime = statSync(path).mtimeMs;
-		const cached = hashes.get(path);
-		if (cached?.mtime === mtime) return cached.hash;
-		const hash = createHash("sha1").update(readFileSync(path)).digest("hex");
-		hashes.set(path, { mtime, hash });
-		return hash;
-	} catch {
-		return "";
-	}
-}
-
-/** KVS keeps voices in its Postgres database (names, transcripts) and storage/app/private (the recordings). */
-async function kvsDashboardVoices(projectDir: string): Promise<(KvsImportable & { file: string })[]> {
-	if (!projectDir) throw new Error("Choose your Khmer Voice Studio folder first: Settings → Voice Engine → Khmer Voice Studio folder.");
-	if (!existsSync(join(projectDir, ".env"))) throw new Error(`That folder doesn't look like Khmer Voice Studio (no .env file in ${projectDir}). Choose it again in Settings → Voice Engine.`);
-	const env = readFileSync(join(projectDir, ".env"), "utf8");
-	const get = (k: string) => env.match(new RegExp(`^${k}=(.*)$`, "m"))?.[1]?.trim().replace(/^"|"$/g, "") ?? "";
-	const psql = findTool("psql");
-	if (!psql) throw new Error("Importing from KVS needs psql (brew install postgresql).");
-	const sql =
-		"select id, name, source, is_preset, coalesce(seconds,0), ref_path, replace(coalesce(transcript,''), E'\\n', ' ') from voice_voices where status = 'ready' and deleted_at is null and ref_path is not null order by id";
-	const out = await run(psql, ["-h", get("DB_HOST") || "127.0.0.1", "-p", get("DB_PORT") || "5432", "-U", get("DB_USERNAME") || "postgres", "-d", get("DB_DATABASE"), "-At", "-F", "\t", "-c", sql], {
-		env: { PGPASSWORD: get("DB_PASSWORD") },
-	}).catch((e: Error) => {
-		throw new Error(`Couldn't read KVS's voices (is its database running?): ${e.message.split("\n")[0]}`);
-	});
-	const mine = listKvsVoices();
-	return out
-		.trim()
-		.split("\n")
-		.filter(Boolean)
-		.map((row) => {
-			const [id, name, source, isPreset, seconds, refPath, transcript] = row.split("\t");
-			const kind: "preset" | "clone" = source === "design" && isPreset === "t" ? "preset" : "clone";
-			const file = join(projectDir, "storage", "app", "private", refPath);
-			// Imported only when Kroma has this exact recording: a sample Kroma designed itself, or one KVS has since made
-			// again (same id, new recording), sounds different.
-			const imported = mine.some((v) => v.kvsId === Number(id) && v.path && fileHash(v.path) === fileHash(file));
-			return { kvsId: Number(id), name, kind, seconds: Number(seconds), transcript, imported, file };
-		})
-		.filter((v) => existsSync(v.file));
-}
-
-export async function kvsImportable(projectDir: string): Promise<KvsImportable[]> {
-	return (await kvsDashboardVoices(projectDir)).map(({ file: _file, ...v }) => v);
-}
-
-/** Copies the chosen KVS voices into Kroma's library (presets become template samples). */
-export async function importKvsVoices(projectDir: string, ids: number[]): Promise<number> {
-	const all = await kvsDashboardVoices(projectDir);
-	let count = 0;
-	for (const v of all.filter((x) => ids.includes(x.kvsId) && !x.imported)) {
-		// KVS's sample replaces any other sample of the same preset (or an older copy of this voice), so both apps match.
-		for (const old of listKvsVoices().filter((x) => x.kvsId === v.kvsId || (v.kind === "preset" && x.preset === v.name))) deleteKvsVoice(old.id);
-		const id = `${Date.now()}${count}`;
-		const dir = join(VOICES_DIR, id);
-		mkdirSync(dir, { recursive: true });
-		writeFileSync(join(dir, "ref.wav"), readFileSync(v.file));
-		const meta = { name: v.name, transcript: v.transcript, seconds: v.seconds, created: Date.now(), kvsId: v.kvsId, ...(v.kind === "preset" ? { preset: v.name } : {}) };
-		writeFileSync(join(dir, "voice.json"), JSON.stringify(meta, null, "\t"));
-		count++;
-	}
-	return count;
-}
-
-/** Brings over KVS's preset samples that Kroma doesn't have yet (or has a different one of). Presets need no consent. */
-export async function syncKvsPresets(projectDir: string): Promise<number> {
-	if (!projectDir || !existsSync(join(projectDir, ".env"))) return 0;
-	const all = await kvsDashboardVoices(projectDir);
-	const missing = all.filter((v) => v.kind === "preset" && !v.imported).map((v) => v.kvsId);
-	return missing.length ? importKvsVoices(projectDir, missing) : 0;
 }
 
 /** Saves a recording made in the app (webm from the microphone) as a WAV the engine and players read. */

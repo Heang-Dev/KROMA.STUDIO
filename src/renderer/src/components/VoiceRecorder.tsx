@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 import { WaveformPlayer } from "./WaveformPlayer";
 
 // Record a voice to clone, right in the app: read the text aloud (about 15 s), watch the level, listen back, redo.
-// Reading a known text means the engine needn't write down what was said (the same as KVS's Record tab).
+// Reading a known text means the engine needn't write down what was said .
 
-/** Everyday Khmer to read aloud, ~15 s each, varied sounds and tones, no numbers or names (from KVS). */
+/** Everyday Khmer to read aloud, ~15 s each, varied sounds and tones, no numbers or names. */
 export const READ_ALOUD = [
 	"ព្រឹកនេះ អាកាសធាតុស្រស់ស្រាយណាស់។ ខ្ញុំក្រោកពីដំណេកលឿន ហើយដើរទៅផ្សារជាមួយមិត្តភក្ដិ។ យើងទិញបន្លែ ត្រីស្រស់ និងផ្លែឈើខ្លះ។ ពេលត្រឡប់មកផ្ទះវិញ ខ្ញុំចម្អិនសម្លកកូរ ហើយក្រុមគ្រួសារអង្គុយញ៉ាំបាយជុំគ្នាយ៉ាងសប្បាយ។",
 	"ពេលល្ងាច ខ្យល់បក់ត្រជាក់ពីមាត់ទន្លេ។ ក្មេងៗរត់លេងនៅលើវាលស្មៅ ចំណែកចាស់ៗអង្គុយផឹកតែ ហើយជជែកគ្នាលេងយ៉ាងរីករាយ។ មេឃប្រែជាពណ៌ទឹកក្រូច រួចក្លាយជាពណ៌ស្វាយ។ ខ្ញុំចូលចិត្តពេលវេលាស្ងប់ស្ងាត់បែបនេះណាស់ ព្រោះវាធ្វើឱ្យចិត្តខ្ញុំធូរស្រាល។",

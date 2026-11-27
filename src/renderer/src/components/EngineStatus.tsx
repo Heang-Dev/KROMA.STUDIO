@@ -14,6 +14,11 @@ const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((f) => f());
 let timer: ReturnType<typeof setInterval> | null = null;
 
+/** Looks again now (after a settings change, an install, a start or a stop), so every place shows the same state. */
+export async function refreshEngineStatus(): Promise<void> {
+	return refresh();
+}
+
 async function refresh(): Promise<void> {
 	current = await window.kroma.kvsStatus().catch(() => current);
 	notify();
@@ -62,7 +67,10 @@ export function useEngineStatus(): { status: KvsStatus | null; starting: boolean
 function describe(status: KvsStatus | null, isStarting: boolean): { dot: string; text: string } {
 	if (isStarting) return { dot: "animate-pulse bg-warning", text: "Starting…" };
 	if (!status) return { dot: "animate-pulse bg-muted-foreground", text: "Checking…" };
-	return status.online ? { dot: "bg-success", text: "On" } : { dot: "bg-destructive", text: "Off" };
+	if (status.installing) return { dot: "animate-pulse bg-warning", text: "Installing…" };
+	if (status.online) return { dot: "bg-success", text: "On" };
+	if (status.local && status.installed === "missing") return { dot: "bg-muted-foreground/50", text: "Not installed" };
+	return { dot: "bg-destructive", text: "Off" };
 }
 
 /** Status bar: "● Voice engine on". Off: a click starts it (on this computer) or opens its settings. */

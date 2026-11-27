@@ -3,7 +3,7 @@ import { Loader2, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mediaUrl } from "./Preview";
 
-// A KVS-style player: play button, waveform bars that fill as it plays (click to seek), and the times.
+// The voice player: play button, waveform bars that fill as it plays (click to seek), and the times.
 // Only one player sounds at a time across the app. Every player looks the same at any width: bars are always
 // BAR_PX wide with GAP_PX between them, and a wider player shows more of them (not fatter ones).
 
