@@ -145,9 +145,10 @@ export function App() {
 							)}
 						</div>
 						{view === "editor" && <Timeline />}
-						{view === "editor" && <StepBar />}
 					</>
 				)}
+				{/* The status bar is on every page: the steps, the voice engine and updates are always in reach. */}
+				<StepBar />
 				<AppToaster />
 				<UpdateNotice />
 			</div>
@@ -211,7 +212,8 @@ function TopBar() {
 			</span>
 			<Separator orientation="vertical" className="mx-1 h-4!" />
 			<input
-				className="no-drag h-7 w-64 rounded-md border border-transparent bg-transparent px-2 text-[13px] outline-none hover:border-input focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+				title={name}
+				className="no-drag h-7 w-64 truncate rounded-md border border-transparent bg-transparent px-2 text-[13px] outline-none hover:border-input focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 				value={name}
 				aria-label="Project name"
 				onFocus={() => useEditor.getState().checkpoint()}

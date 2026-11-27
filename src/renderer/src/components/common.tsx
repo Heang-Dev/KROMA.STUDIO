@@ -37,11 +37,27 @@ export function Section({ title, hint, children, action }: { title: string; hint
 
 /** Orca's settings card: rounded, bordered, rows divided by hairlines. */
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-	return <div className={cn("overflow-hidden rounded-lg border bg-card/50 px-3.5 shadow-xs [&>*+*]:border-t", className)}>{children}</div>;
+	return <div className={cn("overflow-hidden rounded-lg border bg-card/50 px-3.5 [&>*+*]:border-t", className)}>{children}</div>;
 }
 
-/** Orca's settings row: label and description on the left, the control on the right. */
-export function Row({ label, description, control, htmlFor, alignTop }: { label: ReactNode; description?: ReactNode; control?: ReactNode; htmlFor?: string; alignTop?: boolean }) {
+/**
+ * Orca's settings row: label and description on the left, the control on the right. `stack` puts the control under
+ * the label at full width, for side panels, where a switch group or picker should span the panel.
+ */
+export function Row({ label, description, control, htmlFor, alignTop, stack }: { label: ReactNode; description?: ReactNode; control?: ReactNode; htmlFor?: string; alignTop?: boolean; stack?: boolean }) {
+	if (stack) {
+		return (
+			<div className="space-y-2 py-3">
+				<div className="space-y-1">
+					<Label htmlFor={htmlFor} className="text-[13px] font-normal">
+						{label}
+					</Label>
+					{description && <p className="text-xs leading-relaxed text-muted-foreground select-text">{description}</p>}
+				</div>
+				{control !== undefined && <div className="w-full">{control}</div>}
+			</div>
+		);
+	}
 	return (
 		<div className={cn("flex flex-wrap gap-x-4 gap-y-2", description ? "py-3" : "py-2.5", alignTop ? "items-start" : "items-center justify-between")}>
 			<div className="min-w-0 grow basis-32 space-y-1">
@@ -76,7 +92,7 @@ export function NavRow({ label, description, value, onClick }: { label: ReactNod
 /** Orca's segmented control. */
 export function Segmented<T extends string>({ value, options, onChange, label, size = "md", equalWidth }: { value: T; options: Option<T>[]; onChange: (v: T) => void; label: string; size?: "sm" | "md"; equalWidth?: boolean }) {
 	return (
-		<div role="radiogroup" aria-label={label} className={cn("inline-flex items-center rounded-md border bg-background/50 p-0.5", equalWidth && "flex w-full")}>
+		<div role="radiogroup" aria-label={label} className={cn("inline-flex h-control items-center rounded-md border bg-background/50 p-0.5", equalWidth && "flex w-full")}>
 			{options.map((o) => {
 				const active = o.value === value;
 				return (
@@ -88,7 +104,8 @@ export function Segmented<T extends string>({ value, options, onChange, label, s
 						onClick={() => onChange(o.value)}
 						className={cn(
 							"rounded-sm text-center transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-							size === "sm" ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-xs",
+							"flex h-full items-center justify-center text-xs",
+							size === "sm" ? "px-2.5" : "px-3",
 							equalWidth && "flex-1",
 							active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:text-foreground",
 						)}
@@ -115,7 +132,7 @@ export function ChoiceTiles<T extends string>({ value, options, onChange, label,
 						aria-checked={on}
 						onClick={() => onChange(o.value)}
 						className={cn(
-							"relative rounded-lg border p-2.5 text-left shadow-xs transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+							"relative rounded-lg border p-2.5 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
 							on ? "border-foreground/40 bg-accent/60" : "bg-card/50 hover:bg-accent/40",
 						)}
 					>

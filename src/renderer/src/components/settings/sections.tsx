@@ -261,7 +261,7 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 						</div>
 						<span className="flex shrink-0 gap-2">
 							{!online && local && (
-								<Button size="sm" disabled={starting || Boolean(status?.cannotStart)} onClick={() => void start()} title={status?.cannotStart ?? undefined}>
+								<Button variant="outline" size="sm" disabled={starting || Boolean(status?.cannotStart)} onClick={() => void start()} title={status?.cannotStart ?? undefined}>
 									{starting ? <Loader2 className="animate-spin" /> : <Power />} {starting ? "Starting…" : "Start engine"}
 								</Button>
 							)}
@@ -372,7 +372,7 @@ function KvsFolderButtons({ settings, save }: SectionProps) {
 				<FolderOpen /> {settings.kvsProjectDir ? "Change…" : "Choose…"}
 			</Button>
 			{settings.kvsProjectDir && (
-				<Button variant="ghost" size="sm" onClick={() => void save({ kvsProjectDir: "" })}>
+				<Button variant="outline" size="sm" onClick={() => void save({ kvsProjectDir: "" })}>
 					Clear
 				</Button>
 			)}
@@ -529,7 +529,7 @@ function DownloadsSection({ settings, save }: SectionProps) {
 				<Row
 					label="Use my logins from"
 					description="Sign in to the site in that browser first. Your system may ask to allow access; Safari also needs Full Disk Access."
-					control={<AppSelect label="Browser logins" className="w-52" value={settings.cookiesBrowser} options={BROWSERS} onChange={(v) => void save({ cookiesBrowser: v })} />}
+					control={<AppSelect label="Browser logins" className="w-64" value={settings.cookiesBrowser} options={BROWSERS} onChange={(v) => void save({ cookiesBrowser: v })} />}
 				/>
 			</Card>
 		</Group>
@@ -829,7 +829,7 @@ function KeyRow({ label, saved, placeholder, keyUrl, onSave }: { label: string; 
 							void onSave(draft.trim()).then(() => setDraft(""));
 						}}
 					>
-						<Input type="password" className="h-8 w-56 text-xs" placeholder={placeholder} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={label} autoComplete="off" />
+						<Input type="password" className="w-56 text-xs" placeholder={placeholder} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={label} autoComplete="off" />
 						<Button type="submit" size="sm" disabled={!draft.trim()}>
 							Save
 						</Button>

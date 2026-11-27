@@ -195,7 +195,7 @@ export function VoicePanel() {
 					</>
 				)}
 
-				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!translated || busy || (isKvsVoice(voice.voice) && engineOffline)} onClick={() => void makeVoiceOver()}>
+				<Button className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!translated || busy || (isKvsVoice(voice.voice) && engineOffline)} onClick={() => void makeVoiceOver()}>
 					<Volume2 /> {voiced && missing ? `Voice the ${missing} new lines` : "Make voice-over"}
 				</Button>
 				{translated > 0 ? (
@@ -238,10 +238,12 @@ export function VoicePanel() {
 					{voice.removeVoices !== false || removing ? (
 						<>
 							<Row
+								stack
 								label="Quality"
 								description={quality === "best" ? "Cleanest, but slower than the video's length without a strong GPU." : "Fast and removes speech well."}
 								control={
 									<Segmented<"fast" | "best">
+										equalWidth
 										label="Voice removal quality"
 										size="sm"
 										value={quality}
@@ -263,7 +265,7 @@ export function VoicePanel() {
 					)}
 				</Card>
 				<TaskProgress prefix="separate" />
-				<Button variant="outline" size="sm" className="h-auto min-h-8 w-full whitespace-normal py-1.5 leading-snug" disabled={!voiced} onClick={playSample}>
+				<Button variant="outline" size="sm" className="h-auto min-h-control w-full whitespace-normal py-1.5 leading-snug" disabled={!voiced} onClick={playSample}>
 					<Play /> Hear the first line
 				</Button>
 			</Section>

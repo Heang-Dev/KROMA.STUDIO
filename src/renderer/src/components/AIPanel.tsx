@@ -42,7 +42,7 @@ export function AIPanel() {
 					</Button>
 				}
 			>
-				<div className="grid grid-cols-1 gap-2 @[19rem]:grid-cols-2">
+				<div className="grid grid-cols-1 gap-2 @[28rem]:grid-cols-2">
 					<div className="space-y-1.5">
 						<p className="text-xs text-muted-foreground">Spoken language</p>
 						<AppSelect label="Spoken language" value={language} options={LANGUAGES} onChange={setLanguage} />
@@ -52,7 +52,7 @@ export function AIPanel() {
 						<AppSelect label="Translate to" value={target.code} options={TARGET_LANGUAGES.map((l) => ({ value: l.code, label: l.code === l.native ? l.name : `${l.name} · ${l.native}` }))} onChange={setTargetLanguage} />
 					</div>
 				</div>
-				<Button className="h-auto min-h-9 w-full whitespace-normal py-2 leading-snug" disabled={!media || busy} onClick={() => void autoKhmer(language)}>
+				<Button className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!media || busy} onClick={() => void autoKhmer(language)}>
 					<Zap /> Make {target.name} subtitles
 				</Button>
 				{!media && <p className="text-xs text-muted-foreground">Add a video to the timeline first.</p>}
@@ -86,19 +86,19 @@ export function AIPanel() {
 				)}
 				<div className="grid gap-1.5">
 					{site && (
-						<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!media || busy} onClick={() => media && void getSubtitles(media, { kind: "site", path: site })}>
+						<Button variant="outline" size="sm" className="h-auto min-h-control whitespace-normal py-1.5 leading-snug" disabled={!media || busy} onClick={() => media && void getSubtitles(media, { kind: "site", path: site })}>
 							<Captions /> Use the site's subtitles
 						</Button>
 					)}
-					<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!media || busy} onClick={() => media && void getSubtitles(media, { kind: "cloud", language })}>
+					<Button variant="outline" size="sm" className="h-auto min-h-control whitespace-normal py-1.5 leading-snug" disabled={!media || busy} onClick={() => media && void getSubtitles(media, { kind: "cloud", language })}>
 						<Mic /> Speech to text (cloud)
 					</Button>
-					<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-2">
-						<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!total || busy} onClick={() => void translateCues(false)}>
+					<div className="grid grid-cols-1 gap-1.5 @[17rem]:grid-cols-2">
+						<Button variant="outline" size="sm" disabled={!total || busy} onClick={() => void translateCues(false)}>
 							<Languages /> Translate all
 						</Button>
-						<Button variant="outline" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 leading-snug" disabled={!total || busy || translated === total} onClick={() => void translateCues(true)}>
-							Translate missing
+						<Button variant="outline" size="sm" disabled={!total || busy || translated === total} onClick={() => void translateCues(true)}>
+							<Languages /> Only missing
 						</Button>
 					</div>
 				</div>

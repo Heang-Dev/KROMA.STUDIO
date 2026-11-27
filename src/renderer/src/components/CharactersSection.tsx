@@ -46,15 +46,15 @@ export function CharactersSection({ clones, sample }: { clones: KvsVoice[]; samp
 					</div>
 				</div>
 			)}
-			<div className="grid grid-cols-1 gap-1.5 @[19rem]:grid-cols-2">
-				<Button variant={cast.length ? "outline" : "default"} className="h-auto min-h-9 whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => void findCharacters()}>
-					{busy ? <Loader2 className="animate-spin" /> : <Users />} {cast.length ? "Find again" : "Find automatically"}
+			<div className="grid grid-cols-1 gap-1.5 @[17rem]:grid-cols-2">
+				<Button variant={cast.length ? "outline" : "default"} disabled={!hasLines || busy} onClick={() => void findCharacters()}>
+					{busy ? <Loader2 className="animate-spin" /> : <Users />} {cast.length ? "Find again" : "Find characters"}
 				</Button>
-				<Button variant="outline" className="h-auto min-h-9 whitespace-normal py-2 leading-snug" disabled={!hasLines || busy} onClick={() => addCharacter()}>
-					<Plus /> Add a character
+				<Button variant="outline" disabled={!hasLines || busy} onClick={() => addCharacter()}>
+					<Plus /> Add manually
 				</Button>
 			</div>
-			{cast.length === 0 && hasLines && <p className="text-xs text-muted-foreground">"Find automatically" reads the dialogue (about 20 s) and suggests a voice for each person; you can change everything after.</p>}
+			{cast.length === 0 && hasLines && <p className="text-xs text-muted-foreground">"Find characters" reads the dialogue (about 20 s) and suggests a voice for each person; you can change everything after.</p>}
 			<TaskProgress prefix="characters" />
 			{!hasLines && <p className="text-xs text-muted-foreground">Make the subtitles first.</p>}
 			{cast.length > 0 && (
@@ -67,9 +67,10 @@ export function CharactersSection({ clones, sample }: { clones: KvsVoice[]; samp
 									defaultValue={m.name}
 									key={m.name}
 									aria-label="Character name"
+									title={m.name}
 									onBlur={(e) => renameCharacter(m.name, e.target.value)}
 									onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-									className="min-w-0 flex-1 rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-[13px] font-medium hover:border-border focus:border-ring focus:outline-none"
+									className="min-w-0 flex-1 truncate rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-[13px] font-medium hover:border-border focus:border-ring focus:outline-none"
 								/>
 								<span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">{count(m.name)} lines</span>
 								<Button variant="ghost" size="icon-xs" aria-label={`Remove ${m.name}`} title="Remove (their lines use the default voice)" onClick={() => removeCharacter(m.name)}>
@@ -95,7 +96,7 @@ export function VoiceSelect({ value, clones, onChange, label }: { value: string;
 	const lang = languageOf(useEditor((s) => s.project.language));
 	return (
 		<Select value={value} onValueChange={onChange}>
-			<SelectTrigger size="sm" className="h-7 min-w-0 flex-1 text-xs" aria-label={label}>
+			<SelectTrigger size="sm" className="min-w-0 flex-1 text-xs" aria-label={label}>
 				<SelectValue />
 			</SelectTrigger>
 			<SelectContent>

@@ -180,20 +180,6 @@ export function StoryPage() {
 			<div className="flex min-w-0 flex-1 flex-col">
 				{/* Top bar */}
 				<header className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
-					{tab === "write" ? (
-						<Input
-							aria-label="Story title"
-							className="h-8 max-w-sm border-transparent bg-transparent text-[13px] font-medium shadow-none hover:border-input"
-							maxLength={120}
-							placeholder="Untitled story"
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-						/>
-					) : (
-						<p lang="km" className="min-w-0 truncate text-[13px] font-medium">
-							{story?.title}
-						</p>
-					)}
 					<Segmented
 						label="Write or listen"
 						size="sm"
@@ -204,6 +190,21 @@ export function StoryPage() {
 						]}
 						onChange={(t) => (t === "listen" && !story ? stories[0] && open(stories[0].id) : setTab(t))}
 					/>
+					{tab === "write" ? (
+						<Input
+							aria-label="Story title"
+							title={title || undefined}
+							className="max-w-sm truncate text-[13px] font-medium"
+							maxLength={120}
+							placeholder="Untitled story"
+							value={title}
+							onChange={(e) => setTitle(e.target.value)}
+						/>
+					) : (
+						<p lang="km" className="min-w-0 truncate text-[13px] font-medium">
+							{story?.title}
+						</p>
+					)}
 					<span className="flex-1" />
 					<EngineChip />
 					<Button size="sm" disabled={telling || offline || lineCount === 0} onClick={() => void tell()} title={offline ? "Start the voice engine first" : undefined}>
@@ -220,19 +221,19 @@ export function StoryPage() {
 					<div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px]">
 						{/* Script */}
 						<section className="flex min-h-0 flex-col border-r">
-							<div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b px-4 py-2">
-								<span className="mr-1 text-[11px] text-muted-foreground">Insert</span>
-								<Button variant="outline" size="xs" onClick={() => insert(" [pause 1s] ")}>
+							<div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b px-4 py-2 [scrollbar-width:none]">
+								<span className="mr-1 shrink-0 text-[11px] text-muted-foreground">Insert</span>
+								<Button variant="outline" size="xs" className="shrink-0" onClick={() => insert(" [pause 1s] ")}>
 									<Pause /> Pause
 								</Button>
 								{names.map((name, i) => (
-									<Button key={name} variant="ghost" size="xs" onClick={() => insert(`${name}: `, true)}>
-										<span aria-hidden className={cn("size-2 rounded-full", DOTS[i % DOTS.length])} /> {name}
+									<Button key={name} variant="outline" size="xs" className="max-w-44 shrink-0" title={`Insert "${name}: "`} onClick={() => insert(`${name}: `, true)}>
+										<span aria-hidden className={cn("size-2 shrink-0 rounded-full", DOTS[i % DOTS.length])} /> <span className="truncate">{name}</span>
 									</Button>
 								))}
 								<span className="flex-1" />
 								{!script && (
-									<Button variant="ghost" size="xs" onClick={() => setScript(EXAMPLE_STORY)}>
+									<Button variant="outline" size="xs" onClick={() => setScript(EXAMPLE_STORY)}>
 										Use the example
 									</Button>
 								)}
@@ -277,8 +278,8 @@ export function StoryPage() {
 												<AppSelect label={`Voice for ${name}`} value={s.voice} options={voiceOptions} onChange={(voice) => setSpeakers((c) => ({ ...c, [name]: { ...c[name], voice } }))} />
 												<Input
 													aria-label={`Style for ${name}`}
-													placeholder="Style for all their lines (excited, sad…)"
-													className="h-8 text-xs"
+													placeholder="Style (optional), e.g. calm"
+													className="text-xs"
 													maxLength={200}
 													value={s.style}
 													onChange={(e) => setSpeakers((c) => ({ ...c, [name]: { ...c[name], style: e.target.value } }))}

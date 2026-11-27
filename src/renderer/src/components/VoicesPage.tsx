@@ -183,7 +183,7 @@ function VoiceCard({
 	deleteLabel?: string;
 }) {
 	return (
-		<div className="flex flex-col gap-3 rounded-lg border bg-card p-3.5 shadow-xs">
+		<div className="flex flex-col gap-3 rounded-lg border bg-card p-3.5">
 			<div className="flex items-start justify-between gap-2">
 				<div className="min-w-0">
 					<p className="flex items-center gap-1.5 text-[13px] font-medium">

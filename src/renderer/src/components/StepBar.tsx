@@ -56,7 +56,12 @@ export function StepBar() {
 	// Several steps share a panel (Subtitles + Khmer, Characters + Voices): the open panel's first unfinished one is current.
 	const inPanel = steps.filter((s) => s.panel === panel);
 	const currentId = (inPanel.find((s) => s.status !== "done") ?? inPanel[inPanel.length - 1])?.id;
-	const open = (p: Panel) => useEditor.getState().setPanel(p);
+	// From Voices, Story or Settings a step takes you back to the editor, on that step's panel.
+	const open = (p: Panel) => {
+		const s = useEditor.getState();
+		if (s.view.name !== "editor") s.closeVoices();
+		s.setPanel(p);
+	};
 
 	return (
 		<nav aria-label="Steps" className="flex h-7 shrink-0 items-center gap-0.5 overflow-x-auto border-t bg-sidebar px-2 text-[11px] [scrollbar-width:none]">
