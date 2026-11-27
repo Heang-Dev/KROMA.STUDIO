@@ -1,4 +1,4 @@
-// Story scripts, read the way the voice engine reads them (Khmer Voice Studio engine/studio/text_utils.py
+// Story scripts, read the way the voice engine reads them (engine/studio/text_utils.py
 // parse_story): `Speaker: text`, `Speaker (style): text` (also `：` and Khmer `៖`); other lines are the Narrator's.
 // `[pause 2s]`, `[pause 500ms]` or `[pause]` (1 s) on a line of its own is silence between lines; inside a line it is
 // silence between that line's words.
@@ -11,7 +11,7 @@ const SPEAKER = /^([^:：៖()]{1,30}?)\s*(?:\(([^)]{1,40})\))?\s*[:：៖]\s*(.
 /** Python's str.splitlines boundaries, as the engine splits a script. */
 const LINE_BREAK = /\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]/u;
 
-/** At most this many speakers get their own voice (as in Khmer Voice Studio). */
+/** At most this many speakers get their own voice . */
 export const MAX_SPEAKERS = 6;
 
 /** Seconds of one `[pause]` token, kept between 0.1 and 10 s; a bare `[pause]` is 1 s. */

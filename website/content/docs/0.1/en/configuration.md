@@ -31,7 +31,7 @@ You can come back any time with the **Settings** button at the bottom of the lef
 | Groq | Speech-to-text | Free to start | [Groq Console](https://console.groq.com/keys) |
 | OpenAI | Speech-to-text | Paid | [OpenAI](https://platform.openai.com/api-keys) |
 | Microsoft voices | Instant voice-over | Free | No key |
-| Khmer Voice Studio engine | Cloned and designed voices | Free (your own engine) | Optional token |
+| Kroma's voice engine | Cloned and designed voices | Free (runs on your computer or Colab) | Optional token (Colab) |
 | Upload-Post | Posting to YouTube, Facebook and TikTok | Free plan | [Upload-Post](https://app.upload-post.com/api-keys) |
 
 ## Translation
@@ -80,7 +80,7 @@ With Groq or OpenAI, an **Advanced** card shows the **Endpoint** and **Model**. 
 
 ## Voice Engine (optional)
 
-The instant voices from Microsoft need no key. For cloned voices (made from a short recording) and designed voices (storyteller, news anchor and so on), Kroma talks to your own Khmer Voice Studio engine. Set its **Engine address** and, for Google Colab, its **Token** in **Settings → Voice Engine**. The **Status** row shows whether the engine is online. See [Voice engine](voice-engine).
+The instant voices from Microsoft need no key. For cloned voices (made from a short recording) and designed voices (storyteller, news anchor and so on), Kroma uses its own voice engine, built into the app. In **Settings → Voice Engine**, press **Install voice engine** once (about 2 GB), then **Start engine**. To use a free Google Colab GPU instead, switch **Where it runs** to **Google Colab** and enter its **Engine address** and **Token**. The status row shows whether the engine is on. See [Voice engine](voice-engine).
 
 ## Posting (optional)
 

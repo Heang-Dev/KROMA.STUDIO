@@ -153,7 +153,7 @@ export interface VoiceSettings {
 	cast?: CastMember[];
 }
 
-/** Microsoft's instant Khmer voices. Other voice ids: "kvs-design:<preset>" and "kvs-clone:<id>" (KVS engine). */
+/** Microsoft's instant Khmer voices. Other voice ids: "kvs-design:<preset>" and "kvs-clone:<id>" (Kroma's voice engine). */
 export const KHMER_VOICES = [
 	{ id: "km-KH-SreymomNeural", label: "Sreymom (female)" },
 	{ id: "km-KH-PisethNeural", label: "Piseth (male)" },
@@ -161,7 +161,7 @@ export const KHMER_VOICES = [
 
 export const isKvsVoice = (voice: string) => voice.startsWith("kvs-");
 
-/** KVS's voice templates, shown even while the engine is off (the engine's own list replaces this when it's on). */
+/** The voice engine's templates, shown even while the engine is off (the engine's own list replaces this when it's on). */
 export const KVS_TEMPLATES: { name: string; description: string }[] = [
 	{ name: "Storyteller (warm grandfather)", description: "An elderly Cambodian grandfather, an old man with a low, warm, slow and gentle male storytelling voice" },
 	{ name: "Storyteller (kind grandmother)", description: "An elderly Cambodian grandmother, an old woman with a soft, kind, calm female voice, clearly a woman" },
@@ -226,11 +226,9 @@ export interface Settings {
 	askExportPath: boolean;
 	/** Where videos downloaded from links go ("" = Movies/Kroma Studio/downloads). */
 	downloadDir: string;
-	/** Khmer Voice Studio engine (cloned / designed voices): its address and optional token. */
+	/** Kroma's voice engine (cloned / designed voices): its address (this computer, or Colab) and optional token. */
 	kvsUrl: string;
 	kvsToken: string;
-	/** The Khmer Voice Studio project folder: Kroma starts its engine from there and imports its voices. */
-	kvsProjectDir: string;
 	/** Start the engine on this computer when Kroma opens (when the address is this computer). */
 	kvsAutoStart: boolean;
 	/** Light, dark, or follow the Mac. */
@@ -254,8 +252,11 @@ export type AsrProvider = "gemini" | "whisper";
 
 export interface KvsStatus {
 	online: boolean;
-	/** Set by kvs:status: whether Kroma can start the engine here, why not, and whether Kroma started the one running. */
+	/** Set by kvs:status: whether the engine runs on this computer, whether it's installed (or being installed), why
+	 * Kroma can't start it, and whether Kroma started the one running. */
 	local?: boolean;
+	installed?: "installed" | "outdated" | "missing";
+	installing?: boolean;
 	cannotStart?: string | null;
 	startedByKroma?: boolean;
 	device?: string;
@@ -285,18 +286,18 @@ export interface StoryRecord extends StoryRequest {
 	srt?: string;
 }
 
-/** A cloned voice kept on this Mac for the KVS engine. */
+/** A cloned voice kept on this computer for the voice engine. */
 export interface KvsVoice {
 	id: string;
 	name: string;
 	transcript: string;
 	seconds: number;
 	created: number;
-	/** Set when this is the saved sample of a voice template (KVS-style preset voice). */
+	/** Set when this is the saved sample of a voice template (a preset voice). */
 	preset?: string;
 	/** The recording (clones) or saved sample (templates). */
 	path?: string;
-	/** Imported from the KVS dashboard (its voice id). */
+	/** Set on voices imported by older Kroma versions (kept so they still load). */
 	kvsId?: number;
 }
 
@@ -402,7 +403,6 @@ export const DEFAULT_SETTINGS: Settings = {
 	askExportPath: false,
 	downloadDir: "",
 	kvsUrl: "http://127.0.0.1:7861",
-	kvsProjectDir: "",
 	kvsAutoStart: false,
 	kvsToken: "",
 	theme: "dark",

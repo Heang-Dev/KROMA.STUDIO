@@ -126,7 +126,7 @@ Kroma ដំណើរការតែម្តងប៉ុណ្ណោះ។ ក�
 
 ### "Can't reach the voice engine at …"
 
-សំឡេងរចនា និងសំឡេងក្លូន ត្រូវការម៉ាស៊ីន Khmer Voice Studio ឱ្យកំពុងដំណើរការ។ ចាប់ផ្តើមវា (`make engine` ឬ notebook Colab) រួចពិនិត្យអាសយដ្ឋានក្នុង [Settings → Voice Engine](settings#voice-engine) ហើយចុច **Check**។ អាសយដ្ឋាន Colab ប្តូររាល់ពេលអ្នកចាប់ផ្តើម notebook ដូច្នេះសូមបិទភ្ជាប់អាសយដ្ឋានថ្មី។ ឬប្រើសំឡេងរហ័ស ដែលមិនត្រូវការម៉ាស៊ីននេះ។ មើល [ម៉ាស៊ីនសំឡេង](voice-engine)។
+សំឡេងរចនា និងសំឡេងចម្លង ត្រូវការម៉ាស៊ីនសំឡេងឱ្យកំពុងដំណើរការ។ បើក [Settings → Voice Engine](settings#voice-engine) ហើយចុច **Start engine** (ឬ **Install voice engine** ជាមុនបើវាថា "Not installed") រួចចុច **Check**។ បើអ្នកប្រើ Colab សូមទុក notebook ឱ្យដំណើរការ ហើយពិនិត្យអាសយដ្ឋាន។ អាសយដ្ឋាន Colab ប្តូររាល់ពេលអ្នកចាប់ផ្តើម notebook ដូច្នេះសូមបិទភ្ជាប់អាសយដ្ឋានថ្មី។ ឬប្រើសំឡេងរហ័ស ដែលមិនត្រូវការម៉ាស៊ីននេះ។ មើល [ម៉ាស៊ីនសំឡេង](voice-engine)។
 
 ### "The voice engine refused the token."
 

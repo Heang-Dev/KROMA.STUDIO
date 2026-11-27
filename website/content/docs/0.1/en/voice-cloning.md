@@ -112,7 +112,3 @@ In the **Voice** panel each cloned voice shows its sample length and the words i
 ## Deleting a cloned voice
 
 Press the bin icon next to the voice in the **Voice** panel, or use **⋯ → Delete** on the Voices page. Kroma asks you to confirm. When you delete it from the **Voice** panel while the project uses it, the project switches back to the first instant voice.
-
-## Importing cloned voices from Khmer Voice Studio
-
-If you made cloned voices in the Khmer Voice Studio dashboard on this computer, you can bring them over with **Voices → Import from KVS**. Preset voices come over by themselves. Each cloned voice needs you to tick it, and to confirm it's your own voice or that you have that person's permission. See [Voice library](voice-library#importing-from-khmer-voice-studio).

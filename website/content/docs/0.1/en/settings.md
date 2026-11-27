@@ -106,15 +106,17 @@ Text fields like **Endpoint** save when you press Enter or click away.
 
 Group: **AI services**
 
-Connects Kroma to your Khmer Voice Studio engine, which gives you cloned and designed voices. Instant voices don't need it. See [The voice engine](voice-engine).
+Installs and runs Kroma's own voice engine, which gives you cloned and designed voices. Instant voices don't need it. See [The voice engine](voice-engine).
 
 | Option | Default | What it does |
 |---|---|---|
-| **Status** | — | **Online** with the device (GPU, or "this computer (slower)"), the number of designed voices and running jobs. Or the reason it can't connect. **Check** tests again. |
-| **Engine address** | `http://127.0.0.1:7861` | The engine on this computer. Google Colab prints an `https://….trycloudflare.com` address instead. |
-| **Token** | none | Only needed for Colab. Paste the token the notebook prints. |
+| **Status** | — | **Not installed**, **Installing…**, **Starting…**, **On** or **Off**, with the button for that state: **Install voice engine**, **Start engine**, **Stop**, **Update** or **Check**. **Show the log** appears if starting fails. |
+| **Where it runs** | This computer | **This computer** or **Google Colab (free GPU)**. |
+| **Start the engine with Kroma** | Off | Turns the engine on each time Kroma opens (this computer only). |
+| **Engine address** | `http://127.0.0.1:7861` | Colab only. The `https://….trycloudflare.com` address the notebook prints. On this computer the default is used. |
+| **Token** | none | Colab only. Paste the token the notebook prints. |
 
-**Starting the engine** below repeats the two ways to run it: on a free Colab GPU (fast) or on this computer (slower).
+[The voice engine](voice-engine) explains installing it and the two places it can run: this computer, or a free Colab GPU (faster).
 
 ## Posting
 

@@ -8,7 +8,7 @@ import { castColor } from "@/lib/cast";
 import { useEditor } from "@/state/store";
 import { Card, Section, TaskProgress, useBusy } from "./common";
 
-// Characters, like KVS's Story page: who speaks in the video, and the voice for each. The subtitles say who says each line.
+// Characters: who speaks in the video, and the voice for each. The subtitles say who says each line.
 
 export function CharactersSection({ clones, sample }: { clones: KvsVoice[]; sample: (voice: string) => React.ReactNode }) {
 	const project = useEditor((s) => s.project);

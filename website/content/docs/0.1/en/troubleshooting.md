@@ -126,7 +126,7 @@ Speech to text heard nothing it could write down. Check the video has speech, an
 
 ### "Can't reach the voice engine at …"
 
-Designed and cloned voices need the Khmer Voice Studio engine to be running. Start it (`make engine`, or the Colab notebook), then check the address in [Settings → Voice Engine](settings#voice-engine) and press **Check**. A Colab address changes every time you start the notebook, so paste the new one. Or use the instant voices, which don't need the engine. See [The voice engine](voice-engine).
+Designed and cloned voices need the voice engine to be running. Open [Settings → Voice Engine](settings#voice-engine) and press **Start engine** (or **Install voice engine** first if it says "Not installed"), then press **Check**. If you use Colab, keep its notebook running and check the address. A Colab address changes every time you start the notebook, so paste the new one. Or use the instant voices, which don't need the engine. See [The voice engine](voice-engine).
 
 ### "The voice engine refused the token."
 
