@@ -8,6 +8,7 @@ import { appendToTimeline, downloadFromLink, importFiles } from "@/lib/actions";
 import { formatTime } from "@/lib/timeline";
 import { useEditor } from "@/state/store";
 import { Card, IconButton, Section, TaskProgress, useBusy } from "./common";
+import { EmptyState } from "@/components/empty/EmptyState";
 
 export function MediaPanel() {
 	const media = useEditor((s) => s.project.media);
@@ -56,7 +57,7 @@ export function MediaPanel() {
 				}
 			>
 				{media.length === 0 ? (
-					<p className="text-xs text-muted-foreground">No videos yet. Download one or import a file from your Mac.</p>
+					<EmptyState compact fill={false} className="rounded-lg border border-dashed" scene="video" title="No videos yet" description="Paste a link above to download one, or import a file from your Mac." />
 				) : (
 					<Card className="px-0 [&>*+*]:border-t">
 						{media.map((m) => {

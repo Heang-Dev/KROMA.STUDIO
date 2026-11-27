@@ -48,7 +48,7 @@ export function noticePlan(prefs: NotifyPrefs, notice: { tone: NoticeTone; kind?
 export type StoredAction =
 	| { kind: "openProject"; path: string }
 	| { kind: "showFile"; path: string }
-	| { kind: "view"; view: "story" | "downloads" | "voices" | "settings"; section?: string }
+	| { kind: "view"; view: "story" | "downloads" | "voices" | "settings" | "batch"; section?: string }
 	| { kind: "installUpdate" }
 	/** Retry, or another function the caller gave: works until Kroma restarts. */
 	| { kind: "callback"; label: string };
@@ -114,7 +114,7 @@ export function actionLabel(action: StoredAction, platform = "darwin"): string {
 		case "callback":
 			return action.label;
 		case "view":
-			return { story: "Open Story", downloads: "Open Downloads", voices: "Open Voices", settings: "Open Settings" }[action.view];
+			return { story: "Open Story", downloads: "Open Downloads", voices: "Open Voices", settings: "Open Settings", batch: "Open Batch" }[action.view];
 	}
 }
 

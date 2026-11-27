@@ -79,6 +79,8 @@ export interface Project {
 	published?: PublishRecord[];
 	/** The last export, reused for posting while the project hasn't changed since. */
 	lastExport?: { path: string; fingerprint: string };
+	/** The latest export of each format (16:9, 9:16), reused for posting while it still matches the project. */
+	exports?: Partial<Record<Aspect, { path: string; fingerprint: string }>>;
 }
 
 /**
@@ -493,6 +495,8 @@ export interface PostProfile {
 
 export interface PublishRequest {
 	video: string;
+	/** A file per platform (each in its own format); platforms not named here get `video`. */
+	videos?: Partial<Record<PublishPlatform, string>>;
 	profile: string;
 	platforms: PublishPlatform[];
 	youtube?: { title: string; description: string; tags: string[]; privacy: "public" | "unlisted" | "private" };

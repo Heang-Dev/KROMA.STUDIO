@@ -28,6 +28,8 @@ import { addDownloads, importProjects, pickImport, cancelDownload, clearFinished
 import type { DownloadOptions, ListedVideo } from "@shared/downloads";
 import type { SystemNotice } from "@shared/notify";
 import { showSystemNotice } from "./notify";
+import { batchExportPath, pickProjects, readBatch, writeBatch } from "./batch";
+import type { BatchState, PostFormat } from "@shared/batch";
 
 // Media files are streamed to the editor through kroma://media/<path>, with Range support so long videos seek instantly.
 // The automated smoke test gets its own settings and autosave, so it never touches yours.
@@ -382,6 +384,11 @@ function registerIpc(): void {
 	ipcMain.handle("downloads:platforms", () => listPlatforms());
 	ipcMain.handle("downloads:pickImport", (_e, kind: "files" | "folder") => pickImport(focused(), kind));
 	ipcMain.handle("downloads:import", (_e, files: { media: MediaItem; index: number }[], group: string, groupSize: number) => importProjects(files, group, groupSize));
+	// Batch (src/main/batch.ts): the list, picking projects, and where exports go.
+	ipcMain.handle("batch:read", () => readBatch());
+	ipcMain.handle("batch:write", (_e, state: BatchState) => writeBatch(state));
+	ipcMain.handle("batch:pickProjects", () => pickProjects(focused()));
+	ipcMain.handle("batch:exportPath", (_e, projectPath: string, format: PostFormat) => batchExportPath(projectPath, format));
 	ipcMain.handle("project:open", async () => {
 		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], defaultPath: LIBRARY_DIR, filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
 		if (res.canceled) return null;

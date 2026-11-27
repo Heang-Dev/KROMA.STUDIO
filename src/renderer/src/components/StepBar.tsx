@@ -12,6 +12,9 @@ import { type Panel, useEditor } from "@/state/store";
 import { latestTask } from "./common";
 import { UpdateStatus } from "./UpdateButton";
 import { EngineStatusItem } from "./EngineStatus";
+import { useBatch } from "@/lib/batch";
+import { STEP_LABEL } from "@shared/batch";
+import { ListChecks, Loader2 } from "lucide-react";
 
 // The whole job, start to end: Video → Subtitles → Khmer → Voices → Style → Export, in a slim status bar along the
 // bottom of the window (like Orca's). Each step shows whether it's done and opens its panel; "Next" always points at the
@@ -49,6 +52,7 @@ export function stepsOf(project: Project, exported: boolean): Step[] {
 export function StepBar() {
 	const project = useEditor((s) => s.project);
 	const panel = useEditor((s) => s.panel);
+	const locked = useEditor((s) => Boolean(s.locked));
 	// Exported = the saved project's last export still matches the video (survives a restart), or an export just finished.
 	const exported = useEditor((s) => latestTask(s.tasks, "export")?.status === "done" || (!!s.project.lastExport && s.project.lastExport.fingerprint === videoFingerprint(s.project)));
 	const steps = stepsOf(project, exported);
@@ -65,7 +69,9 @@ export function StepBar() {
 
 	return (
 		<nav aria-label="Steps" className="flex h-7 shrink-0 items-center gap-0.5 overflow-x-auto border-t bg-sidebar px-2 text-[11px] [scrollbar-width:none]">
-			{steps.map((step, i) => {
+			{/* While a batch borrows the editor its project isn't yours to work on: no steps for it. */}
+			{locked && <span className="px-1.5 text-muted-foreground">The steps are back when the batch is done.</span>}
+			{!locked && steps.map((step, i) => {
 				const current = step.id === currentId;
 				const content = (
 					<>
@@ -98,7 +104,7 @@ export function StepBar() {
 					</div>
 				);
 			})}
-			<span className="ml-2 flex shrink-0 items-center">
+			<span className={cn("ml-2 flex shrink-0 items-center", locked && "hidden")}>
 				{next ? (
 					next.id === "export" ? (
 						<ExportMenu>
@@ -119,6 +125,7 @@ export function StepBar() {
 			</span>
 			<span className="flex-1" />
 			<span className="flex shrink-0 items-center gap-1">
+				<BatchStatusItem />
 				<EngineStatusItem />
 				<span className="h-3 w-px bg-border" aria-hidden />
 				<UpdateStatus />
@@ -158,3 +165,27 @@ export function ExportMenu({ children }: { children: ReactNode }) {
 	);
 }
 
+
+/** While a batch runs: "Batch · 3/5 · EP4 · Translating"; opens the Batch page. */
+function BatchStatusItem() {
+	const busy = useBatch((s) => s.busy);
+	const runId = useBatch((s) => s.runId);
+	const items = useBatch((s) => s.state.items);
+	if (!busy) return null;
+	const running = items.find((i) => i.status === "running");
+	const inRun = items.filter((i) => i.runId === runId);
+	const total = inRun.length + items.filter((i) => !i.runId && i.status === "waiting").length;
+	const position = inRun.filter((i) => i.status !== "waiting").length;
+	return (
+		<>
+			<button type="button" className="flex h-5 max-w-96 items-center gap-1.5 rounded-sm px-1.5 hover:bg-accent" onClick={() => useEditor.getState().openBatch(busy === "post" ? "ready" : "process")} title="Open Batch">
+				{running ? <Loader2 className="size-3 animate-spin text-primary" /> : <ListChecks className="size-3" />}
+				<span className="truncate">
+					{busy === "post" ? "Posting" : `Batch · ${Math.max(1, position)}/${Math.max(total, 1)}`}
+					{running ? ` · ${running.title} · ${running.current ? STEP_LABEL[running.current] : ""}` : ""}
+				</span>
+			</button>
+			<span className="h-3 w-px bg-border" aria-hidden />
+		</>
+	);
+}

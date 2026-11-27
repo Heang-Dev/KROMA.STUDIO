@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { SETTINGS_SECTIONS, type SettingsPatch } from "./sections";
 import { refreshEngineStatus } from "../EngineStatus";
+import { EmptyState } from "@/components/empty/EmptyState";
 
 // Full-page settings in Orca's layout: nav (back, search, grouped pages) on the left, a breadcrumb header and a
 // centred column of cards on the right. Changes save as you make them.
@@ -110,7 +111,7 @@ export function SettingsPage() {
 								})}
 						</div>
 					))}
-					{visible.length === 0 && <p className="px-2.5 text-xs text-muted-foreground">No settings match "{query}".</p>}
+					{visible.length === 0 && <EmptyState compact fill={false} scene="search" title="No settings match" description={`Nothing called "${query}". Try another word.`} />}
 				</nav>
 				{/* The running version, so it's always clear which Kroma this is. */}
 				<div className="flex h-10 shrink-0 items-center gap-2 border-t px-5 text-[11px] text-muted-foreground">

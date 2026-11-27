@@ -8,6 +8,7 @@ import { platform } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { unreadCount, useNotifications } from "@/state/notifications";
 import { IconButton } from "./common";
+import { EmptyState } from "@/components/empty/EmptyState";
 
 /** The bell in the title bar: finished and failed work, newest first. Opening it marks everything read. */
 export function NotificationBell() {
@@ -57,7 +58,7 @@ export function NotificationBell() {
 					</Button>
 				</div>
 				{entries.length === 0 ? (
-					<p className="px-4 py-10 text-center text-xs text-muted-foreground">Nothing yet — finished and failed work shows here.</p>
+					<EmptyState compact fill={false} scene="notifications" title="You're all caught up" description="Finished and failed work shows here." />
 				) : (
 					<ul className="max-h-[min(480px,70vh)] divide-y overflow-y-auto overscroll-contain" data-testid="notification-list">
 						{entries.map((entry) => (

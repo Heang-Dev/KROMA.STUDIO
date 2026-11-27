@@ -2,6 +2,7 @@ import { DEFAULT_SETTINGS } from "@shared/types";
 import { type MainNotice, type NoticeEntry, type NoticeKind, type NoticeTone, type NotifyPrefs, type StoredAction, actionLabel, noticePlan } from "@shared/notify";
 import { useNotifications } from "@/state/notifications";
 import { useEditor } from "@/state/store";
+import { batchMode, noteBatchMessage } from "./batchMode";
 import { platform } from "./platform";
 
 // The one way to say long work finished or failed: it goes into the history (the bell in the title bar), shows the
@@ -11,7 +12,7 @@ import { platform } from "./platform";
 export type NotifyAction =
 	| { kind: "openProject"; path: string }
 	| { kind: "showFile"; path: string }
-	| { kind: "view"; view: "story" | "downloads" | "voices" | "settings"; section?: string }
+	| { kind: "view"; view: "story" | "downloads" | "voices" | "settings" | "batch"; section?: string }
 	| { kind: "installUpdate" }
 	| { kind: "retry"; run: () => unknown }
 	| { label: string; run: () => unknown };
@@ -23,6 +24,8 @@ export interface NotifyInput {
 	title: string;
 	detail?: string;
 	action?: NotifyAction;
+	/** The batch's own notice: shown while a batch runs (the steps' notices aren't, see batchMode). */
+	batch?: boolean;
 }
 
 /** The notification settings, kept current by the Settings page and when a window comes forward. */
@@ -53,6 +56,11 @@ function stored(id: string, action: NotifyAction | undefined): StoredAction | un
 
 /** Notifies; returns the entry's id. `force` (the test notification) shows the system one even while Kroma is in front. */
 export function notify(input: NotifyInput & { force?: boolean }): string {
+	if (batchMode.on && !input.batch) {
+		if (input.tone === "error") batchMode.lastError ??= input.detail ? `${input.title}: ${input.detail}` : input.title;
+		else noteBatchMessage(input.title);
+		return "";
+	}
 	const id = newId();
 	const action = stored(id, input.action);
 	const entry: NoticeEntry = { id, time: Date.now(), tone: input.tone, kind: input.kind, title: input.title, detail: input.detail, action, read: false };
@@ -98,6 +106,7 @@ export async function runAction(entry: NoticeEntry): Promise<void> {
 			if (action.view === "story") editor.openStory();
 			else if (action.view === "downloads") editor.openDownloads();
 			else if (action.view === "voices") editor.openVoices();
+			else if (action.view === "batch") editor.openBatch(action.section === "ready" ? "ready" : "process");
 			else editor.openSettings(action.section);
 	}
 }
