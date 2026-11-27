@@ -13,25 +13,34 @@ Kroma Studio is an Electron app (this repo) with its website and docs in `websit
 
 ## Releasing a new version
 
+**Write the changelog first.** Before anything else, before the version bump, add the release's section to `CHANGELOG.md`. Don't tag a version that has no changelog entry.
+
+0. **Add the changelog entry.**
+   - Read everything that changed since the last release: `git log --no-merges vPREV..HEAD -- src/` (the commit bodies too, not only the subjects).
+   - Add `## X.Y.Z — YYYY-MM-DD` at the top of `CHANGELOG.md`, above the previous version: one line saying what the release is about, then a bullet per change.
+   - Write it for the people who use Kroma, not for developers: what they can now do, where to find it (the real labels from the code, in **bold**), and what was fixed. Every user-visible change goes in; tests, CI and website-only changes don't.
+   - Commit it with the version bump in step 1 (`chore: release X.Y.Z`).
 1. Bump `version` in `package.json`, commit, then `git tag vX.Y.Z` and push the tag. CI (`.github/workflows/build.yml`) builds Windows and Linux, runs the tests and a smoke test, and puts the files on a draft release in this repo.
 2. Build the Mac app here: `bunx electron-vite build && bunx electron-builder --mac dmg --publish never`. Rename `dist/Kroma Studio-X.Y.Z-arm64.dmg` to `Kroma-Studio-X.Y.Z-arm64.dmg`.
 3. Get the Windows and Linux files from the draft: `gh release download vX.Y.Z -R Heang-Dev/KROMA.STUDIO`. This takes about a minute. Don't use `gh run download`: artifact downloads can crawl at ~50 KB/s.
-4. Publish on the public repo: `gh release create vX.Y.Z -R Heang-Dev/kroma --latest --title "Kroma Studio X.Y.Z" --notes-file notes.md`, attaching all seven files: the dmg, `Kroma-Studio-Setup-X.Y.Z.exe` and its `.blockmap`, `latest.yml`, the `.AppImage`, the `.deb` and `latest-linux.yml`. The release notes are what users read in the Changelog, so write them for users, not developers.
+4. Publish on the public repo: `gh release create vX.Y.Z -R Heang-Dev/kroma --latest --title "Kroma Studio X.Y.Z" --notes-file notes.md`, where `notes.md` is that version's section of `CHANGELOG.md`, word for word: `awk '/^## X\.Y\.Z /{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md`. Attach all seven files: the dmg, `Kroma-Studio-Setup-X.Y.Z.exe` and its `.blockmap`, `latest.yml`, the `.AppImage`, the `.deb` and `latest-linux.yml`. Never write different notes on GitHub: if they need changing, change `CHANGELOG.md` and then `gh release edit vX.Y.Z -R Heang-Dev/kroma --notes-file notes.md`.
 5. Check `curl -sL https://github.com/Heang-Dev/kroma/releases/latest/download/latest.yml | head -1` shows the new version. Then republish the site with `bash website/scripts/publish.sh`, so the footer, Changelog and Download page show it.
+6. Copy `CHANGELOG.md` to `../KROMA.WEBSITE/CHANGELOG.md`, then commit and push both repos.
 
 ## Keeping the website in step with the app
 
 Two rules (X.Y.Z = major.minor.patch):
 
-- **Every release, patch included, updates the changelog.** No release is finished until the site shows it.
+- **Every release, patch included, updates the changelog, and the changelog comes first.** The release's section in `CHANGELOG.md` is written before the version is bumped and tagged (step 0), and no release is finished until the site shows it.
 - **Only minor and major releases update the docs.** Patches never touch `website/content/docs/`.
 
 ### Every release (0.1.4 → 0.1.5, and every minor and major too): the changelog
 
-The site's changelog is built from the GitHub release notes, so updating it means:
-1. Write release notes for users (step 4 above), covering every change in the release. Read `git log` for `src/` since the last tag so nothing is left out.
-2. Republish the site (step 5). The new release and its notes then appear in the Changelog, the footer, the Download page, and that version's **Release notes** docs page (through its `{{releases}}` placeholder).
-3. Check the live site: `curl -sL https://heang-dev.github.io/kroma/changelog/ | grep -c X.Y.Z` must find the new version.
+`CHANGELOG.md` is the source. The GitHub release notes are copied from it, and the site's Changelog is built from the GitHub release notes. So:
+1. Before the release, write the version's section in `CHANGELOG.md` (step 0 above), covering every change. Read `git log` for `src/` since the last tag, commit bodies included, so nothing is left out.
+2. Publish the release with that section as its notes (step 4).
+3. Republish the site (step 5). The new release and its notes then appear in the Changelog, the footer, the Download page, and that version's **Release notes** docs page (through its `{{releases}}` placeholder).
+4. Check the live site: `curl -sL https://heang-dev.github.io/kroma/changelog/ | grep -c X.Y.Z` must find the new version.
 
 For a patch, that's all. Don't rewrite the docs.
 
@@ -40,7 +49,7 @@ For a patch, that's all. Don't rewrite the docs.
 Do the changelog steps above, then this. A new minor or major version gets its own docs version, like Laravel's docs. Before publishing, go through every patch since the last minor (e.g. all of 0.1.0 … 0.1.N) and the new version's changes, then work through this list:
 
 1. **Gather what changed.**
-   - Read every release's notes on `Heang-Dev/kroma` since the last minor: `gh release list -R Heang-Dev/kroma`, then `gh release view vX.Y.Z -R Heang-Dev/kroma` for each.
+   - Read every release's section in `CHANGELOG.md` since the last minor.
    - Read `git log` for `src/` over the same range. Patch notes are short, and the commits show what they left out.
 2. **Start the new docs version.**
    - Copy `website/content/docs/<old>/` to `website/content/docs/<new>/`, e.g. `0.1` → `0.2`.
