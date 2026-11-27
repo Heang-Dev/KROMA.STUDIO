@@ -8,7 +8,7 @@ import type { UpdateState } from "@shared/types";
 import { run } from "./tools";
 
 // Keeps Kroma up to date from its GitHub Releases (Heang-Dev/kroma), like Orca and Trae: it checks on start and every
-// few hours, downloads a new version in the background, and the title bar shows "Restart to update".
+// few hours, downloads a new version in the background, and a card in the bottom-right corner offers "Restart to update".
 // - Windows (installer) and Linux AppImage: electron-updater (latest.yml / latest-linux.yml in each release).
 // - macOS: the app isn't signed with an Apple certificate, which Apple's updater requires, so Kroma downloads the new
 //   .dmg itself, copies the app out of it, and on restart swaps it into place and opens it.

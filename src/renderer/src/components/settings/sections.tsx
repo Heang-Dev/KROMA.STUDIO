@@ -560,7 +560,7 @@ function UpdatesGroup() {
 					: state.status === "downloading"
 						? `Downloading Kroma ${state.version}${state.progress !== undefined ? ` · ${Math.round(state.progress * 100)}%` : ""}`
 						: state.status === "ready"
-							? `Kroma ${state.version} is ready: press “Restart to update” at the top.`
+							? `Kroma ${state.version} is ready: press “Restart to update” on the card in the bottom-right corner (or in the status bar at the bottom).`
 							: state.status === "error"
 								? (state.error ?? "Couldn't check for updates.")
 								: `Version ${state.current}. Kroma checks for updates on start and every few hours.`;

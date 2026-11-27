@@ -18,7 +18,36 @@ export const metadata: Metadata = {
 };
 
 // The theme before the page draws (no flash): the visitor's choice, else the system's.
-const themeScript = `try{if(/\/km(\/|$)/.test(location.pathname.replace(${JSON.stringify(process.env.NEXT_PUBLIC_BASE_PATH ?? "")},"")))document.documentElement.lang="km";var t=localStorage.getItem("kroma-theme");var d=t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d)}catch(e){}`;
+/**
+ * Runs before the page paints (inline in <head>):
+ * - the theme you chose (saved as kroma-theme), or your system's when you haven't chosen;
+ * - the language you chose (saved as kroma-lang): coming into the site from outside (a bookmark, a search, a link in
+ *   a chat), you land on the same page in your language. Moving around inside the site never redirects, so a link
+ *   to the other language still works.
+ * Written as a real function (not a string) so nothing in it needs escaping.
+ */
+function boot(base: string) {
+	try {
+		const root = document.documentElement;
+		const path = location.pathname.slice(base.length) || "/";
+		const km = path === "/km" || path.startsWith("/km/");
+		root.lang = km ? "km" : "en";
+		const theme = localStorage.getItem("kroma-theme");
+		root.classList.toggle("dark", theme ? theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
+
+		const lang = localStorage.getItem("kroma-lang");
+		let inside = false;
+		try {
+			const from = new URL(document.referrer);
+			inside = from.origin === location.origin && (from.pathname + "/").startsWith(base + "/");
+		} catch {}
+		if (!lang || inside) return;
+		const rest = location.search + location.hash;
+		if (lang === "km" && !km) location.replace(base + "/km" + (path === "/" ? "/" : path) + rest);
+		else if (lang === "en" && km) location.replace(base + (path.slice(3) || "/") + rest);
+	} catch {}
+}
+const themeScript = `(${boot.toString()})(${JSON.stringify(process.env.NEXT_PUBLIC_BASE_PATH ?? "")})`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
