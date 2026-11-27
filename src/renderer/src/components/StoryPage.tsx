@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpenText, FolderOpen, Headphones, Loader2, Pause, PencilLine, Plus, RotateCcw, Save, Sparkles, Trash2, Users } from "lucide-react";
-import { KVS_TEMPLATES, type KvsVoice, type StoryRecord, type StoryRequest } from "@shared/types";
+import { KVS_TEMPLATES, groupTemplates, type KvsVoice, type StoryRecord, type StoryRequest } from "@shared/types";
 import { EXAMPLE_STORY, MAX_SPEAKERS, detectSpeakers, parseStory, spokenText } from "@shared/story";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,14 +57,17 @@ export function StoryPage() {
 		void window.kroma.kvsVoices().then(setVoices);
 	}, [refresh]);
 
-	const templates = (status?.presets.length ? status.presets : KVS_TEMPLATES).map((t) => t.name);
+	const presets = status?.presets.length ? status.presets : KVS_TEMPLATES;
+	const templates = presets.map((t) => t.name);
+	// Grouped like the character picker: the engine's default, your cloned voices, then the preset groups with what
+	// each sounds like (instant voices aren't offered: the engine reads stories).
 	const voiceOptions: Option[] = useMemo(
 		() => [
-			{ value: "default", label: "Engine default voice" },
-			...voices.filter((v) => !v.preset).map((v) => ({ value: `kvs-clone:${v.id}`, label: `${v.name} (cloned)` })),
-			...templates.map((t) => ({ value: `kvs-design:${t}`, label: t })),
+			{ value: "default", label: "Engine default voice", description: "Whatever voice the engine picks", group: "Default" },
+			...voices.filter((v) => !v.preset).map((v) => ({ value: `kvs-clone:${v.id}`, label: v.name, description: "Your cloned voice", group: "Your voices" })),
+			...groupTemplates(presets).flatMap((g) => g.items.map((t) => ({ value: `kvs-design:${t.name}`, label: t.name, description: t.description, group: g.title }))),
 		],
-		[voices, templates],
+		[voices, presets],
 	);
 
 	// The cast follows the script as it is typed: a new name gets a fitting voice, known ones keep theirs.
@@ -136,6 +139,23 @@ export function StoryPage() {
 		setTimeout(() => {
 			el?.focus();
 			el?.setSelectionRange(at + piece.length, at + piece.length);
+		}, 0);
+	};
+
+	/** Adds a character: a new line "Name: " at the end of the script, with the cursor after it, ready to type. */
+	const [newName, setNewName] = useState("");
+	const nameProblem = !newName.trim() ? "" : /[:：៖()]/.test(newName) ? "A name can't have : or ( )" : newName.trim().length > 30 ? "At most 30 characters" : "";
+	const addCharacter = () => {
+		const name = newName.trim();
+		if (!name || nameProblem) return;
+		const base = script.replace(/\s+$/, "");
+		const next = `${base}${base ? "\n" : ""}${name}: `;
+		setScript(next);
+		setNewName("");
+		setTab("write");
+		setTimeout(() => {
+			editor.current?.focus();
+			editor.current?.setSelectionRange(next.length, next.length);
 		}, 0);
 	};
 
@@ -271,7 +291,7 @@ export function StoryPage() {
 								</h2>
 								{names.length > MAX_SPEAKERS && <p className="text-[11px] text-warning">Only the first {MAX_SPEAKERS} speakers get their own voice.</p>}
 								{names.length === 0 ? (
-									<p className="text-xs text-muted-foreground">Each speaker in the script shows here, to choose their voice.</p>
+									<p className="text-xs text-muted-foreground">Each character in the script shows here, to choose their voice. Add one below, or write a line like "Sokha: …".</p>
 								) : (
 									<ul className="space-y-3">
 										{Object.entries(speakers).map(([name, s], i) => (
@@ -292,6 +312,27 @@ export function StoryPage() {
 										))}
 									</ul>
 								)}
+								<form
+									className="space-y-1.5"
+									onSubmit={(e) => {
+										e.preventDefault();
+										addCharacter();
+									}}
+								>
+									<div className="flex gap-2">
+										<Input aria-label="New character's name" placeholder="New character, e.g. Mother" className="min-w-0 flex-1 text-xs" maxLength={40} value={newName} onChange={(e) => setNewName(e.target.value)} />
+										<Button type="submit" variant="outline" size="sm" disabled={!newName.trim() || Boolean(nameProblem)}>
+											<Plus /> Add
+										</Button>
+									</div>
+									{nameProblem ? (
+										<p className="text-[11px] text-destructive">{nameProblem}</p>
+									) : names.length >= MAX_SPEAKERS && newName.trim() && !names.includes(newName.trim()) ? (
+										<p className="text-[11px] text-warning">Only the first {MAX_SPEAKERS} characters get their own voice; more use the Narrator's.</p>
+									) : (
+										<p className="text-[11px] text-muted-foreground">Starts a new line for them in the script; they get a fitting voice you can change.</p>
+									)}
+								</form>
 							</section>
 							<section className="space-y-2 p-4">
 								<h2 className="text-[13px] font-semibold">How it will be read</h2>

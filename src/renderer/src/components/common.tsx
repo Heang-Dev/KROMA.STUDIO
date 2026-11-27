@@ -4,11 +4,11 @@ import { Check, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { SearchSelect } from "./SearchSelect";
 import { type TaskState, useEditor } from "@/state/store";
 
 // Building blocks in Orca's style (settings rows, cards, segmented controls), on the shadcn new-york primitives.
@@ -17,6 +17,8 @@ export interface Option<T extends string = string> {
 	value: T;
 	label: string;
 	description?: string;
+	/** Listed under this heading in a dropdown. */
+	group?: string;
 }
 
 /** A titled block in a side panel: Orca's group header above its content. */
@@ -146,23 +148,9 @@ export function ChoiceTiles<T extends string>({ value, options, onChange, label,
 	);
 }
 
-export function AppSelect<T extends string>({ value, options, onChange, label, className }: { value: T; options: Option<T>[]; onChange: (v: T) => void; label: string; className?: string }) {
-	// Radix Select can't hold an empty value, so "" travels as a sentinel.
-	const NONE = "__none__";
-	return (
-		<Select value={value === "" ? NONE : value} onValueChange={(v) => onChange((v === NONE ? "" : v) as T)}>
-			<SelectTrigger size="sm" aria-label={label} className={cn("w-full text-xs", className)}>
-				<SelectValue />
-			</SelectTrigger>
-			<SelectContent>
-				{options.map((o) => (
-					<SelectItem key={o.value || NONE} value={o.value || NONE} className="text-xs">
-						{o.label}
-					</SelectItem>
-				))}
-			</SelectContent>
-		</Select>
-	);
+/** Kroma's dropdown: the searchable select (SearchSelect.tsx); lists longer than 8 get a search box. */
+export function AppSelect<T extends string>({ value, options, onChange, label, className, searchable, placeholder }: { value: T; options: Option<T>[]; onChange: (v: T) => void; label: string; className?: string; searchable?: boolean; placeholder?: string }) {
+	return <SearchSelect value={value} options={options} onChange={onChange} label={label} className={className} searchable={searchable} placeholder={placeholder} />;
 }
 
 export function SliderField({ label, value, min, max, step, format, onChange, onStart }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void; onStart?: () => void }) {

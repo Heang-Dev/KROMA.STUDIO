@@ -2,10 +2,10 @@ import { Loader2, Plus, Trash2, Users } from "lucide-react";
 import { languageOf } from "@shared/languages";
 import { KVS_TEMPLATES, type KvsVoice, groupTemplates } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addCharacter, findCharacters, removeCharacter, renameCharacter, setCharacterVoice, voiceSettings } from "@/lib/actions";
 import { castColor } from "@/lib/cast";
 import { useEditor } from "@/state/store";
+import { SearchSelect, type SearchSelectOption } from "./SearchSelect";
 import { Card, Section, TaskProgress, useBusy } from "./common";
 
 // Characters: who speaks in the video, and the voice for each. The subtitles say who says each line.
@@ -94,41 +94,14 @@ export function CharactersSection({ clones, sample }: { clones: KvsVoice[]; samp
 
 export function VoiceSelect({ value, clones, onChange, label }: { value: string; clones: KvsVoice[]; onChange: (v: string) => void; label: string }) {
 	const lang = languageOf(useEditor((s) => s.project.language));
-	return (
-		<Select value={value} onValueChange={onChange}>
-			<SelectTrigger size="sm" className="min-w-0 flex-1 text-xs" aria-label={label}>
-				<SelectValue />
-			</SelectTrigger>
-			<SelectContent>
-				{groupTemplates(KVS_TEMPLATES).map((g) => (
-					<SelectGroup key={g.title}>
-						<SelectLabel>{g.title}</SelectLabel>
-						{g.items.map((t) => (
-							<SelectItem key={t.name} value={`kvs-design:${t.name}`}>
-								{t.name}
-							</SelectItem>
-						))}
-					</SelectGroup>
-				))}
-				{clones.length > 0 && (
-					<SelectGroup>
-						<SelectLabel>Your voices</SelectLabel>
-						{clones.map((c) => (
-							<SelectItem key={c.id} value={`kvs-clone:${c.id}`}>
-								{c.name}
-							</SelectItem>
-						))}
-					</SelectGroup>
-				)}
-				<SelectGroup>
-					<SelectLabel>Instant · {lang.name}</SelectLabel>
-					{lang.voices.map((v) => (
-						<SelectItem key={v.id} value={v.id}>
-							{v.label}
-						</SelectItem>
-					))}
-				</SelectGroup>
-			</SelectContent>
-		</Select>
-	);
+	return <SearchSelect label={label} value={value} onChange={onChange} options={voiceChoices(clones, lang)} searchPlaceholder="Find a voice (king, girl, narrator…)" className="min-w-0 flex-1" />;
+}
+
+/** Every voice to pick from, grouped: your cloned voices, the preset groups (with what each sounds like), instant voices. */
+export function voiceChoices(clones: KvsVoice[], lang: ReturnType<typeof languageOf>, templates: { name: string; description: string }[] = KVS_TEMPLATES): SearchSelectOption[] {
+	return [
+		...clones.map((c) => ({ value: `kvs-clone:${c.id}`, label: c.name, description: "Your cloned voice", group: "Your voices" })),
+		...groupTemplates(templates).flatMap((g) => g.items.map((t) => ({ value: `kvs-design:${t.name}`, label: t.name, description: t.description, group: g.title }))),
+		...lang.voices.map((v) => ({ value: v.id, label: v.label, description: "Instant · ready in seconds", group: `Instant · ${lang.name}` })),
+	];
 }

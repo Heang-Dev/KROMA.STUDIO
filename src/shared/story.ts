@@ -63,10 +63,23 @@ export function parseStory(script: string): StoryItem[] {
 	return items;
 }
 
-/** The speakers of a script in order of first appearance. */
+/** A line that names a speaker, even before its words are typed ("Mother: " or "Mother (sad):"). */
+const SPEAKER_START = /^([^:：៖()]{1,30}?)\s*(?:\([^)]{0,40}\))?\s*[:：៖]/u;
+
+/**
+ * The speakers of a script in order of first appearance. A line that only names its speaker so far ("Mother: ")
+ * counts, so a character shows in the cast as soon as their line is started (the engine itself skips such a line).
+ */
 export function detectSpeakers(script: string): string[] {
 	const speakers: string[] = [];
-	for (const item of parseStory(script)) if (item.type === "line" && !speakers.includes(item.speaker)) speakers.push(item.speaker);
+	const add = (name: string) => !speakers.includes(name) && speakers.push(name);
+	for (const raw of script.split(LINE_BREAK)) {
+		const line = raw.trim();
+		if (!line) continue;
+		const named = SPEAKER_START.exec(line);
+		if (named && !/^https?$/i.test(named[1].trim())) add(named[1].trim());
+		else if (!splitPauses(line).every((p) => typeof p === "number")) add("Narrator");
+	}
 	return speakers;
 }
 

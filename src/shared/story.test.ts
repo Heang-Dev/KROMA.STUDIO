@@ -33,6 +33,13 @@ describe("story scripts", () => {
 		expect(detectSpeakers("Sokha: a\nSokha (sad): b\nGrandpa: c")).toEqual(["Sokha", "Grandpa"]);
 	});
 
+	it("counts a character as soon as their line is started", () => {
+		expect(detectSpeakers("Narrator: Once.\nMother: ")).toEqual(["Narrator", "Mother"]);
+		expect(detectSpeakers("Mother (sad):")).toEqual(["Mother"]);
+		expect(detectSpeakers("ម្ដាយ៖ ")).toEqual(["ម្ដាយ"]);
+		expect(detectSpeakers("[pause 2s]\nhttps://example.com")).toEqual(["Narrator"]);
+	});
+
 	it("shows a line's words without its pauses", () => {
 		expect(spokenText("x [pause 1s] y")).toBe("x y");
 	});
