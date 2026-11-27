@@ -20,7 +20,8 @@ export function AppToaster() {
 		<Sonner
 			theme={dark ? "dark" : "light"}
 			position="bottom-right"
-			offset={16}
+			// Above the status bar along the bottom.
+			offset={{ right: 16, bottom: 40 }}
 			gap={8}
 			visibleToasts={4}
 			// Listed one above another (Orca's notices), not collapsed into a pile.

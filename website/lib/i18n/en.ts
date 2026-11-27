@@ -27,7 +27,7 @@ export const en = {
 	workflow: {
 		kicker: "How it works",
 		title: "From a link to a finished post, step by step.",
-		sub: "The step bar at the top of Kroma shows what's done and what's next, so a new video is easy from start to end.",
+		sub: "The step bar along the bottom of Kroma shows what's done and what's next, so a new video is easy from start to end.",
 		steps: [
 			["Paste a link", "YouTube, Bilibili, Douyin, Youku, iQiyi, TikTok and 1,000+ sites. Kroma even reads the title from a share message."],
 			["Get the subtitles", "Uses the site's own subtitles, or cloud speech-to-text: a 5-minute video in seconds."],
@@ -121,7 +121,7 @@ export const en = {
 		items: [
 			["Is Kroma Studio free?", "Yes, free and open source (MIT). It uses AI services with your own keys: Gemini and Groq have free tiers, Google Translate and the instant voices need no key. One-click posting uses Upload-Post: free for YouTube and Facebook (10 posts a month); TikTok needs their paid plan."],
 			["Do I need a powerful computer?", "No. Speech-to-text, translation and the instant voices run in the cloud. Removing the original voices runs on your computer and takes about 40 seconds per 5 minutes on a recent machine. The designed and cloned Khmer voices use the Khmer Voice Studio engine, on a free Google Colab GPU or your own machine."],
-			["How do updates work?", "Kroma checks for new versions on start and every few hours, downloads them in the background, and shows “Restart to update” in the title bar. One click and you're on the new version."],
+			["How do updates work?", "Kroma checks for new versions on start and every few hours, downloads them in the background, and shows a “Restart to update” card in the bottom-right corner. One click and you're on the new version."],
 			["Which sites can I download from?", "Anything yt-dlp supports: YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook, TikTok and over 1,000 more. Videos protected with DRM can't be downloaded."],
 			["Which languages?", "From almost any spoken language (Chinese, English, Korean, Japanese…) into Khmer, Thai, Vietnamese, Lao, English, Indonesian or Malay. The 36 designed voices speak Khmer; the other languages use free instant voices."],
 			["Can I post someone else's video?", "Only when you have the right to. Kroma is a tool for translating and voicing videos you made, have permission to use, or that are licensed for reuse. The same goes for cloned voices: only your own, or with the speaker's permission."],

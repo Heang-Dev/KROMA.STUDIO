@@ -10,9 +10,11 @@ import { isMac } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { type Panel, useEditor } from "@/state/store";
 import { latestTask } from "./common";
+import { UpdateStatus } from "./UpdateButton";
 
-// The whole job, start to end: Video → Subtitles → Khmer → Voices → Style → Export. Each step shows whether it's done
-// and opens its panel; "Next" always points at the first step still to do.
+// The whole job, start to end: Video → Subtitles → Khmer → Voices → Style → Export, in a slim status bar along the
+// bottom of the window (like Orca's). Each step shows whether it's done and opens its panel; "Next" always points at the
+// first step still to do.
 
 type Status = "done" | "todo" | "optional";
 
@@ -55,34 +57,34 @@ export function StepBar() {
 	const open = (p: Panel) => useEditor.getState().setPanel(p);
 
 	return (
-		<nav aria-label="Steps" className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b bg-background px-3 text-xs">
+		<nav aria-label="Steps" className="flex h-7 shrink-0 items-center gap-0.5 overflow-x-auto border-t bg-sidebar px-2 text-[11px] [scrollbar-width:none]">
 			{steps.map((step, i) => {
 				const current = step.id === currentId;
 				const content = (
 					<>
 						<span
 							className={cn(
-								"flex size-[18px] shrink-0 items-center justify-center rounded-full border text-[10px] tabular-nums",
+								"flex size-3.5 shrink-0 items-center justify-center rounded-full border text-[8px] leading-none tabular-nums",
 								step.status === "done" ? "border-success bg-success text-white" : current ? "border-foreground text-foreground" : "border-border text-muted-foreground",
 							)}
 						>
-							{step.status === "done" ? <Check className="size-3" strokeWidth={3} /> : i + 1}
+							{step.status === "done" ? <Check className="size-2.5" strokeWidth={3.5} /> : i + 1}
 						</span>
 						<span className={cn(current ? "font-medium text-foreground" : "text-muted-foreground")}>{step.label}</span>
-						{step.status === "optional" && <span className="text-[10px] text-muted-foreground/70">optional</span>}
+						{step.status === "optional" && <span className="text-[10px] text-muted-foreground/60">optional</span>}
 					</>
 				);
 				return (
 					<div key={step.id} className="flex shrink-0 items-center gap-1">
-						{i > 0 && <span className="mx-0.5 h-px w-3 bg-border" aria-hidden />}
+						{i > 0 && <span className="h-px w-2 bg-border" aria-hidden />}
 						{step.id === "export" ? (
 							<ExportMenu>
-								<button type="button" className="flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-accent" disabled={!project.clips.length}>
+								<button type="button" className="flex h-5 items-center gap-1 rounded-sm px-1.5 hover:bg-accent" disabled={!project.clips.length}>
 									{content}
 								</button>
 							</ExportMenu>
 						) : (
-							<button type="button" aria-current={current ? "step" : undefined} className={cn("flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-accent", current && "bg-accent/60")} onClick={() => open(step.panel)}>
+							<button type="button" aria-current={current ? "step" : undefined} className={cn("flex h-5 items-center gap-1 rounded-sm px-1.5 hover:bg-accent", current && "bg-accent/60")} onClick={() => open(step.panel)}>
 								{content}
 							</button>
 						)}
@@ -90,21 +92,24 @@ export function StepBar() {
 				);
 			})}
 			<span className="flex-1" />
+			<span className="mr-2 shrink-0">
+				<UpdateStatus />
+			</span>
 			{next ? (
 				next.id === "export" ? (
 					<ExportMenu>
-						<Button size="xs" className="shrink-0">
+						<Button size="xs" className="h-5 shrink-0 rounded-sm px-1.5 text-[11px]">
 							Next: {next.next} <ArrowRight />
 						</Button>
 					</ExportMenu>
 				) : (
-					<Button size="xs" variant="outline" className="shrink-0" onClick={() => open(next.panel)}>
+					<Button size="xs" variant="outline" className="h-5 shrink-0 rounded-sm px-1.5 text-[11px]" onClick={() => open(next.panel)}>
 						Next: {next.next} <ArrowRight />
 					</Button>
 				)
 			) : (
-				<span className="flex shrink-0 items-center gap-1 text-success">
-					<Check className="size-3.5" /> All done
+				<span className="flex shrink-0 items-center gap-1 px-1 text-success">
+					<Check className="size-3" /> All done
 				</span>
 			)}
 		</nav>

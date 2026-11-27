@@ -4,7 +4,7 @@ group: ការធ្វើវីដេអូ
 section: 2
 order: 1
 ---
-**របារជំហាន** នៅខាងលើកម្មវិធីកែ បង្ហាញអ្វីដែលធ្វើរួច និងអ្វីដែលត្រូវធ្វើបន្ទាប់៖ Video → Subtitles → Khmer → Characters → Voices → Style → Export។
+**របារជំហាន** នៅខាងក្រោមកម្មវិធីកែ បង្ហាញអ្វីដែលធ្វើរួច និងអ្វីដែលត្រូវធ្វើបន្ទាប់៖ Video → Subtitles → Khmer → Characters → Voices → Style → Export។
 
 ## ១. បន្ថែមវីដេអូ
 

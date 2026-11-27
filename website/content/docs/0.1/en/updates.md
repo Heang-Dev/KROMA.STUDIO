@@ -9,8 +9,8 @@ Kroma keeps itself up to date.
 ## How it works
 
 1. Kroma checks [GitHub Releases](https://github.com/Heang-Dev/kroma/releases) when it starts and every 4 hours.
-2. A new version downloads in the background; the title bar shows **Updating 45%**.
-3. When it's ready, **Restart to update** appears in the title bar. Click it whenever you like: Kroma restarts on the new version and your project reopens.
+2. A new version downloads in the background; a card in the bottom-right corner shows the progress.
+3. When it's ready, the card shows **Restart to update**. Click it whenever you like: Kroma restarts on the new version and your project reopens. **Later** hides the card; **Restart to update** stays in the status bar at the bottom.
 
 ## Settings
 

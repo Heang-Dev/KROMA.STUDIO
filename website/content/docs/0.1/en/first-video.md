@@ -4,7 +4,7 @@ group: Making videos
 section: 2
 order: 1
 ---
-The **step bar** at the top of the editor shows what's done and what's next: Video → Subtitles → Khmer → Characters → Voices → Style → Export.
+The **step bar** along the bottom of the editor shows what's done and what's next: Video → Subtitles → Khmer → Characters → Voices → Style → Export.
 
 ## 1. Add a video
 
