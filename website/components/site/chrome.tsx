@@ -1,4 +1,4 @@
-import { githubStars } from "@/lib/site";
+import { githubStars, releases } from "@/lib/site";
 import { FooterBar, HeaderBar } from "./chrome-bars";
 
 // The header and footer on every page. The star count is read when the site is built; the bars follow the page's
@@ -10,6 +10,7 @@ export async function Header() {
 	return <HeaderBar stars={await githubStars()} />;
 }
 
-export function Footer() {
-	return <FooterBar />;
+export async function Footer() {
+	const latest = (await releases())[0];
+	return <FooterBar latest={latest ? { version: latest.tag.replace(/^v/, ""), date: latest.date } : null} />;
 }

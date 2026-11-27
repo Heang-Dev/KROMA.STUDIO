@@ -82,7 +82,7 @@ export function Logo({ size = 28, href = "/" }: { size?: number; href?: string }
 	);
 }
 
-export function FooterBar() {
+export function FooterBar({ latest }: { latest: { version: string; date: string } | null }) {
 	const lang = langOf(usePathname());
 	const m = messages[lang];
 	const t = m.footer;
@@ -139,7 +139,22 @@ export function FooterBar() {
 				))}
 			</div>
 			<div className={cn(wrap, "flex flex-wrap justify-between gap-2 border-t py-6 text-xs")}>
-				<span>© {new Date().getFullYear()} Kroma Studio · MIT</span>
+				<span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+					<span>© {new Date().getFullYear()} Kroma Studio · MIT</span>
+					{latest && (
+						<Link
+							href={localize("/changelog/", lang)}
+							title={new Date(latest.date).toLocaleDateString(lang === "km" ? "km-KH" : "en", { year: "numeric", month: "long", day: "numeric" })}
+							className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 no-underline hover:text-foreground"
+						>
+							<span className="relative flex size-1.5">
+								<span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+								<span className="relative inline-flex size-1.5 rounded-full bg-success" />
+							</span>
+							v{latest.version} · {t.latest}
+						</Link>
+					)}
+				</span>
 				<span>{t.madeFor}</span>
 			</div>
 		</footer>

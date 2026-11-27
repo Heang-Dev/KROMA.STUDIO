@@ -142,6 +142,7 @@ export const km: Messages = {
 		releases: "កំណែទាំងអស់",
 		license: "អាជ្ញាប័ណ្ណ MIT",
 		report: "រាយការណ៍បញ្ហា",
+		latest: "ថ្មីបំផុត",
 		madeFor: "បង្កើតឡើងសម្រាប់អ្នកបង្កើតមាតិកាខ្មែរ",
 	},
 	changelog: { kicker: "អ្វីដែលថ្មី", title: "អ្វីដែលថ្មី", sub: "កំណែនីមួយៗរបស់ Kroma Studio។ ការទាញយកសម្រាប់កំណែនីមួយៗ មាននៅលើ", releases: "GitHub Releases", none: "មិនទាន់មានកំណែនៅឡើយទេ។" },

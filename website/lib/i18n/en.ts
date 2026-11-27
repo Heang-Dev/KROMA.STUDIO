@@ -140,6 +140,7 @@ export const en = {
 		releases: "All releases",
 		license: "MIT License",
 		report: "Report a problem",
+		latest: "Latest",
 		madeFor: "Made for Khmer creators",
 	},
 	changelog: { kicker: "Changelog", title: "What's new", sub: "Every version of Kroma Studio. Downloads for each are on", releases: "GitHub Releases", none: "No releases yet." },
