@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { AudioLines, Bell, CircleCheck, CircleX, Download, Loader2, Power, RefreshCw, Trash2, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
+import { AudioLines, Bell, Play, CircleCheck, CircleX, Download, Loader2, Power, RefreshCw, Trash2, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
 import { type Appearance, type KvsStatus, type PostAccount, type PostProfile, type PublishPlatform, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,8 @@ import { keyCaps } from "@/lib/platform";
 import { applyAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 import { runTask, useEditor } from "@/state/store";
-import { notify, setNotifyPrefs } from "@/lib/notify";
+import { notify, playSound, setNotifyPrefs } from "@/lib/notify";
+import { MAC_SOUNDS } from "@shared/notify";
 import { useNotifications } from "@/state/notifications";
 import { useUpdateState } from "../UpdateButton";
 import { refreshEngineStatus } from "../EngineStatus";
@@ -72,7 +73,7 @@ function TranslationSection({ settings, save }: SectionProps) {
 			{provider === "gemini" && (
 				<Group title="Gemini" description="Free from Google AI Studio, no card needed. The free tier limits requests per minute (Kroma waits when it has to) and Google may use free-tier requests to improve its models.">
 					<Card>
-						<KeyRow label="API key" saved={settings.hasGeminiKey} placeholder="AIza…" keyUrl="https://aistudio.google.com/apikey" onSave={(v) => save({ geminiKey: v })} />
+						<KeyRow locked={settings.lockedKeys?.includes("geminiKey")} label="API key" saved={settings.hasGeminiKey} placeholder="AIza…" keyUrl="https://aistudio.google.com/apikey" onSave={(v) => save({ geminiKey: v })} />
 						<Row label="Model" description="Flash models are fast and free; Pro is better but has a smaller free limit." control={<GeminiModelSelect settings={settings} save={save} />} />
 					</Card>
 				</Group>
@@ -89,7 +90,7 @@ function TranslationSection({ settings, save }: SectionProps) {
 			{provider === "claude" && (
 				<Group title="Claude" description="Paid by use (Anthropic API). The most natural Khmer, best with names and tone.">
 					<Card>
-						<KeyRow label="API key" saved={settings.hasAnthropicKey} placeholder="sk-ant-…" keyUrl="https://platform.claude.com/settings/keys" onSave={(v) => save({ anthropicKey: v })} />
+						<KeyRow locked={settings.lockedKeys?.includes("anthropicKey")} label="API key" saved={settings.hasAnthropicKey} placeholder="sk-ant-…" keyUrl="https://platform.claude.com/settings/keys" onSave={(v) => save({ anthropicKey: v })} />
 						<Row label="Model" control={<AppSelect label="Model" className="w-56" value={settings.translateModel} options={MODELS} onChange={(v) => void save({ translateModel: v })} />} />
 					</Card>
 				</Group>
@@ -170,7 +171,7 @@ function SpeechSection({ settings, save }: SectionProps) {
 				<>
 					<Group title={preset?.label ?? "Whisper service"} description={preset?.label === "Groq" ? "Whisper large-v3 on Groq's servers: a whole movie in about a minute. Free key." : "Any OpenAI-compatible transcription endpoint."}>
 						<Card>
-							<KeyRow label="API key" saved={settings.hasAsrKey} placeholder={preset?.label === "OpenAI" ? "sk-…" : "gsk_…"} keyUrl={preset?.keyUrl} onSave={(v) => save({ asrKey: v })} />
+							<KeyRow locked={settings.lockedKeys?.includes("asrKey")} label="API key" saved={settings.hasAsrKey} placeholder={preset?.label === "OpenAI" ? "sk-…" : "gsk_…"} keyUrl={preset?.keyUrl} onSave={(v) => save({ asrKey: v })} />
 						</Card>
 					</Group>
 					<Group title="Advanced">
@@ -389,7 +390,7 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 								<DraftInput className="w-full" placeholder="https://….trycloudflare.com" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />
 							</div>
 						</Step>
-						<KeyRow label="Token" saved={settings.hasKvsToken} placeholder="The token Colab printed" onSave={(v) => save({ kvsToken: v })} />
+						<KeyRow locked={settings.lockedKeys?.includes("kvsToken")} label="Token" saved={settings.hasKvsToken} placeholder="The token Colab printed" onSave={(v) => save({ kvsToken: v })} />
 					</Card>
 				)}
 			</Group>
@@ -441,7 +442,7 @@ function PostingSection({ settings, save }: SectionProps) {
 				description="Kroma posts through Upload-Post (upload-post.com), which is already approved by YouTube, Facebook and TikTok, so your posts go out publicly. Connect your accounts once; after that the Post panel posts in one click."
 			>
 				<Card>
-					<KeyRow label="API key" saved={settings.hasPostKey} placeholder="From app.upload-post.com → API Keys" keyUrl="https://app.upload-post.com/api-keys" onSave={(v) => save({ postKey: v })} />
+					<KeyRow locked={settings.lockedKeys?.includes("postKey")} label="API key" saved={settings.hasPostKey} placeholder="From app.upload-post.com → API Keys" keyUrl="https://app.upload-post.com/api-keys" onSave={(v) => save({ postKey: v })} />
 					{settings.hasPostKey && (
 						<Row
 							label="Account"
@@ -633,6 +634,38 @@ const NOTIFY_KINDS: { key: "notifyDownloads" | "notifySubtitles" | "notifyVoices
 	{ key: "notifyUpdates", label: "Updates", description: "A new version of Kroma is ready to install." },
 ];
 
+const isMac = navigator.userAgent.includes("Mac");
+
+/** One notification sound: on the Mac, a choice of its system sounds with a preview; elsewhere a preview only. */
+function SoundRow({ label, tone, value, onChange }: { label: string; tone: "success" | "error"; value: string; onChange: (v: string) => void }) {
+	const preview = (name: string) => playSound(name, tone);
+	return (
+		<Row
+			label={label}
+			description={isMac ? undefined : "Your system's notification sound outside Kroma; a short chime in Kroma."}
+			control={
+				<div className="flex items-center gap-1.5">
+					{isMac && (
+						<AppSelect
+							label={label}
+							className="w-40"
+							value={value}
+							options={MAC_SOUNDS.map((name) => ({ value: name, label: name }))}
+							onChange={(v) => {
+								onChange(v);
+								preview(v);
+							}}
+						/>
+					)}
+					<Button variant="outline" size="sm" aria-label={`Play the sound for ${label.toLowerCase()}`} onClick={() => preview(value)}>
+						<Play /> Play
+					</Button>
+				</div>
+			}
+		/>
+	);
+}
+
 function NotificationsSection({ settings, save }: SectionProps) {
 	const history = useNotifications((s) => s.entries.length);
 	// notify() follows these settings in this window straight away.
@@ -649,7 +682,9 @@ function NotificationsSection({ settings, save }: SectionProps) {
 			<Group title="Notifications" description="When long work finishes or fails: a notice in Kroma, and a system notification while you're in another app. Everything also goes into the bell in the title bar.">
 				<Card>
 					<SwitchRow label="Notify me when Kroma is in the background" description="System notifications. Failures show one even while you're in Kroma." checked={settings.notifySystem} onChange={(v) => void save({ notifySystem: v })} />
-					<SwitchRow label="Play a sound" description="With each system notification." checked={settings.notifySound} onChange={(v) => void save({ notifySound: v })} />
+					<SwitchRow label="Play a sound" description="When work finishes or fails, in Kroma and in system notifications." checked={settings.notifySound} onChange={(v) => void save({ notifySound: v })} />
+					{settings.notifySound && <SoundRow label="When work is done" tone="success" value={settings.notifySoundDone} onChange={(v) => void save({ notifySoundDone: v })} />}
+					{settings.notifySound && <SoundRow label="When something fails" tone="error" value={settings.notifySoundFailed} onChange={(v) => void save({ notifySoundFailed: v })} />}
 					<SwitchRow label="Only when something fails" description="Finished work then shows in the bell only, without a system notification." checked={settings.notifyOnlyErrors} onChange={(v) => void save({ notifyOnlyErrors: v })} />
 					<Row
 						label="Send a test notification"
@@ -657,6 +692,19 @@ function NotificationsSection({ settings, save }: SectionProps) {
 						control={
 							<Button variant="outline" size="sm" onClick={test}>
 								<Bell /> Send test
+							</Button>
+						}
+					/>
+				</Card>
+			</Group>
+			<Group title="Not seeing them?" description="Your computer decides whether Kroma may show notifications, and whether they make a sound. If the test shows nothing outside Kroma, allow Kroma Studio there.">
+				<Card>
+					<Row
+						label={isMac ? "System Settings → Notifications → Kroma Studio" : "Your system's notification settings"}
+						description={isMac ? "Turn on Allow notifications, and Play sound for notifications." : "Allow notifications from Kroma Studio."}
+						control={
+							<Button variant="outline" size="sm" onClick={() => void window.kroma.openNotificationSettings()}>
+								<ExternalLink /> Open
 							</Button>
 						}
 					/>
@@ -874,7 +922,7 @@ function AboutSection() {
 // ── Controls ──
 
 /** An API key row: never shows the saved key; type a new one and save, or remove it. */
-function KeyRow({ label, saved, placeholder, keyUrl, onSave }: { label: string; saved: boolean; placeholder: string; keyUrl?: string; onSave: (value: string | null) => Promise<void> }) {
+function KeyRow({ label, saved, locked, placeholder, keyUrl, onSave }: { label: string; saved: boolean; locked?: boolean; placeholder: string; keyUrl?: string; onSave: (value: string | null) => Promise<void> }) {
 	const [draft, setDraft] = useState("");
 	const [editing, setEditing] = useState(!saved);
 	useEffect(() => setEditing(!saved), [saved]);
@@ -891,11 +939,18 @@ function KeyRow({ label, saved, placeholder, keyUrl, onSave }: { label: string; 
 				</span>
 			}
 			description={
-				keyUrl && (
-					<button type="button" className="inline-flex items-center gap-1 underline-offset-2 hover:text-foreground hover:underline" onClick={() => void window.kroma.openExternal(keyUrl)}>
-						Get a key <ExternalLink className="size-3" />
-					</button>
-				)
+				<>
+					{locked && !saved && (
+						<span className="block text-warning">
+							A key is saved, but this version of Kroma can't read it from the keychain. Paste it again (or reopen Kroma and choose Always Allow when the Mac asks).
+						</span>
+					)}
+					{keyUrl && (
+						<button type="button" className="inline-flex items-center gap-1 underline-offset-2 hover:text-foreground hover:underline" onClick={() => void window.kroma.openExternal(keyUrl)}>
+							Get a key <ExternalLink className="size-3" />
+						</button>
+					)}
+				</>
 			}
 			control={
 				editing ? (

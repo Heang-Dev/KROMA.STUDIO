@@ -3,8 +3,10 @@
 // updates) comes through notifyFromMain. Clicking one brings Kroma forward and runs the entry's action.
 
 import { randomUUID } from "node:crypto";
-import { BrowserWindow, Notification } from "electron";
-import { type MainNotice, type NoticeKind, type NoticeTone, type StoredAction, type SystemNotice, noticePlan } from "@shared/notify";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { BrowserWindow, Notification, shell } from "electron";
+import { MAC_SOUNDS, type MainNotice, type NoticeKind, type NoticeTone, type StoredAction, type SystemNotice, noticePlan, soundFor } from "@shared/notify";
 import { loadSettings } from "./settings";
 
 /** Kept until clicked or closed: a notification that's garbage-collected loses its click handler. */
@@ -23,7 +25,9 @@ export function showSystemNotice(notice: SystemNotice, target?: BrowserWindow | 
 	const body = notice.detail ?? "";
 	console.log(`[notify] system: ${notice.tone} · ${notice.kind ?? "general"} · ${plan.silent ? "silent" : "sound"} · ${notice.title}${body ? ` · ${body}` : ""}`);
 	if (process.env.KROMA_SMOKE === "1" || process.env.KROMA_E2E === "1") return true; // logged, not shown, in test runs
-	const n = new Notification({ title: notice.title, body, silent: plan.silent });
+	// On the Mac the notification plays the chosen system sound; elsewhere the system's own notification sound.
+	const sound = process.platform === "darwin" && !plan.silent ? macSound(soundFor(settings, notice.tone)) : undefined;
+	const n = new Notification({ title: notice.title, body, silent: plan.silent, ...(sound ? { sound } : {}) });
 	live.add(n);
 	n.on("click", () => {
 		live.delete(n);
@@ -37,6 +41,33 @@ export function showSystemNotice(notice: SystemNotice, target?: BrowserWindow | 
 	n.on("close", () => live.delete(n));
 	n.show();
 	return true;
+}
+
+/** A Mac system sound's name, if it's one of the known ones and on this Mac. */
+function macSound(name: string): string | undefined {
+	return (MAC_SOUNDS as readonly string[]).includes(name) && existsSync(`/System/Library/Sounds/${name}.aiff`) ? name : undefined;
+}
+
+/**
+ * Plays a notification sound in Kroma itself (a notice while Kroma is in front, or the Settings preview). On the Mac
+ * it plays the system sound; elsewhere it returns false and the window plays its own chime.
+ */
+export function playNoticeSound(name: string): boolean {
+	const sound = process.platform === "darwin" ? macSound(name) : undefined;
+	if (!sound) return false;
+	spawn("afplay", [`/System/Library/Sounds/${sound}.aiff`], { stdio: "ignore", detached: false }).on("error", () => undefined);
+	return true;
+}
+
+/** Opens the system's notification settings, where Kroma can be allowed to show notifications. */
+export function openNotificationSettings(): void {
+	const url =
+		process.platform === "darwin"
+			? "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
+			: process.platform === "win32"
+				? "ms-settings:notifications"
+				: "";
+	if (url) void shell.openExternal(url);
 }
 
 /** True when none of Kroma's windows has the focus (the person is in another app). */

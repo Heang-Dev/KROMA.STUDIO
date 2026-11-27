@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS } from "@shared/types";
-import { type MainNotice, type NoticeEntry, type NoticeKind, type NoticeTone, type NotifyPrefs, type StoredAction, actionLabel, noticePlan } from "@shared/notify";
+import { type MainNotice, type NoticeEntry, type NoticeKind, type NoticeTone, type NotifyPrefs, type StoredAction, actionLabel, noticePlan, soundFor } from "@shared/notify";
 import { useNotifications } from "@/state/notifications";
 import { useEditor } from "@/state/store";
 import { batchMode, noteBatchMessage } from "./batchMode";
@@ -68,8 +68,39 @@ export function notify(input: NotifyInput & { force?: boolean }): string {
 	const background = typeof document !== "undefined" && !document.hasFocus();
 	const plan = noticePlan(prefs, { tone: input.tone, kind: input.kind, background, force: input.force });
 	if (plan.toast) toastFor(entry);
+	// A system notification plays its own sound; a notice shown only in Kroma plays it here.
+	if (plan.toast && !plan.system && !plan.silent && input.tone !== "info") playSound(soundFor(prefs, input.tone), input.tone);
 	if (plan.system) void window.kroma?.notifySystem({ id, tone: input.tone, kind: input.kind, title: input.title, detail: input.detail, force: input.force }).catch(() => undefined);
 	return id;
+}
+
+/** Plays a notification sound: the Mac's system sound, or a short chime elsewhere. */
+export function playSound(name: string, tone: NoticeTone): void {
+	void (window.kroma?.notifySound?.(name) ?? Promise.resolve(false)).then((played) => played || chime(tone)).catch(() => chime(tone));
+}
+
+/** Two soft rising notes when work is done, one low note when it failed. */
+function chime(tone: NoticeTone): void {
+	try {
+		const ctx = new AudioContext();
+		const notes = tone === "error" ? [220] : [660, 880];
+		notes.forEach((freq, i) => {
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+			const start = ctx.currentTime + i * 0.12;
+			osc.type = "sine";
+			osc.frequency.value = freq;
+			gain.gain.setValueAtTime(0.0001, start);
+			gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+			gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+			osc.connect(gain).connect(ctx.destination);
+			osc.start(start);
+			osc.stop(start + 0.4);
+		});
+		setTimeout(() => void ctx.close(), 1200);
+	} catch {
+		/* no audio: stay quiet */
+	}
 }
 
 function toastFor(entry: NoticeEntry): void {
@@ -118,7 +149,12 @@ export function startNotifications(): () => void {
 			const entry: NoticeEntry = { ...notice, read: false };
 			useNotifications.getState().add(entry);
 			// The main process showed the system notification already, when it should; here it's the toast.
-			if (document.hasFocus() && noticePlan(prefs, { tone: notice.tone, kind: notice.kind, background: false }).toast) toastFor(entry);
+			const plan = noticePlan(prefs, { tone: notice.tone, kind: notice.kind, background: false });
+			if (document.hasFocus() && plan.toast) {
+				toastFor(entry);
+				// A failure also got a system notification (with its sound); finished work sounds here.
+				if (notice.tone === "success" && !plan.silent) playSound(soundFor(prefs, notice.tone), notice.tone);
+			}
 		}),
 		window.kroma.onNoticeClicked((id) => {
 			const entry = useNotifications.getState().entries.find((e) => e.id === id);

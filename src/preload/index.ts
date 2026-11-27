@@ -5,7 +5,7 @@ import type { DownloadCenterState, DownloadOptions, FilledTitle, ImportPick, Lis
 import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, StoryRecord, StoryRequest, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState } from "@shared/types";
 
 const api = {
-	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; platform: string; installHints: { ffmpeg: string; ytdlp: string; uv: string }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
+	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; platform: string; installHints: { ffmpeg: string; ytdlp: string; uv: string }; libraryDir: string; version: string; smoke: boolean; e2e: boolean; firstRun: boolean }> => ipcRenderer.invoke("app:info"),
 	getSettings: (): Promise<SettingsView> => ipcRenderer.invoke("settings:get"),
 	saveSettings: (patch: Partial<Record<keyof Settings, string | number | boolean | null>>): Promise<SettingsView> => ipcRenderer.invoke("settings:save", patch),
 
@@ -129,6 +129,9 @@ const api = {
 	},
 	// Notifications: a system notification (the main process checks the settings), entries from the main process, and clicks.
 	notifySystem: (notice: SystemNotice): Promise<boolean> => ipcRenderer.invoke("notify:system", notice),
+	/** Plays a notification sound (true on the Mac; elsewhere false, and the window plays its own chime). */
+	notifySound: (name: string): Promise<boolean> => ipcRenderer.invoke("notify:sound", name),
+	openNotificationSettings: (): Promise<void> => ipcRenderer.invoke("notify:openSystemSettings"),
 	onNotice: (listener: (notice: MainNotice) => void): (() => void) => {
 		const handler = (_e: unknown, notice: MainNotice) => listener(notice);
 		ipcRenderer.on("notify:entry", handler);

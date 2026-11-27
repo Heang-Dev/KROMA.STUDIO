@@ -12,7 +12,7 @@ import { exportVideo } from "./export";
 import { listGeminiModels } from "./gemini";
 import { probe } from "./media";
 import { mediaVisuals } from "./visuals";
-import { loadSettings, saveSettings, viewOf } from "./settings";
+import { firstRun, loadSettings, saveSettings, viewOf } from "./settings";
 import { findTool, installHint } from "./tools";
 import { mediaPath } from "@shared/media";
 import { transcribe } from "./transcribe";
@@ -27,7 +27,7 @@ import { connectLink, ensureProfile, facebookPages, postAccount, postProfiles, p
 import { addDownloads, importProjects, pickImport, cancelDownload, clearFinished, downloadState, fetchTitles, listLinks, listPlatforms, listSource, removeDownload, retryDownload, retryFailed, setDownloadOptions, setDownloadsPaused, showDownload, startDownloadCenter, stopDownloads } from "./downloads";
 import type { DownloadOptions, ListedVideo } from "@shared/downloads";
 import type { SystemNotice } from "@shared/notify";
-import { showSystemNotice } from "./notify";
+import { openNotificationSettings, playNoticeSound, showSystemNotice } from "./notify";
 import { batchExportPath, pickProjects, readBatch, writeBatch } from "./batch";
 import type { BatchState, PostFormat } from "@shared/batch";
 
@@ -37,6 +37,10 @@ if (process.env.KROMA_SMOKE === "1") {
 	const dir = join(app.getPath("temp"), "kroma-smoke");
 	rmSync(dir, { recursive: true, force: true });
 	app.setPath("userData", dir);
+} else if (process.env.KROMA_USER_DATA) {
+	// Test runs of a development build use their own settings: a differently signed build must never touch the
+	// real settings (the keychain won't open its keys for it).
+	app.setPath("userData", process.env.KROMA_USER_DATA);
 }
 
 protocol.registerSchemesAsPrivileged([{ scheme: "kroma", privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true, corsEnabled: true } }]);
@@ -195,6 +199,7 @@ function registerIpc(): void {
 		smoke: process.env.KROMA_SMOKE === "1" || process.env.KROMA_E2E === "1",
 		// End-to-end runs use the real settings (your keys) but must not touch your autosaved project.
 		e2e: process.env.KROMA_E2E === "1",
+		firstRun: firstRun(),
 	}));
 
 	ipcMain.handle("settings:get", () => viewOf(loadSettings()));
@@ -420,6 +425,8 @@ function registerIpc(): void {
 	ipcMain.handle("update:install", () => installUpdate());
 	// Notifications (see notify.ts): the window decides when (in the background, or a failure); the settings decide whether.
 	ipcMain.handle("notify:system", (e, notice: SystemNotice) => showSystemNotice(notice, BrowserWindow.fromWebContents(e.sender)));
+	ipcMain.handle("notify:sound", (_e, name: string) => playNoticeSound(String(name)));
+	ipcMain.handle("notify:openSystemSettings", () => openNotificationSettings());
 	ipcMain.handle("file:exists", (_e, path: string) => existsSync(path));
 	ipcMain.handle("shell:show", (_e, path: string) => shell.showItemInFolder(path));
 	ipcMain.handle("shell:open", (_e, url: string) => {

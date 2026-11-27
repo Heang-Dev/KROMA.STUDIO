@@ -12,6 +12,8 @@ export interface NotifyPrefs {
 	notifySystem: boolean;
 	notifyOnlyErrors: boolean;
 	notifySound: boolean;
+	notifySoundDone: string;
+	notifySoundFailed: string;
 	notifyDownloads: boolean;
 	notifySubtitles: boolean;
 	notifyVoices: boolean;
@@ -35,6 +37,13 @@ export const kindOn = (prefs: NotifyPrefs, kind: NoticeKind = "general"): boolea
  * and no toast for success (a failure still toasts). A system notification needs the settings to allow it and Kroma
  * in the background, except for failures and the test notification (`force`).
  */
+/** The Mac's own notification sounds (/System/Library/Sounds), offered in Settings → Notifications. */
+export const MAC_SOUNDS = ["Glass", "Ping", "Pop", "Tink", "Hero", "Purr", "Blow", "Bottle", "Frog", "Funk", "Morse", "Submarine", "Sosumi", "Basso"] as const;
+
+/** The sound a notice of this tone plays (info plays the "done" one). */
+export const soundFor = (prefs: Pick<NotifyPrefs, "notifySoundDone" | "notifySoundFailed">, tone: NoticeTone): string =>
+	(tone === "error" ? prefs.notifySoundFailed : prefs.notifySoundDone) || (tone === "error" ? "Basso" : "Glass");
+
 export function noticePlan(prefs: NotifyPrefs, notice: { tone: NoticeTone; kind?: NoticeKind; background: boolean; force?: boolean }): { toast: boolean; system: boolean; silent: boolean } {
 	const on = kindOn(prefs, notice.kind);
 	return {
