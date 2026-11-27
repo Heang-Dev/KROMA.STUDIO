@@ -1,7 +1,7 @@
 {
 	"name": "kroma-studio",
 	"productName": "Kroma Studio",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "Desktop video editor for turning Chinese and online videos into Khmer-subtitled posts for YouTube, Facebook and TikTok",
 	"main": "./out/main/index.js",
 	"private": true,
