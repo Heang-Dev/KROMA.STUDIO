@@ -258,6 +258,27 @@ export interface KvsStatus {
 	presets: { name: string; description: string }[];
 }
 
+/** Story studio: what to speak. `speakers` maps each speaker of the script to a voice ("kvs-clone:<id>",
+ * "kvs-design:<template>" or "default") and a style (e.g. "excited"; a line's own `(style)` wins for that line). */
+export interface StoryRequest {
+	title: string;
+	script: string;
+	speakers: Record<string, { voice: string; style: string }>;
+}
+
+/** A story spoken by the voice engine, kept in the library. `cues` are the engine's `[start, end, text]`, one per spoken line. */
+export interface StoryRecord extends StoryRequest {
+	id: string;
+	cues: [number, number, string][];
+	seconds: number;
+	created: number;
+	/** Set on a story made by redoing one line of another (0-based). */
+	redoneLine?: number;
+	/** story.mp3 (or .wav) and story.srt on disk. */
+	audio?: string;
+	srt?: string;
+}
+
 /** A cloned voice kept on this Mac for the KVS engine. */
 export interface KvsVoice {
 	id: string;

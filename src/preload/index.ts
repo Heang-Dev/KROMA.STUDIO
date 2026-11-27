@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState } from "@shared/types";
+import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, StoryRecord, StoryRequest, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState } from "@shared/types";
 
 const api = {
 	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; platform: string; installHints: { ffmpeg: string; ytdlp: string; uv: string }; libraryDir: string; version: string; smoke: boolean; e2e: boolean }> => ipcRenderer.invoke("app:info"),
@@ -62,6 +62,12 @@ const api = {
 	kvsImport: (ids: number[]): Promise<number> => ipcRenderer.invoke("kvs:import", ids),
 	kvsDelete: (id: string): Promise<void> => ipcRenderer.invoke("kvs:delete", id),
 	kvsPickRecording: (): Promise<string | null> => ipcRenderer.invoke("kvs:pickRecording"),
+	tellStory: (taskId: string, request: StoryRequest): Promise<StoryRecord> => ipcRenderer.invoke("task:story", taskId, request),
+	redoStoryLine: (taskId: string, id: string, line: number): Promise<StoryRecord> => ipcRenderer.invoke("task:storyRedo", taskId, id, line),
+	stories: (): Promise<StoryRecord[]> => ipcRenderer.invoke("story:list"),
+	deleteStory: (id: string): Promise<void> => ipcRenderer.invoke("story:delete", id),
+	saveStoryAs: (id: string): Promise<string | null> => ipcRenderer.invoke("story:saveAs", id),
+	showStory: (id: string): Promise<void> => ipcRenderer.invoke("story:show", id),
 	removeVoices: (taskId: string, path: string, duration: number, quality: "fast" | "best"): Promise<string> => ipcRenderer.invoke("task:separate", taskId, path, duration, quality),
 	voiceSample: (voice: string, rate: number): Promise<string | null> => ipcRenderer.invoke("voice:sample", voice, rate),
 	makePresetVoice: (taskId: string, name: string): Promise<KvsVoice> => ipcRenderer.invoke("task:presetVoice", taskId, name),

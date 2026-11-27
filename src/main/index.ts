@@ -3,7 +3,7 @@ import { extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, session, shell, systemPreferences } from "electron";
 import { parseSubtitles } from "@shared/srt";
-import { type CaptionRequest, type ExportRequest, type Project, type PublishRequest, type Settings, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
+import { type CaptionRequest, type ExportRequest, type Project, type PublishRequest, type Settings, type StoryRequest, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
 import { fallbackCount, translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
 import { defaultDownloadDir, downloadLink, LIBRARY_DIR } from "./download";
 
@@ -18,6 +18,7 @@ import { mediaPath } from "@shared/media";
 import { transcribe } from "./transcribe";
 import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePath, kvsStatus, listKvsVoices, makePresetVoice, presetVoice, saveRecording, speakWithKvs, syncKvsPresets } from "./kvs";
 import { removeVoices, type SeparationQuality } from "./separate";
+import { deleteStory, listStories, readStory, tellStory } from "./story";
 import { instantSample, synthesizeLines } from "./voice";
 import { type CharacterLine, type VoiceChoice, findCharacters } from "./characters";
 import { checkForUpdates, downloadUpdate, installUpdate, startUpdater, updateState } from "./updater";
@@ -245,6 +246,32 @@ const kvsDir = () => loadSettings().kvsProjectDir;
 		return res.canceled ? null : res.filePaths[0];
 	});
 	ipcMain.handle("task:separate", (_e, taskId: string, path: string, duration: number, quality: SeparationQuality) => task(taskId, (p, s) => removeVoices(path, duration, quality, p, s)));
+	// Story studio (src/main/story.ts).
+	ipcMain.handle("task:story", (_e, taskId: string, request: StoryRequest) => task(taskId, (p, s) => tellStory(loadSettings(), request, p, s)));
+	ipcMain.handle("task:storyRedo", (_e, taskId: string, id: string, line: number) =>
+		task(taskId, (p, s) => {
+			const old = readStory(id);
+			if (!old) throw new Error("That story is gone.");
+			return tellStory(loadSettings(), old, p, s, { from: id, line });
+		}),
+	);
+	ipcMain.handle("story:list", () => listStories());
+	ipcMain.handle("story:delete", (_e, id: string) => deleteStory(id));
+	ipcMain.handle("story:show", (_e, id: string) => {
+		const story = readStory(id);
+		if (story?.audio) shell.showItemInFolder(story.audio);
+	});
+	/** Saves the story's audio (MP3, or WAV) where you choose, with its subtitles (.srt) next to it. */
+	ipcMain.handle("story:saveAs", async (_e, id: string) => {
+		const story = readStory(id);
+		if (!story?.audio) throw new Error("This story has no audio.");
+		const ext = extname(story.audio).slice(1);
+		const res = await dialog.showSaveDialog(focused(), { defaultPath: `${story.title.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Story"}.${ext}`, filters: [{ name: "Audio", extensions: [ext] }] });
+		if (res.canceled || !res.filePath) return null;
+		writeFileSync(res.filePath, readFileSync(story.audio));
+		if (story.srt) writeFileSync(res.filePath.replace(/\.[^.\\/]+$/, "") + ".srt", readFileSync(story.srt));
+		return res.filePath;
+	});
 	ipcMain.handle("task:clone", (_e, taskId: string, name: string, recording: string, transcript?: string) => task(taskId, (p, s) => cloneVoice(loadSettings(), name, recording, p, s, transcript)));
 	ipcMain.handle("recording:save", (_e, bytes: Uint8Array) => saveRecording(bytes));
 	// macOS asks once for the microphone; afterwards it's on/off in System Settings → Privacy → Microphone.

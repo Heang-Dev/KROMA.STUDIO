@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Film, Library, Minimize2, Shapes, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
+import { BookOpenText, ChevronDown, Film, Library, Minimize2, Shapes, FilePlus, FolderOpen, Megaphone, Paintbrush, Redo2, Save, Settings, Sparkles, TriangleAlert, Undo2, Upload, Volume2, Zap } from "lucide-react";
 import { AIPanel } from "./components/AIPanel";
 import { AppToaster } from "./components/AppToaster";
 import { MediaPanel } from "./components/MediaPanel";
@@ -13,6 +13,7 @@ import { SubtitleList } from "./components/SubtitleList";
 import { Timeline, deleteSelection, splitAtPlayhead } from "./components/Timeline";
 import { VoicePanel } from "./components/VoicePanel";
 import { VoicesPage } from "./components/VoicesPage";
+import { StoryPage } from "./components/StoryPage";
 import { UpdateNotice } from "./components/UpdateButton";
 import { ExportMenu, StepBar } from "./components/StepBar";
 import { IconButton, ProgressBar, latestTask } from "./components/common";
@@ -117,9 +118,11 @@ export function App() {
 				) : (
 					<>
 						<div className="flex min-h-0 flex-1">
-							<Rail panel={view === "voices" ? null : panel} voices={view === "voices"} />
+							<Rail panel={view === "editor" ? panel : null} page={view === "voices" || view === "story" ? view : null} />
 							{view === "voices" ? (
 								<VoicesPage />
+							) : view === "story" ? (
+								<StoryPage />
 							) : (
 								<>
 									<div className="relative shrink-0 border-r bg-sidebar" style={{ width: leftWidth }}>
@@ -140,8 +143,8 @@ export function App() {
 								</>
 							)}
 						</div>
-						{view !== "voices" && <Timeline />}
-						{view !== "voices" && <StepBar />}
+						{view === "editor" && <Timeline />}
+						{view === "editor" && <StepBar />}
 					</>
 				)}
 				<AppToaster />
@@ -151,8 +154,8 @@ export function App() {
 	);
 }
 
-/** The left menu: the editor's tools, then the libraries (Voices), then Settings. */
-function Rail({ panel, voices }: { panel: Panel | null; voices: boolean }) {
+/** The left menu: the editor's tools, then the studios (Voices, Story), then Settings. */
+function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" | null }) {
 	const item = (key: string, label: string, icon: ReactNode, active: boolean, onClick: () => void) => (
 		<button
 			key={key}
@@ -177,12 +180,10 @@ function Rail({ panel, voices }: { panel: Panel | null; voices: boolean }) {
 		<nav className="flex w-[60px] shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-2" aria-label="Menu">
 			{PANELS.map((p) => item(p.id, p.label, p.icon, panel === p.id, () => openPanel(p.id)))}
 			<div className="my-1 h-px w-8 bg-border" />
-			{item("voices", "Voices", <Library />, voices, () => useEditor.getState().openVoices())}
-			<div className="mt-auto">
-				<IconButton label="Settings" shortcut="⌘," onClick={() => useEditor.getState().openSettings()}>
-					<Settings />
-				</IconButton>
-			</div>
+			{item("voices", "Voices", <Library />, page === "voices", () => useEditor.getState().openVoices())}
+			{item("story", "Story", <BookOpenText />, page === "story", () => useEditor.getState().openStory())}
+			{/* Same style as the other menu items (icon over label), pinned to the bottom. */}
+			<div className="mt-auto">{item("settings", "Settings", <Settings />, false, () => useEditor.getState().openSettings())}</div>
 		</nav>
 	);
 }

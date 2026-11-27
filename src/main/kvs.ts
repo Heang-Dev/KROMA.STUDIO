@@ -27,7 +27,7 @@ interface EngineJob {
 const base = (settings: Settings) => settings.kvsUrl.replace(/\/$/, "");
 const headers = (settings: Settings): Record<string, string> => (settings.kvsToken ? { Authorization: `Bearer ${settings.kvsToken}` } : {});
 
-async function call<T>(settings: Settings, path: string, init: RequestInit = {}, timeoutMs = 20_000): Promise<T> {
+export async function call<T>(settings: Settings, path: string, init: RequestInit = {}, timeoutMs = 20_000): Promise<T> {
 	let response: Response;
 	try {
 		response = await fetch(`${base(settings)}${path}`, { ...init, headers: { ...headers(settings), ...(init.headers as Record<string, string>) }, signal: init.signal ?? AbortSignal.timeout(timeoutMs) });
@@ -52,7 +52,7 @@ export async function kvsStatus(settings: Settings): Promise<KvsStatus> {
 	}
 }
 
-async function submit(settings: Settings, kind: string, params: object, files: Record<string, string>, signal?: AbortSignal): Promise<EngineJob> {
+export async function submit(settings: Settings, kind: string, params: object, files: Record<string, string>, signal?: AbortSignal): Promise<EngineJob> {
 	const form = new FormData();
 	form.append("kind", kind);
 	form.append("params", JSON.stringify(params));
@@ -61,7 +61,7 @@ async function submit(settings: Settings, kind: string, params: object, files: R
 }
 
 /** Follows a job until it ends, reporting the engine's own progress. */
-async function follow(settings: Settings, id: string, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<EngineJob> {
+export async function follow(settings: Settings, id: string, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<EngineJob> {
 	for (;;) {
 		if (signal?.aborted) {
 			await call(settings, `/jobs/${id}`, { method: "DELETE" }).catch(() => undefined);
@@ -76,7 +76,7 @@ async function follow(settings: Settings, id: string, onProgress: (p: number, m:
 	}
 }
 
-async function download(settings: Settings, id: string, name: string, to: string): Promise<void> {
+export async function download(settings: Settings, id: string, name: string, to: string): Promise<void> {
 	const response = await fetch(`${base(settings)}/jobs/${id}/files/${encodeURIComponent(name)}`, { headers: headers(settings) });
 	if (!response.ok) throw new Error(`Couldn't fetch ${name} from the voice engine.`);
 	writeFileSync(to, Buffer.from(await response.arrayBuffer()));
@@ -248,7 +248,7 @@ export async function cloneVoice(
 // ── Speaking ──
 
 /** "kvs-clone:<id>" or "kvs-design:<preset name>" → the engine's voice spec (+ the reference file to upload). */
-function voiceSpec(voice: string, presets: { name: string; description: string }[]): { spec: object; files: Record<string, string>; key: string } {
+export function voiceSpec(voice: string, presets: { name: string; description: string }[]): { spec: object; files: Record<string, string>; key: string } {
 	if (voice.startsWith("kvs-clone:")) {
 		const id = voice.slice(10);
 		const dir = join(VOICES_DIR, id);
