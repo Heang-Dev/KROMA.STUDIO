@@ -127,7 +127,7 @@ export function SettingsPage() {
 					</Button>
 				</header>
 				<div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-					<div className="mx-auto flex w-full max-w-[620px] flex-col gap-7 px-8 pt-6 pb-24">{settings && <Section settings={settings} save={save} />}</div>
+					<div className="mx-auto flex w-full max-w-[820px] flex-col gap-7 px-8 pt-6 pb-24">{settings && <Section settings={settings} save={save} />}</div>
 				</div>
 			</div>
 		</div>

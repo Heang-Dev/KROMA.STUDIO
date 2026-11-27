@@ -57,6 +57,9 @@ const api = {
 	voiceOver: (taskId: string, lines: { id: string; text: string }[], voice: string, rate: number): Promise<Record<string, VoiceLine>> =>
 		ipcRenderer.invoke("task:voice", taskId, lines, voice, rate),
 	kvsStatus: (): Promise<KvsStatus> => ipcRenderer.invoke("kvs:status"),
+	kvsStart: (): Promise<KvsStatus> => ipcRenderer.invoke("kvs:start"),
+	kvsStop: (): Promise<void> => ipcRenderer.invoke("kvs:stop"),
+	kvsShowLog: (): Promise<void> => ipcRenderer.invoke("kvs:engineLog"),
 	kvsVoices: (): Promise<KvsVoice[]> => ipcRenderer.invoke("kvs:voices"),
 	kvsImportable: (): Promise<{ kvsId: number; name: string; kind: "preset" | "clone"; seconds: number; transcript: string; imported: boolean }[]> => ipcRenderer.invoke("kvs:importable"),
 	kvsImport: (ids: number[]): Promise<number> => ipcRenderer.invoke("kvs:import", ids),

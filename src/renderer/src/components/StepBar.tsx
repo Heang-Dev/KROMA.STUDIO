@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { type Panel, useEditor } from "@/state/store";
 import { latestTask } from "./common";
 import { UpdateStatus } from "./UpdateButton";
+import { EngineStatusItem } from "./EngineStatus";
 
 // The whole job, start to end: Video → Subtitles → Khmer → Voices → Style → Export, in a slim status bar along the
 // bottom of the window (like Orca's). Each step shows whether it's done and opens its panel; "Next" always points at the
@@ -112,7 +113,9 @@ export function StepBar() {
 				)}
 			</span>
 			<span className="flex-1" />
-			<span className="shrink-0">
+			<span className="flex shrink-0 items-center gap-1">
+				<EngineStatusItem />
+				<span className="h-3 w-px bg-border" aria-hidden />
 				<UpdateStatus />
 			</span>
 		</nav>

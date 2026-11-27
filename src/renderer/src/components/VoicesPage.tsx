@@ -42,7 +42,7 @@ export function VoicesPage() {
 	return (
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
 			<div className="min-h-0 flex-1 overflow-y-auto">
-				<div className="mx-auto w-full max-w-6xl space-y-6 px-8 pt-6 pb-24">
+				<div className="mx-auto w-full max-w-[1600px] space-y-6 px-8 pt-6 pb-24">
 					<div className="flex flex-wrap items-start justify-between gap-4">
 						<div>
 							<h1 className="text-xl font-semibold">My voices</h1>
@@ -156,7 +156,7 @@ function LibrarySection({ icon, title, description, children }: { icon: React.Re
 				</h2>
 				<p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
 			</div>
-			<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{children}</div>
+			<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{children}</div>
 		</section>
 	);
 }

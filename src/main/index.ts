@@ -19,6 +19,7 @@ import { transcribe } from "./transcribe";
 import { importKvsVoices, kvsImportable, cloneVoice, deleteKvsVoice, kvsSamplePath, kvsStatus, listKvsVoices, makePresetVoice, presetVoice, saveRecording, speakWithKvs, syncKvsPresets } from "./kvs";
 import { removeVoices, type SeparationQuality } from "./separate";
 import { deleteStory, listStories, readStory, tellStory } from "./story";
+import { cannotStart, engineLog, engineStartedByKroma, isLocalEngine, startEngine, stopEngine } from "./engine";
 import { instantSample, synthesizeLines } from "./voice";
 import { type CharacterLine, type VoiceChoice, findCharacters } from "./characters";
 import { checkForUpdates, downloadUpdate, installUpdate, startUpdater, updateState } from "./updater";
@@ -220,7 +221,13 @@ function registerIpc(): void {
 	);
 	ipcMain.handle("voice:sample", (_e, voice: string, rate: number) => (isKvsVoice(voice) ? kvsSamplePath(voice) : instantSample(voice, rate)));
 	ipcMain.handle("task:presetVoice", (_e, taskId: string, name: string) => task(taskId, (p, s) => presetFromKvsOrDesign(name, p, s)));
-	ipcMain.handle("kvs:status", () => kvsStatus(loadSettings()));
+	ipcMain.handle("kvs:status", async () => {
+		const settings = loadSettings();
+		return { ...(await kvsStatus(settings)), local: isLocalEngine(settings.kvsUrl), cannotStart: cannotStart(settings), startedByKroma: engineStartedByKroma() };
+	});
+	ipcMain.handle("kvs:start", () => startEngine(loadSettings()));
+	ipcMain.handle("kvs:stop", () => stopEngine());
+	ipcMain.handle("kvs:engineLog", () => shell.showItemInFolder(engineLog()));
 	// Every look at the library first brings over KVS's preset samples (at most every 20 s), so both apps sound the same.
 	let synced = 0;
 	ipcMain.handle("kvs:voices", async () => {
@@ -419,6 +426,8 @@ app.whenReady().then(() => {
 	buildMenu();
 	createWindow();
 	startUpdater(() => loadSettings().autoUpdate);
+	// "Start the engine with Kroma" (Settings → Voice Engine): quietly, so a missing setup never gets in the way.
+	if (loadSettings().kvsAutoStart && !testRun) void startEngine(loadSettings()).catch(() => undefined);
 	// Right-click the Dock icon (Mac) or the taskbar button (Windows) → New Window.
 	// From source (bun run dev) the Dock would show Electron's own icon; the installed app has Kroma's in its bundle.
 	if (!app.isPackaged && process.platform === "darwin") {
@@ -431,6 +440,9 @@ app.whenReady().then(() => {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});
 });
+
+// An engine Kroma started stops with Kroma.
+app.on("will-quit", () => stopEngine());
 
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();

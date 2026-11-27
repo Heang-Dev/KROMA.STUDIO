@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { AudioLines, CircleCheck, CircleX, Download, RefreshCw, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
+import { AudioLines, CircleCheck, CircleX, Download, Loader2, Power, RefreshCw, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
 import { type Appearance, type KvsStatus, type PostAccount, type PostProfile, type PublishPlatform, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { keyCaps } from "@/lib/platform";
 import { applyAppearance } from "@/lib/appearance";
+import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { useUpdateState } from "../UpdateButton";
 import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented, SwitchRow } from "../common";
@@ -180,9 +181,34 @@ function SpeechSection({ settings, save }: SectionProps) {
 	);
 }
 
+const LOCAL_ENGINE = "http://127.0.0.1:7861";
+const COLAB_NOTEBOOK = "engine/colab/KhmerVoiceStudio_Colab.ipynb";
+const isLocal = (url: string) => /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?\/?$/i.test(url.trim());
+const deviceName = (device?: string) => (device === "cuda" ? "a GPU" : device === "mps" ? "this Mac's Apple GPU" : device === "cpu" ? "this computer's processor (slow)" : (device ?? "unknown"));
+
+/** A numbered step in a how-to list. */
+function Step({ n, title, children }: { n: number; title: string; children?: React.ReactNode }) {
+	return (
+		<div className="flex gap-3 py-3">
+			<span className="flex size-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-medium tabular-nums">{n}</span>
+			<div className="min-w-0 flex-1 space-y-1.5">
+				<p className="text-[13px]">{title}</p>
+				{children && <div className="text-xs leading-relaxed text-muted-foreground">{children}</div>}
+			</div>
+		</div>
+	);
+}
+
+/**
+ * The Khmer Voice Studio engine: what it is, whether it's on, and how to turn it on (Start here, or a Colab GPU).
+ * Kroma can start it on this computer from the KVS folder; see src/main/engine.ts.
+ */
 function VoiceEngineSection({ settings, save }: SectionProps) {
 	const [status, setStatus] = useState<KvsStatus | null>(null);
 	const [checking, setChecking] = useState(false);
+	const [starting, setStarting] = useState(false);
+	const [startError, setStartError] = useState<string | null>(null);
+	const local = isLocal(settings.kvsUrl);
 	const check = () => {
 		setChecking(true);
 		void window.kroma
@@ -190,68 +216,167 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 			.then(setStatus)
 			.finally(() => setChecking(false));
 	};
-	useEffect(check, [settings.kvsUrl, settings.hasKvsToken]);
+	useEffect(check, [settings.kvsUrl, settings.hasKvsToken, settings.kvsProjectDir]);
+
+	const start = async () => {
+		setStarting(true);
+		setStartError(null);
+		try {
+			await window.kroma.kvsStart();
+			useEditor.getState().showToast("The voice engine is on");
+		} catch (e) {
+			setStartError((e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, ""));
+		} finally {
+			setStarting(false);
+			check();
+		}
+	};
+	const stop = async () => {
+		await window.kroma.kvsStop();
+		setTimeout(check, 800);
+	};
+
+	const online = status?.online ?? false;
+	const notInstalled = status?.cannotStart?.includes("make engine-setup");
 
 	return (
 		<>
-			<Group title="Khmer Voice Studio engine" description="Your KVS engine gives Kroma cloned voices (from a short recording) and designed voices (storyteller, news anchor, children…). It needs a GPU to be quick: run it on a free Google Colab GPU, or on this computer if you don't mind waiting.">
+			<Group title="Voice engine" description="The engine makes Kroma's Khmer voices: your cloned voices, the preset voices (storyteller, news anchor, children…) and Story studio. It's part of Khmer Voice Studio and runs on this computer or on a free Google Colab GPU.">
 				<Card>
-					<Row
-						label="Status"
-						description={
-							status === null
-								? "Checking…"
-								: status.online
-									? `Online · ${status.device === "cuda" ? "GPU" : status.device === "mps" ? "this computer (slower)" : (status.device ?? "")} · ${status.presets.length} designed voices${status.busy ? ` · ${status.busy} job(s) running` : ""}`
-									: status.error
-						}
-						control={
-							<span className="flex items-center gap-2">
-								{status?.online ? <CircleCheck className="size-4 text-success" /> : status ? <CircleX className="size-4 text-destructive" /> : null}
-								<Button variant="outline" size="sm" disabled={checking} onClick={check}>
-									<RefreshCw className={checking ? "animate-spin" : ""} /> Check
+					<div className="flex flex-wrap items-center gap-3 py-3.5">
+						<span className={cn("size-2.5 shrink-0 rounded-full", status === null || starting ? "animate-pulse bg-muted-foreground" : online ? "bg-success" : "bg-destructive")} aria-hidden />
+						<div className="min-w-0 flex-1">
+							<p className="text-[13px] font-medium">{status === null ? "Checking…" : starting ? "Starting the engine…" : online ? "On" : "Off"}</p>
+							<p className="text-xs leading-relaxed text-muted-foreground">
+								{starting
+									? "The first start loads the voice model and can take up to a minute."
+									: online
+										? `Running on ${deviceName(status?.device)} · ${status?.presets.length ?? 0} preset voices${status?.busy ? ` · ${status.busy} job(s) running` : ""}${status?.startedByKroma ? " · started by Kroma, stops when Kroma quits" : ""}`
+										: status === null
+											? ""
+											: local
+												? "Not running. Press Start to turn it on."
+												: "Kroma can't reach your Colab engine. Check that the notebook is still running, and its address and token below."}
+							</p>
+						</div>
+						<span className="flex shrink-0 gap-2">
+							{!online && local && (
+								<Button size="sm" disabled={starting || Boolean(status?.cannotStart)} onClick={() => void start()} title={status?.cannotStart ?? undefined}>
+									{starting ? <Loader2 className="animate-spin" /> : <Power />} {starting ? "Starting…" : "Start engine"}
 								</Button>
-							</span>
-						}
-					/>
-					<Row label="Engine address" description="On this computer it's http://127.0.0.1:7861. Colab prints an https://….trycloudflare.com address." control={<DraftInput className="w-72" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />} />
-					<KeyRow label="Token" saved={settings.hasKvsToken} placeholder="Only needed for Colab" onSave={(v) => save({ kvsToken: v })} />
+							)}
+							{online && status?.startedByKroma && (
+								<Button variant="outline" size="sm" onClick={() => void stop()}>
+									<Power /> Stop
+								</Button>
+							)}
+							<Button variant="outline" size="sm" disabled={checking || starting} onClick={check}>
+								<RefreshCw className={checking ? "animate-spin" : ""} /> Check
+							</Button>
+						</span>
+					</div>
+					{!online && local && status?.cannotStart && !starting && (
+						<p className="py-2.5 text-xs leading-relaxed text-warning">
+							{notInstalled ? (
+								<>
+									The engine isn't installed yet. Open Terminal and run this once (a few minutes):
+									<code className="mt-1.5 block rounded-md bg-muted px-2 py-1.5 font-mono text-[11px] text-foreground select-text">
+										cd "{settings.kvsProjectDir}" && make engine-setup
+									</code>
+								</>
+							) : (
+								status.cannotStart
+							)}
+						</p>
+					)}
+					{startError && (
+						<p className="flex flex-wrap items-center gap-2 py-2.5 text-xs text-destructive">
+							{startError}
+							<Button variant="ghost" size="xs" onClick={() => void window.kroma.kvsShowLog()}>
+								Show the log
+							</Button>
+						</p>
+					)}
 				</Card>
 			</Group>
-			<Group title="Starting the engine" description="The engine is part of Khmer Voice Studio, a separate project you run yourself.">
-				<Card>
-					<Row label="On a free Colab GPU (fast)" description="Open Khmer Voice Studio's Colab notebook (engine/colab/KhmerVoiceStudio_Colab.ipynb in its folder) in Google Colab, choose a T4 GPU, run the cells, then paste the address and token it prints here." />
-					<Row label="On this computer (slower)" description={<span>In your Khmer Voice Studio folder run <span className="font-mono">make engine</span>. The first time downloads the voice model (about 5 GB).</span>} />
-				</Card>
+
+			<Group title="Where it runs">
+				<Segmented
+					label="Where the engine runs"
+					equalWidth
+					value={local ? "here" : "colab"}
+					options={[
+						{ value: "here", label: "This computer" },
+						{ value: "colab", label: "Google Colab (free GPU)" },
+					]}
+					onChange={(where) => {
+						if (where === "here" && !local) void save({ kvsUrl: LOCAL_ENGINE });
+						if (where === "colab" && local) void save({ kvsUrl: "https://" });
+					}}
+				/>
+				{local ? (
+					<Card>
+						<Row
+							label="Khmer Voice Studio folder"
+							description={settings.kvsProjectDir ? <span className="font-mono break-all">{settings.kvsProjectDir}</span> : "Choose the folder where Khmer Voice Studio is. Kroma starts the engine from it."}
+							control={<KvsFolderButtons settings={settings} save={save} />}
+						/>
+						<SwitchRow label="Start the engine with Kroma" description="Turns the engine on each time you open Kroma, so voices are ready when you need them." checked={settings.kvsAutoStart} onChange={(v) => void save({ kvsAutoStart: v })} />
+						<Row
+							label="Good to know"
+							description="On a Mac the engine uses the Apple GPU: fine for short lines, slower for long stories (Colab is several times faster). The very first start downloads the voice model, about 5 GB. An engine Kroma starts stops when Kroma quits."
+						/>
+					</Card>
+				) : (
+					<Card>
+						<Step n={1} title="Open the notebook in Google Colab">
+							In your Khmer Voice Studio folder it's <span className="font-mono">{COLAB_NOTEBOOK}</span>. In Colab: File → Upload notebook.
+						</Step>
+						<Step n={2} title="Choose a GPU and run it">Runtime → Change runtime type → T4 GPU, then Runtime → Run all. The last cell prints an address and a token.</Step>
+						<Step n={3} title="Paste them here">
+							<div className="space-y-2 pt-1">
+								<DraftInput className="w-full" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />
+							</div>
+						</Step>
+						<KeyRow label="Token" saved={settings.hasKvsToken} placeholder="The token Colab printed" onSave={(v) => save({ kvsToken: v })} />
+					</Card>
+				)}
 			</Group>
-			<Group title="Import from Khmer Voice Studio" description="If you also run the KVS dashboard on this computer, choose its folder to bring its voices into Kroma (Voices → Import from KVS). Leave it empty otherwise.">
-				<Card>
-					<Row
-						label="Khmer Voice Studio folder"
-						description={settings.kvsProjectDir ? <span className="font-mono break-all">{settings.kvsProjectDir}</span> : "Not set: importing from KVS is off."}
-						control={
-							<span className="flex gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={async () => {
-										const picked = await window.kroma.chooseFolder(settings.kvsProjectDir);
-										if (picked) await save({ kvsProjectDir: picked });
-									}}
-								>
-									<FolderOpen /> Choose…
-								</Button>
-								{settings.kvsProjectDir && (
-									<Button variant="ghost" size="sm" onClick={() => void save({ kvsProjectDir: "" })}>
-										Clear
-									</Button>
-								)}
-							</span>
-						}
-					/>
-				</Card>
+
+			<Group title="Your Khmer Voice Studio voices" description="Voices you made in the Khmer Voice Studio dashboard can come into Kroma: open Voices → Import from KVS. It reads them from the folder above.">
+				{!local && (
+					<Card>
+						<Row
+							label="Khmer Voice Studio folder"
+							description={settings.kvsProjectDir ? <span className="font-mono break-all">{settings.kvsProjectDir}</span> : "Not set: importing from KVS is off."}
+							control={<KvsFolderButtons settings={settings} save={save} />}
+						/>
+					</Card>
+				)}
 			</Group>
 		</>
+	);
+}
+
+function KvsFolderButtons({ settings, save }: SectionProps) {
+	return (
+		<span className="flex gap-2">
+			<Button
+				variant="outline"
+				size="sm"
+				onClick={async () => {
+					const picked = await window.kroma.chooseFolder(settings.kvsProjectDir);
+					if (picked) await save({ kvsProjectDir: picked });
+				}}
+			>
+				<FolderOpen /> {settings.kvsProjectDir ? "Change…" : "Choose…"}
+			</Button>
+			{settings.kvsProjectDir && (
+				<Button variant="ghost" size="sm" onClick={() => void save({ kvsProjectDir: "" })}>
+					Clear
+				</Button>
+			)}
+		</span>
 	);
 }
 

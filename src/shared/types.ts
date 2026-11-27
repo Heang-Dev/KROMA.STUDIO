@@ -229,8 +229,10 @@ export interface Settings {
 	/** Khmer Voice Studio engine (cloned / designed voices): its address and optional token. */
 	kvsUrl: string;
 	kvsToken: string;
-	/** The Khmer Voice Studio project folder, for importing its voices. */
+	/** The Khmer Voice Studio project folder: Kroma starts its engine from there and imports its voices. */
 	kvsProjectDir: string;
+	/** Start the engine on this computer when Kroma opens (when the address is this computer). */
+	kvsAutoStart: boolean;
 	/** Light, dark, or follow the Mac. */
 	theme: Appearance;
 	/** Interface zoom, like a browser's ⌘+ / ⌘−: 1 = 100 %. */
@@ -252,6 +254,10 @@ export type AsrProvider = "gemini" | "whisper";
 
 export interface KvsStatus {
 	online: boolean;
+	/** Set by kvs:status: whether Kroma can start the engine here, why not, and whether Kroma started the one running. */
+	local?: boolean;
+	cannotStart?: string | null;
+	startedByKroma?: boolean;
 	device?: string;
 	busy?: number;
 	error?: string;
@@ -397,6 +403,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	downloadDir: "",
 	kvsUrl: "http://127.0.0.1:7861",
 	kvsProjectDir: "",
+	kvsAutoStart: false,
 	kvsToken: "",
 	theme: "dark",
 	uiZoom: 0.9,	postKey: "",
