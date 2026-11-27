@@ -36,8 +36,11 @@ import {
 } from "@shared/downloads";
 import { downloadErrorMessage } from "@shared/links";
 import type { MediaItem, Project } from "@shared/types";
+import type { StoredAction } from "@shared/notify";
 import { defaultDownloadDir, formatFor, LIBRARY_DIR, PROGRESS_ARGS, SUB_ARGS, ytdlpCommon } from "./download";
 import { probe } from "./media";
+import { createBatchTracker } from "@shared/notify";
+import { notifyFromMain } from "./notify";
 import { loadSettings } from "./settings";
 import { mapLimit, requireTool, run } from "./tools";
 
@@ -287,6 +290,7 @@ async function download(item: DownloadItem): Promise<void> {
 			patch(item.id, { progress: -1, message: "Making the project…" });
 			projectPath = ensureProject({ ...item, title: result.title }, result.media);
 		} else projectPath = findProject(item);
+		if (!result.skipped) finished(true, result.title || item.title, projectPath ? { kind: "openProject", path: projectPath } : result.media ? { kind: "showFile", path: result.media.path } : undefined);
 		patch(item.id, {
 			status: result.skipped ? "skipped" : "done",
 			progress: 1,
@@ -302,6 +306,7 @@ async function download(item: DownloadItem): Promise<void> {
 			if (state.items.some((i) => i.id === item.id)) patch(item.id, { status: "cancelled", progress: 0, message: undefined, speed: undefined, secondsLeft: undefined });
 		} else {
 			patch(item.id, { status: "failed", progress: 0, error: downloadErrorMessage(raw), message: undefined, speed: undefined, secondsLeft: undefined });
+			finished(false, item.title, undefined, downloadErrorMessage(raw));
 			// More downloads now would only make the site stricter: stop starting new ones until you resume.
 			if (isRateLimited(raw)) {
 				state = { ...state, paused: true, pauseReason: "The site wants a break (too many downloads in a row). Wait a while (Bilibili: a few minutes, YouTube: up to an hour) and press Resume, or turn on browser logins in Settings → Downloads." };
@@ -311,7 +316,27 @@ async function download(item: DownloadItem): Promise<void> {
 	} finally {
 		running.delete(item.id);
 		pump();
+		endOfRun();
 	}
+}
+
+// ── Notifications: one per video (only the first few as system notifications), and a summary for a big run ──
+
+const batch = createBatchTracker(3);
+
+function finished(ok: boolean, title: string, action: StoredAction | undefined, error?: string): void {
+	const { system } = batch.item(ok);
+	const name = title.length > 60 ? `${title.slice(0, 59)}…` : title;
+	if (ok) notifyFromMain({ tone: "success", kind: "downloads", title: `Downloaded ${name}`, action, system });
+	else notifyFromMain({ tone: "error", kind: "downloads", title: `Download failed: ${name}`, detail: error, action: { kind: "view", view: "downloads" }, system });
+}
+
+/** When nothing is downloading and nothing more will start (the queue is empty, or paused), the run is over. */
+function endOfRun(): void {
+	if (!batch.count || running.size) return;
+	if (!state.paused && state.items.some((i) => i.status === "waiting")) return;
+	const summary = batch.finish();
+	if (summary) notifyFromMain({ ...summary, kind: "downloads", detail: state.paused ? "The queue is paused." : undefined, action: { kind: "view", view: "downloads" } });
 }
 
 /** Downloads one video with yt-dlp. `skipped`: the archive says it's done already (media is then the earlier file, if found). */

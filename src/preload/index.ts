@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { MainNotice, SystemNotice } from "@shared/notify";
 import type { DownloadCenterState, DownloadOptions, FilledTitle, ImportPick, ListedSource, ListedVideo } from "@shared/downloads";
 import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, StoryRecord, StoryRequest, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState } from "@shared/types";
 
@@ -118,6 +119,18 @@ const api = {
 		const handler = (_e: unknown, state: DownloadCenterState) => listener(state);
 		ipcRenderer.on("downloads:update", handler);
 		return () => ipcRenderer.off("downloads:update", handler);
+	},
+	// Notifications: a system notification (the main process checks the settings), entries from the main process, and clicks.
+	notifySystem: (notice: SystemNotice): Promise<boolean> => ipcRenderer.invoke("notify:system", notice),
+	onNotice: (listener: (notice: MainNotice) => void): (() => void) => {
+		const handler = (_e: unknown, notice: MainNotice) => listener(notice);
+		ipcRenderer.on("notify:entry", handler);
+		return () => ipcRenderer.off("notify:entry", handler);
+	},
+	onNoticeClicked: (listener: (id: string) => void): (() => void) => {
+		const handler = (_e: unknown, id: string) => listener(id);
+		ipcRenderer.on("notify:clicked", handler);
+		return () => ipcRenderer.off("notify:clicked", handler);
 	},
 	autosave: (project: Project, path: string | null): Promise<void> => ipcRenderer.invoke("autosave:write", project, path),
 	readAutosave: (): Promise<{ project: Project; path: string | null } | null> => ipcRenderer.invoke("autosave:read"),

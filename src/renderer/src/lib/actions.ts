@@ -3,6 +3,7 @@ import { toSrt } from "@shared/srt";
 import { languageOf, languageOfVoice } from "@shared/languages";
 import { ASPECT_SIZE, type Cue, type ExportQuality, type PlatformCaption, type PublishPlatform, type PublishRequest, type PublishResult, DEFAULT_VOICE, type ExportRequest, KHMER_VOICES, KVS_TEMPLATES, isKvsVoice, type MediaItem, type Project, type SourceCue, type VoiceCue, type VoiceSettings } from "@shared/types";
 import { newProject, runTask, useEditor } from "@/state/store";
+import { notify } from "./notify";
 import { objectsForExport } from "./objects";
 import { ensureFonts, renderBandPng, subtitleBand } from "./subtitleRender";
 import { placeClips, placeSourceCues, totalDuration, uid } from "./timeline";
@@ -34,7 +35,7 @@ export async function importFiles(): Promise<void> {
 }
 
 export async function downloadFromLink(url: string): Promise<MediaItem | null> {
-	const result = await runTask(`download-${Date.now()}`, "Download", (id) => window.kroma.download(id, url.trim()));
+	const result = await runTask(`download-${Date.now()}`, "Download", (id) => window.kroma.download(id, url.trim()), { kind: "downloads", done: false, retry: () => downloadFromLink(url) });
 	if (!result) return null;
 	// The title from a pasted share message ("【…】 https://…") wins; otherwise the site's own title.
 	const title = extractShareTitle(url) ?? result.title;
@@ -43,7 +44,7 @@ export async function downloadFromLink(url: string): Promise<MediaItem | null> {
 	addMedia([result.media]);
 	if (firstVideo) state().update((p) => ({ ...p, name: title.slice(0, 80) }));
 	const subs = Object.keys(result.media.siteSubtitles ?? {});
-	state().showToast(subs.length ? `Downloaded, with the site's subtitles (${subs.join(", ")}).` : "Downloaded.");
+	notify({ kind: "downloads", tone: "success", title: `Downloaded ${short(title)}`, detail: subs.length ? `With the site's subtitles (${subs.join(", ")}).` : undefined });
 	return result.media;
 }
 
@@ -77,20 +78,27 @@ export async function getSubtitles(media: MediaItem, source: { kind: "site"; pat
 	let note: string | undefined;
 	if (source.kind === "site") cues = await window.kroma.readSubtitles(source.path);
 	else {
-		const answer = await runTask(`asr-${Date.now()}`, "Speech to text", (id) => window.kroma.transcribe(id, media.path, media.duration, source.language));
+		const answer = await runTask(`asr-${Date.now()}`, "Speech to text", (id) => window.kroma.transcribe(id, media.path, media.duration, source.language), {
+			kind: "subtitles",
+			done: false,
+			failed: "Speech to text failed",
+			retry: () => getSubtitles(media, source),
+		});
 		cues = answer?.cues ?? null;
 		note = answer?.note;
 	}
 	if (!cues) return false;
 	if (!cues.length) {
-		state().showToast("No speech was found.", "error");
+		if (source.kind === "cloud") notify({ kind: "subtitles", tone: "error", title: "No speech was found", detail: short(media.name) });
+		else state().showToast("No speech was found.", "error");
 		return false;
 	}
 	state().update((p) => {
 		const others = p.cues.filter((c) => !placeClips(p.clips).some((clip) => clip.mediaId === media.id && c.start >= clip.start && c.start < clip.end));
 		return { ...p, cues: [...others, ...placeSourceCues(cues, media.id, p.clips)] };
 	});
-	if (note) state().showToast(`${cues.length} subtitle lines ready, lower accuracy`, "error", note);
+	// Speech to text is long work (notified, kept in the history); the site's own subtitles load at once.
+	if (source.kind === "cloud") notify(note ? { kind: "subtitles", tone: "error", title: `${cues.length} subtitle lines ready, lower accuracy`, detail: note } : { kind: "subtitles", tone: "success", title: `${cues.length} subtitle lines ready`, detail: short(media.name) });
 	else state().showToast(`${cues.length} subtitle lines ready.`);
 	return true;
 }
@@ -105,14 +113,19 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 	const lang = languageOf(project.language);
 	const replacing = onlyMissing ? 0 : project.cues.filter((c) => c.source.trim() && c.text.trim()).length;
 	if (!confirmReplace(replacing, `Translate every line to ${lang.name} again?`)) return false;
-	const answer = await runTask(`translate-${Date.now()}`, `Translate to ${lang.name}`, (id) => window.kroma.translate(id, lines, project.context, lang.code));
+	const answer = await runTask(`translate-${Date.now()}`, `Translate to ${lang.name}`, (id) => window.kroma.translate(id, lines, project.context, lang.code), {
+		kind: "subtitles",
+		done: false,
+		failed: "Translation failed",
+		retry: () => translateCues(onlyMissing),
+	});
 	if (!answer) return false;
 	const result = answer.translations;
 	state().update((p) => ({ ...p, cues: p.cues.map((c) => (result[c.id] !== undefined ? { ...c, text: result[c.id] } : c)) }));
 	const missed = lines.length - Object.keys(result).length;
-	if (missed) state().showToast(`Translated ${lines.length - missed} of ${lines.length} lines`, "error", `${missed} need another try: press "Translate missing".`);
-	else if (answer.fallback) state().showToast(`Translated ${lines.length} lines to ${lang.name}`, "info", `Gemini was busy, so ${answer.fallback} lines used Google Translate. Press "Translate all" later for Gemini's better wording.`);
-	else state().showToast(`Translated ${lines.length} lines to ${lang.name}.`);
+	if (missed) notify({ kind: "subtitles", tone: "error", title: `Translated ${lines.length - missed} of ${lines.length} lines`, detail: `${missed} need another try.`, action: { label: "Translate missing", run: () => translateCues(true) } });
+	else if (answer.fallback) notify({ kind: "subtitles", tone: "success", title: `Translated ${lines.length} lines to ${lang.name}`, detail: `Gemini was busy, so ${answer.fallback} lines used Google Translate. Press "Translate all" later for Gemini's better wording.` });
+	else notify({ kind: "subtitles", tone: "success", title: `Translated ${lines.length} lines to ${lang.name}`, detail: short(project.name) });
 	return true;
 }
 
@@ -143,7 +156,10 @@ export async function exportVideo(quality: ExportQuality, quiet = false): Promis
 	const band = subtitleBand(project.style, frame);
 
 	const taskId = `export-${Date.now()}`;
-	const result = await runTask(taskId, "Export", async (id) => {
+	const result = await runTask(
+		taskId,
+		"Export",
+		async (id) => {
 		await ensureFonts();
 		const visible = project.cues.filter((c) => (c.text || c.source).trim());
 		const overlays: ExportRequest["overlays"] = [];
@@ -177,12 +193,15 @@ export async function exportVideo(quality: ExportQuality, quiet = false): Promis
 			objects: await objectsForExport(project, frame),
 			voice: voiceLines.length ? { lines: voiceLines, originalVolume: replacing ? (voice.backgroundVolume ?? 1) : voice.originalVolume } : undefined,
 		});
-	});
+		},
+		// Posting exports quietly and notifies once it's posted.
+		{ kind: "export", done: false, failed: quiet ? "Export for posting failed" : "Export failed", retry: quiet ? undefined : () => exportVideo(quality, quiet) },
+	);
 	if (!result) return null;
 	// Remember it, so posting can reuse this file while nothing in the video changes.
 	state().update((p) => ({ ...p, lastExport: { path: result, fingerprint: videoFingerprint(project) } }), false);
 	if (!quiet) {
-		state().showToast("Export finished", "info", result.replace(/^\/Users\/[^/]+/, "~"));
+		notify({ kind: "export", tone: "success", title: `Exported ${short(project.name)} · ${Math.min(frame.width, frame.height)}p`, detail: result.replace(/^\/Users\/[^/]+/, "~"), action: { kind: "showFile", path: result } });
 		void window.kroma.showInFolder(result);
 	}
 	return result;
@@ -331,12 +350,17 @@ export async function removeOriginalVoices(quality: "fast" | "best"): Promise<bo
 	}
 	const backgrounds: Record<string, string> = { ...(voiceSettings(project).backgrounds ?? {}) };
 	for (const media of used) {
-		const path = await runTask(`separate-${Date.now()}`, "Remove voices", (id) => window.kroma.removeVoices(id, media.path, media.duration, quality));
+		const path = await runTask(`separate-${Date.now()}`, "Remove voices", (id) => window.kroma.removeVoices(id, media.path, media.duration, quality), {
+			kind: "voices",
+			done: false,
+			failed: "Couldn't remove the original voices",
+			retry: () => removeOriginalVoices(quality),
+		});
 		if (!path) return false;
 		backgrounds[media.id] = path;
 	}
 	state().update((p) => ({ ...p, voice: { ...voiceSettings(p), removeVoices: true, separation: quality, backgrounds, enabled: true } }));
-	state().showToast("Original voices removed", "info", "The voice-over now plays over the music and effects only.");
+	notify({ kind: "voices", tone: "success", title: "Original voices removed", detail: "The voice-over now plays over the music and effects only." });
 	return true;
 }
 
@@ -360,7 +384,7 @@ export async function makeVoiceOver(): Promise<void> {
 		k += 1;
 		const who = voice.cast?.filter((c) => c.voice === v).map((c) => c.name).join(", ");
 		const label = groups.size > 1 ? `Voice-over ${k}/${groups.size}${who ? `: ${who}` : ""}` : "Voice-over";
-		const result = await runTask(`voice-${Date.now()}`, label, (id) => window.kroma.voiceOver(id, group, v, voice.rate));
+		const result = await runTask(`voice-${Date.now()}`, label, (id) => window.kroma.voiceOver(id, group, v, voice.rate), { kind: "voices", done: false, failed: `${label} failed`, retry: () => makeVoiceOver() });
 		if (!result) break;
 		voiced += Object.keys(result).length;
 		state().update((p) => {
@@ -371,7 +395,11 @@ export async function makeVoiceOver(): Promise<void> {
 	}
 	if (!voiced) return;
 	const missed = lines.length - voiced;
-	state().showToast(missed ? `Voiced ${voiced} lines; ${missed} not done. Press again to finish them.` : `Voiced ${voiced} lines.`, missed ? "error" : "info");
+	notify(
+		missed
+			? { kind: "voices", tone: "error", title: `Voiced ${voiced} of ${lines.length} lines`, detail: `${missed} not done yet.`, action: { label: "Finish them", run: () => makeVoiceOver() } }
+			: { kind: "voices", tone: "success", title: `Voice-over ready · ${voiced} lines`, detail: short(project.name) },
+	);
 	await removeVoicesUnlessOff();
 }
 
@@ -422,7 +450,12 @@ export async function findCharacters(): Promise<void> {
 	const all = castableVoices(project.language);
 	const kvs = isKvsVoice(voiceSettings(project).voice) && all.some((v) => isKvsVoice(v.id));
 	const voices = all.filter((v) => isKvsVoice(v.id) === kvs);
-	const result = await runTask(`characters-${Date.now()}`, "Find characters", (id) => window.kroma.findCharacters(id, lines, voices, project.context));
+	const result = await runTask(`characters-${Date.now()}`, "Find characters", (id) => window.kroma.findCharacters(id, lines, voices, project.context), {
+		kind: "voices",
+		done: false,
+		failed: "Couldn't find the characters",
+		retry: () => findCharacters(),
+	});
 	if (!result) return;
 	updateVoicing((p) => {
 		const current = voiceSettings(p);
@@ -430,7 +463,7 @@ export async function findCharacters(): Promise<void> {
 		const cast = result.characters.map((c) => ({ ...c, voice: current.cast?.find((x) => x.name === c.name)?.voice ?? c.voice }));
 		return { ...p, cues: p.cues.map((c) => ({ ...c, speaker: result.speakers[c.id] ?? c.speaker })), voice: { ...current, cast } };
 	});
-	state().showToast(`Found ${result.characters.length} character${result.characters.length === 1 ? "" : "s"}`, "info", "Each has a voice. Change any voice in the list, or who says a line in the subtitles.");
+	notify({ kind: "voices", tone: "success", title: `Found ${result.characters.length} character${result.characters.length === 1 ? "" : "s"}`, detail: "Each has a voice. Change any voice in the list, or who says a line in the subtitles." });
 }
 
 export function setCharacterVoice(name: string, voice: string): void {
@@ -530,7 +563,11 @@ export async function writePosts(): Promise<boolean> {
 		state().showToast(`Make the ${languageOf(project.language).name} subtitles first.`, "error");
 		return false;
 	}
-	const posts = await runTask(`captions-${Date.now()}`, "Write posts", (id) => window.kroma.captions(id, { transcript, title: project.name, context: project.context, language: project.language }));
+	const posts = await runTask(`captions-${Date.now()}`, "Write posts", (id) => window.kroma.captions(id, { transcript, title: project.name, context: project.context, language: project.language }), {
+		done: () => ({ kind: "export", tone: "success", title: "Posts written", detail: `YouTube, Facebook and TikTok · ${short(project.name)}` }),
+		failed: "Couldn't write the posts",
+		retry: () => writePosts(),
+	});
 	if (!posts) return false;
 	state().update((p) => ({ ...p, posts }));
 	return true;
@@ -595,13 +632,19 @@ export async function publishVideo(options: PublishOptions): Promise<void> {
 		tiktok: { caption: [tt.title, tt.description].filter(Boolean).join("\n").slice(0, 1800), tags: tt.hashtags, mode: options.tiktokMode },
 		idempotencyKey: `${videoFingerprint(project)}-${Date.now()}`,
 	};
-	const results = await runTask(`publish-${Date.now()}`, "Post", (id) => window.kroma.publish(id, req));
+	const results = await runTask(`publish-${Date.now()}`, "Post", (id) => window.kroma.publish(id, req), { kind: "export", done: false, failed: "Posting failed", retry: () => publishVideo(options) });
 	if (!results) return;
 	state().update((p) => ({ ...p, published: [...(p.published ?? []), { at: Date.now(), results }] }), false);
 	const failed = results.filter((r) => r.state === "failed");
 	const names = (rs: PublishResult[]) => rs.map((r) => PLATFORM_NAMES[r.platform]).join(", ");
-	if (failed.length) state().showToast(`Not posted to ${names(failed)}`, "error", failed[0].message ?? "See the Post panel for details.");
-	else state().showToast(`Posted to ${names(results)}`, "info", options.tiktokMode === "draft" && options.platforms.includes("tiktok") ? "TikTok: open the app and post it from your drafts." : undefined);
+	if (failed.length) notify({ kind: "export", tone: "error", title: `Not posted to ${names(failed)}`, detail: failed[0].message ?? "See the Post panel for details." });
+	else notify({ kind: "export", tone: "success", title: `Posted ${short(project.name)} to ${names(results)}`, detail: options.tiktokMode === "draft" && options.platforms.includes("tiktok") ? "TikTok: open the app and post it from your drafts." : undefined });
+}
+
+/** A name short enough for a notification title. */
+function short(text: string, max = 48): string {
+	const t = text.trim();
+	return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
 export const PLATFORM_NAMES: Record<PublishPlatform, string> = { youtube: "YouTube", facebook: "Facebook", tiktok: "TikTok" };

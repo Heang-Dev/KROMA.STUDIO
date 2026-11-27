@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { AudioLines, CircleCheck, CircleX, Download, Loader2, Power, RefreshCw, Trash2, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
+import { AudioLines, Bell, CircleCheck, CircleX, Download, Loader2, Power, RefreshCw, Trash2, ExternalLink, FolderOpen, HardDrive, Info, Keyboard, Languages, type LucideIcon, Mic, Palette, Send } from "lucide-react";
 import { type Appearance, type KvsStatus, type PostAccount, type PostProfile, type PublishPlatform, type Settings, type SettingsView, type TranslateProvider, UI_ZOOM_STEPS } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { keyCaps } from "@/lib/platform";
 import { applyAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 import { runTask, useEditor } from "@/state/store";
+import { notify, setNotifyPrefs } from "@/lib/notify";
+import { useNotifications } from "@/state/notifications";
 import { useUpdateState } from "../UpdateButton";
 import { refreshEngineStatus } from "../EngineStatus";
 import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented, SwitchRow, TaskProgress, useBusy } from "../common";
@@ -40,6 +42,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
 	{ id: "downloads", group: "Media", title: "Downloads", icon: Download, keywords: "yt-dlp cookies browser login bilibili douyin youtube 1080p", component: DownloadsSection },
 	{ id: "folders", group: "Media", title: "Folders", icon: HardDrive, keywords: "export folder save location downloads library finder path", component: FoldersSection },
 	{ id: "appearance", group: "Interface", title: "Appearance", icon: Palette, keywords: "theme dark light system mac zoom size scale bigger smaller interface", component: AppearanceSection },
+	{ id: "notifications", group: "Interface", title: "Notifications", icon: Bell, keywords: "notify notification alert background finished failed sound bell banner", component: NotificationsSection },
 	{ id: "shortcuts", group: "Interface", title: "Shortcuts", icon: Keyboard, keywords: "keyboard keys split undo play", component: ShortcutsSection },
 	{ id: "about", group: "Kroma", title: "About", icon: Info, keywords: "version ffmpeg yt-dlp tools", component: AboutSection },
 ];
@@ -226,18 +229,23 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 
 	const install = async () => {
 		setStartError(null);
-		const done = await runTask(`engine-install-${Date.now()}`, "Install the voice engine", (id) => window.kroma.installEngine(id));
+		await runTask(`engine-install-${Date.now()}`, "Install the voice engine", (id) => window.kroma.installEngine(id), {
+			kind: "voices",
+			done: () => ({ tone: "success", title: "The voice engine is installed", detail: "Press Start to turn it on. The first start downloads the voice model (about 5 GB).", action: { kind: "view", view: "settings", section: "voice-engine" } }),
+			failed: "Couldn't install the voice engine",
+			retry: () => install(),
+		});
 		check();
-		if (done !== null) useEditor.getState().showToast("The voice engine is installed", "info", "Press Start to turn it on. The first start downloads the voice model (about 5 GB).");
 	};
 	const start = async () => {
 		setStarting(true);
 		setStartError(null);
 		try {
 			await window.kroma.kvsStart();
-			useEditor.getState().showToast("The voice engine is on");
+			notify({ kind: "voices", tone: "success", title: "The voice engine is on" });
 		} catch (e) {
 			setStartError(cleanError(e));
+			notify({ kind: "voices", tone: "error", title: "Couldn't start the voice engine", detail: cleanError(e), action: { kind: "view", view: "settings", section: "voice-engine" } });
 		} finally {
 			setStarting(false);
 			check();
@@ -616,6 +624,67 @@ const APPEARANCES: { value: Appearance; label: string }[] = [
 	{ value: "light", label: "Light" },
 	{ value: "system", label: "System" },
 ];
+
+const NOTIFY_KINDS: { key: "notifyDownloads" | "notifySubtitles" | "notifyVoices" | "notifyExport" | "notifyUpdates"; label: string; description: string }[] = [
+	{ key: "notifyDownloads", label: "Downloads", description: "A video from a link, and every video in the Download Center." },
+	{ key: "notifySubtitles", label: "Subtitles & translation", description: "Speech to text and translation." },
+	{ key: "notifyVoices", label: "Voices & stories", description: "Voice-overs, characters, removing voices, stories, cloned voices, samples, and the voice engine." },
+	{ key: "notifyExport", label: "Export & posting", description: "Exported videos, written posts, and posting to YouTube, Facebook and TikTok." },
+	{ key: "notifyUpdates", label: "Updates", description: "A new version of Kroma is ready to install." },
+];
+
+function NotificationsSection({ settings, save }: SectionProps) {
+	const history = useNotifications((s) => s.entries.length);
+	// notify() follows these settings in this window straight away.
+	useEffect(() => setNotifyPrefs(settings), [settings]);
+	const test = () =>
+		notify({
+			tone: "success",
+			title: "Notifications work",
+			detail: settings.notifySystem ? "This is how Kroma tells you work is done." : "System notifications are off, so this only shows in Kroma.",
+			force: true,
+		});
+	return (
+		<>
+			<Group title="Notifications" description="When long work finishes or fails: a notice in Kroma, and a system notification while you're in another app. Everything also goes into the bell in the title bar.">
+				<Card>
+					<SwitchRow label="Notify me when Kroma is in the background" description="System notifications. Failures show one even while you're in Kroma." checked={settings.notifySystem} onChange={(v) => void save({ notifySystem: v })} />
+					<SwitchRow label="Play a sound" description="With each system notification." checked={settings.notifySound} onChange={(v) => void save({ notifySound: v })} />
+					<SwitchRow label="Only when something fails" description="Finished work then shows in the bell only, without a system notification." checked={settings.notifyOnlyErrors} onChange={(v) => void save({ notifyOnlyErrors: v })} />
+					<Row
+						label="Send a test notification"
+						description="Shows a system notification now, and adds it to the bell."
+						control={
+							<Button variant="outline" size="sm" onClick={test}>
+								<Bell /> Send test
+							</Button>
+						}
+					/>
+				</Card>
+			</Group>
+			<Group title="What to notify about" description="Switched off: no system notification, and no notice in Kroma when it worked (failures still show). It's still kept in the bell.">
+				<Card>
+					{NOTIFY_KINDS.map((k) => (
+						<SwitchRow key={k.key} label={k.label} description={k.description} checked={settings[k.key] !== false} onChange={(v) => void save({ [k.key]: v })} />
+					))}
+				</Card>
+			</Group>
+			<Group title="History">
+				<Card>
+					<Row
+						label="Notification history"
+						description={history ? `${history} notification${history === 1 ? "" : "s"} in the bell (the last 100 are kept).` : "Nothing in the bell yet."}
+						control={
+							<Button variant="outline" size="sm" disabled={!history} onClick={() => useNotifications.getState().clear()}>
+								<Trash2 /> Clear history
+							</Button>
+						}
+					/>
+				</Card>
+			</Group>
+		</>
+	);
+}
 
 function AppearanceSection({ settings, save }: SectionProps) {
 	return (

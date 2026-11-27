@@ -349,12 +349,13 @@ function MakeSample({ name, onMade, disabled }: { name: string; onMade: () => vo
 			onClick={async (e) => {
 				e.stopPropagation();
 				setBusy(true);
-				const made = await runTask(`preset-${Date.now()}`, `Make "${name}" sample`, (id) => window.kroma.makePresetVoice(id, name));
+				const made = await runTask(`preset-${Date.now()}`, `Make "${name}" sample`, (id) => window.kroma.makePresetVoice(id, name), {
+					kind: "voices",
+					done: () => ({ tone: "success", title: `"${name}" sample is ready`, detail: "Press ▶ to hear it." }),
+					failed: `Couldn't make the "${name}" sample`,
+				});
 				setBusy(false);
-				if (made) {
-					useEditor.getState().showToast(`"${name}" sample is ready`, "info", "Press ▶ to hear it.");
-					onMade();
-				}
+				if (made) onMade();
 			}}
 		>
 			{busy ? <Loader2 className="animate-spin" /> : <Wand2 />}
@@ -400,9 +401,12 @@ export function CloneDialog({ open, onOpenChange, onCloned }: { open: boolean; o
 
 	const clone = async () => {
 		if (!source) return;
-		const voice = await runTask(`clone-${Date.now()}`, "Clone voice", (id) => window.kroma.cloneVoice(id, name, source.path, source.transcript));
+		const voice = await runTask(`clone-${Date.now()}`, "Clone voice", (id) => window.kroma.cloneVoice(id, name, source.path, source.transcript), {
+			kind: "voices",
+			done: (v) => ({ tone: "success", title: `Voice "${v.name}" is ready`, action: { kind: "view", view: "voices" } }),
+			failed: `Couldn't clone "${name}"`,
+		});
 		if (voice) {
-			useEditor.getState().showToast(`Voice "${voice.name}" is ready.`);
 			onCloned(voice);
 			onOpenChange(false);
 		}

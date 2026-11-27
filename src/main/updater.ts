@@ -5,6 +5,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { BrowserWindow, app, shell } from "electron";
 import type { UpdateState } from "@shared/types";
+import { notifyFromMain } from "./notify";
 import { run } from "./tools";
 
 // Keeps Kroma up to date from its GitHub Releases (Heang-Dev/kroma), like Orca and Trae: it checks on start and every
@@ -27,7 +28,10 @@ let debFile: string | null = null;
 let autoUpdaterRef: typeof import("electron-updater").autoUpdater | null = null;
 
 function publish(next: Partial<UpdateState>): void {
+	const wasReady = state.status === "ready";
 	state = { ...state, ...next };
+	// Once per downloaded version: it's ready while you may be working in another app.
+	if (state.status === "ready" && !wasReady) notifyFromMain({ tone: "success", kind: "updates", title: state.version ? `Kroma ${state.version} is ready` : "An update is ready", detail: "Restart Kroma to update.", action: { kind: "installUpdate" } });
 	for (const w of BrowserWindow.getAllWindows()) w.webContents.send("update:state", state);
 }
 

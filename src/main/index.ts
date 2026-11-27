@@ -26,6 +26,8 @@ import { checkForUpdates, downloadUpdate, installUpdate, startUpdater, updateSta
 import { connectLink, ensureProfile, facebookPages, postAccount, postProfiles, publish } from "./publish";
 import { addDownloads, importProjects, pickImport, cancelDownload, clearFinished, downloadState, fetchTitles, listLinks, listPlatforms, listSource, removeDownload, retryDownload, retryFailed, setDownloadOptions, setDownloadsPaused, showDownload, startDownloadCenter, stopDownloads } from "./downloads";
 import type { DownloadOptions, ListedVideo } from "@shared/downloads";
+import type { SystemNotice } from "@shared/notify";
+import { showSystemNotice } from "./notify";
 
 // Media files are streamed to the editor through kroma://media/<path>, with Range support so long videos seek instantly.
 // The automated smoke test gets its own settings and autosave, so it never touches yours.
@@ -409,6 +411,8 @@ function registerIpc(): void {
 	ipcMain.handle("update:check", () => checkForUpdates(loadSettings().autoUpdate));
 	ipcMain.handle("update:download", () => downloadUpdate());
 	ipcMain.handle("update:install", () => installUpdate());
+	// Notifications (see notify.ts): the window decides when (in the background, or a failure); the settings decide whether.
+	ipcMain.handle("notify:system", (e, notice: SystemNotice) => showSystemNotice(notice, BrowserWindow.fromWebContents(e.sender)));
 	ipcMain.handle("file:exists", (_e, path: string) => existsSync(path));
 	ipcMain.handle("shell:show", (_e, path: string) => shell.showItemInFolder(path));
 	ipcMain.handle("shell:open", (_e, url: string) => {

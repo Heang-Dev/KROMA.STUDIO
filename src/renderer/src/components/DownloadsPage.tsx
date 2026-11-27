@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Check, CircleAlert, CircleCheck, Clock, Download, FileInput, FileVideo, FolderInput, FolderOpen, Loader2, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Ban, Check, ExternalLink, CircleAlert, CircleCheck, Clock, Download, FileInput, FileVideo, FolderInput, FolderOpen, Loader2, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { DEFAULT_DOWNLOAD_OPTIONS, type DownloadCenterState, type DownloadItem, type DownloadQuality, type ImportPick, type ListedSource, type ListedVideo, PLATFORMS, queueSummary } from "@shared/downloads";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -578,30 +578,44 @@ function Sites() {
 	const matches = (all ?? []).filter((s) => !q || s.name.toLowerCase().includes(q));
 	return (
 		<div className="min-h-0 flex-1 overflow-y-auto">
-			<div className="mx-auto w-full max-w-3xl space-y-6 px-6 py-5">
-				<PageSection title="Common sites" description="Protected (DRM) videos can't be downloaded by any app like this one. Videos that need an account work after you turn on browser logins in Settings → Downloads.">
-					<Card>
-						{PLATFORMS.map((p) => (
-							<Row
-								key={p.name}
-								alignTop
-								label={
-									<span className="flex items-center gap-2">
+			<div className="mx-auto w-full max-w-[1600px] space-y-8 px-6 py-5">
+				{(["chinese", "global"] as const).map((region) => (
+					<PageSection
+						key={region}
+						title={region === "chinese" ? "Chinese sites" : "Global sites"}
+						description={
+							region === "chinese"
+								? "Protected (DRM) VIP episodes can't be downloaded by any app like this one. Videos that need an account work after you turn on browser logins in Settings → Downloads."
+								: "Videos that need an account work after you turn on browser logins in Settings → Downloads."
+						}
+					>
+						<ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+							{PLATFORMS.filter((p) => p.region === region).map((p) => (
+								<li key={p.name} className="flex min-w-0 flex-col gap-2 rounded-lg border bg-card/50 p-3.5">
+									<div className="flex items-start justify-between gap-2">
+										<p className="min-w-0 truncate text-[13px] font-medium" title={p.name}>
+											{p.name}
+										</p>
 										{p.support === "yes" ? (
-											<span className="flex size-4 shrink-0 items-center justify-center text-success [&_svg]:size-4">
-												<Check />
+											<span className="flex shrink-0 items-center gap-1 rounded-sm border border-success/40 px-1.5 text-[10px] leading-5 text-success">
+												<Check className="size-3" /> Works
 											</span>
 										) : (
-											<span className="shrink-0 rounded-sm border border-warning/40 px-1 text-[10px] leading-4 text-warning">Free only</span>
+											<span className="shrink-0 rounded-sm border border-warning/40 px-1.5 text-[10px] leading-5 text-warning">Free only</span>
 										)}
-										{p.name}
-									</span>
-								}
-								description={p.note}
-							/>
-						))}
-					</Card>
-				</PageSection>
+									</div>
+									<p className="flex-1 text-xs leading-relaxed text-muted-foreground">{p.note}</p>
+									<div className="flex items-center justify-between gap-2 border-t pt-2">
+										<span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">{new URL(p.url).host.replace(/^www\./, "")}</span>
+										<Button variant="outline" size="xs" className="shrink-0" onClick={() => void window.kroma.openExternal(p.url)} aria-label={`Open ${p.name} in your browser`}>
+											Open site <ExternalLink />
+										</Button>
+									</div>
+								</li>
+							))}
+						</ul>
+					</PageSection>
+				))}
 				<PageSection
 					title={`Every site${all ? ` (${all.length.toLocaleString()})` : ""}`}
 					description="Everything yt-dlp, the downloader inside Kroma, can read."
