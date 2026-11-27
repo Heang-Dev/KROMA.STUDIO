@@ -10,6 +10,7 @@ import { AppSelect, IconButton, Segmented, TaskProgress, useBusy, type Option } 
 import { EngineChip, useEngineStatus } from "./EngineStatus";
 import { WaveformPlayer } from "./WaveformPlayer";
 import { PageHeader } from "./PageHeader";
+import { EmptyState } from "@/components/empty/EmptyState";
 
 // Story studio, laid out like an editor: your stories on the left; a top bar with the title, Write / Listen, the
 // engine and Generate; under it either the script (with the cast — a voice and style per speaker — beside it) or the
@@ -208,7 +209,7 @@ export function StoryPage() {
 				</div>
 				<div className="min-h-0 flex-1 overflow-y-auto p-2">
 					{stories.length === 0 ? (
-						<p className="px-2 py-3 text-xs leading-relaxed text-muted-foreground">Stories you make are kept here. Write a script on the right, then press Generate story.</p>
+						<EmptyState compact scene="story" title="No stories yet" description="Write a script on the right, then press Generate story. Every story you make is kept here." />
 					) : (
 						<ul className="space-y-0.5">
 							{stories.map((s) => (
@@ -299,7 +300,7 @@ export function StoryPage() {
 								</h2>
 								{names.length > MAX_SPEAKERS && <p className="text-[11px] text-warning">Only the first {MAX_SPEAKERS} speakers get their own voice.</p>}
 								{names.length === 0 ? (
-									<p className="text-xs text-muted-foreground">Each character in the script shows here, to choose their voice. Add one below, or write a line like "Sokha: …".</p>
+									<EmptyState compact fill={false} className="rounded-lg border border-dashed" scene="people" title="No characters yet" description={<>Each character in the script shows here, to choose their voice. Add one below, or write a line like &quot;Sokha: …&quot;.</>} />
 								) : (
 									<ul className="space-y-3">
 										{Object.entries(speakers).map(([name, s], i) => (

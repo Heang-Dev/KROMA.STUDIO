@@ -13,6 +13,7 @@ import { EngineChip } from "./EngineStatus";
 import { PageHeader, PageSection } from "./PageHeader";
 import { Segmented } from "./common";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/empty/EmptyState";
 
 // The voice library: your cloned voices, the template (preset)
 // voices with their samples, and the instant voices, each a card with a waveform player.
@@ -90,7 +91,7 @@ export function VoicesPage() {
 					{(show === "all" || show === "yours") && (
 					<LibrarySection icon={<Mic className="size-4" />} title="Your voices" description="Voices you cloned. Only use voices you have permission to use.">
 						{clones.length === 0 ? (
-							<p className="col-span-full text-xs text-muted-foreground">{q ? "None of your voices match." : "No cloned voices yet. Press Clone voice and record 5–20 seconds of your own voice (or of someone who agreed)."}</p>
+							<EmptyState compact fill={false} className="col-span-full rounded-lg border border-dashed" scene={q ? "search" : "voice"} title={q ? "None of your voices match" : "No cloned voices yet"} description={q ? "Try another word, or clear the search." : "Record 5–20 seconds of your own voice, or of someone who agreed, and Kroma can speak in it."} action={q ? undefined : <Button variant="outline" size="sm" onClick={() => setCloneOpen(true)}><Plus /> Clone voice</Button>} />
 						) : (
 							clones.map((v) => (
 								<VoiceCard

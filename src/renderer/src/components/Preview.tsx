@@ -12,6 +12,7 @@ import { IconButton } from "./common";
 
 export { mediaUrl } from "@shared/media";
 import { mediaUrl } from "@shared/media";
+import { EmptyIllustration } from "@/components/empty/EmptyState";
 
 export function Preview() {
 	const project = useEditor((s) => s.project);
@@ -297,7 +298,8 @@ function Transport({ total, playing, onToggle }: { total: number; playing: boole
 function EmptyState() {
 	const target = languageOf(useEditor((s) => s.project.language));
 	return (
-		<div className="max-w-sm text-center">
+		<div className="flex max-w-sm flex-col items-center text-center">
+			<EmptyIllustration scene="video" className="mb-3 h-28" />
 			<p className="font-khmer text-2xl font-semibold text-foreground">សូមស្វាគមន៍</p>
 			<p className="mt-2 text-sm text-muted-foreground">Paste a video link or import a file on the left. Then press <span className="text-primary">Make {target.name} subtitles</span>.</p>
 		</div>

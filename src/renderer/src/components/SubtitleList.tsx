@@ -12,6 +12,7 @@ import { FindReplace } from "./FindReplace";
 import { ResizeHandle } from "./ResizeHandle";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "./common";
+import { EmptyState } from "@/components/empty/EmptyState";
 
 export function SubtitleList() {
 	const cues = useEditor((s) => s.project.cues);
@@ -83,7 +84,7 @@ export function SubtitleList() {
 				{visible.map((cue) => (
 					<CueRow key={cue.id} cue={cue} cast={cast} active={cues[active]?.id === cue.id} selected={selectedId === cue.id} />
 				))}
-				{cues.length === 0 && <p className="px-4 py-6 text-xs leading-relaxed text-muted-foreground">Subtitles appear here after "Make {languageOf(language).name} subtitles". You can fix any line by typing in it.</p>}
+				{cues.length === 0 && <EmptyState compact fill={false} scene="subtitles" title="No subtitles yet" description={`They appear here after "Make ${languageOf(language).name} subtitles". You can fix any line by typing in it.`} />}
 			</div>
 			<FindReplace open={replacing} onOpenChange={setReplacing} initial={query} />
 		</aside>
