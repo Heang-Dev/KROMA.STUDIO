@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, RotateCw } from "lucide-react";
 import { DownloadCards } from "@/components/site/downloads";
 import { Reveal } from "@/components/site/reveal";
 import { releases } from "@/lib/github";
+import { latestVersion } from "@/lib/docs";
 import { type Lang, localize, messages } from "@/lib/i18n";
 import { RELEASES_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ export async function DownloadPage({ lang }: { lang: Lang }) {
 							</div>
 						))}
 					</dl>
-					<Link href={L("/docs/0.1/installation/")} className="mt-4 inline-flex items-center gap-1.5 text-[13.5px] font-medium text-brand no-underline hover:underline">
+					<Link href={L(`/docs/${latestVersion()}/installation/`)} className="mt-4 inline-flex items-center gap-1.5 text-[13.5px] font-medium text-brand no-underline hover:underline">
 						{t.installGuide} <ArrowRight className="size-3.5" />
 					</Link>
 				</Reveal>

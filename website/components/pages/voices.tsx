@@ -3,6 +3,7 @@ import { ArrowRight, Mic, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/site/reveal";
 import { VoiceGallery } from "@/components/site/voice-gallery";
+import { latestVersion } from "@/lib/docs";
 import { type Lang, localize, messages } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import voiceList from "@/lib/voice-list.json";
@@ -100,7 +101,7 @@ export function VoicesPage({ lang }: { lang: Lang }) {
 							<Link href={L("/download/")}>{t.cta}</Link>
 						</Button>
 						<Button asChild variant="outline">
-							<Link href={L("/docs/0.1/characters-and-voices/")}>
+							<Link href={L(`/docs/${latestVersion()}/characters-and-voices/`)}>
 								{t.guide} <ArrowRight />
 							</Link>
 						</Button>
