@@ -21,19 +21,23 @@ Kroma Studio is an Electron app (this repo) with its website and docs in `websit
 
 ## Keeping the website in step with the app
 
-How much to do depends on which part of the version changed (X.Y.Z = major.minor.patch).
+Two rules (X.Y.Z = major.minor.patch):
 
-### Patch release (0.1.4 → 0.1.5): no website work
+- **Every release, patch included, updates the changelog.** No release is finished until the site shows it.
+- **Only minor and major releases update the docs.** Patches never touch `website/content/docs/`.
 
-Do the release steps above. The republish in step 5 is all the site needs:
-- the new release and its notes appear in the Changelog, the footer and the Download page;
-- they also appear on that version's **Release notes** docs page, through its `{{releases}}` placeholder.
+### Every release (0.1.4 → 0.1.5, and every minor and major too): the changelog
 
-Don't rewrite the docs for a patch.
+The site's changelog is built from the GitHub release notes, so updating it means:
+1. Write release notes for users (step 4 above), covering every change in the release. Read `git log` for `src/` since the last tag so nothing is left out.
+2. Republish the site (step 5). The new release and its notes then appear in the Changelog, the footer, the Download page, and that version's **Release notes** docs page (through its `{{releases}}` placeholder).
+3. Check the live site: `curl -sL https://heang-dev.github.io/kroma/changelog/ | grep -c X.Y.Z` must find the new version.
 
-### Minor or major release (0.1.x → 0.2.0, or 0.x → 1.0): review and update the whole site
+For a patch, that's all. Don't rewrite the docs.
 
-A new minor or major version gets its own docs version, like Laravel's docs. Before publishing, go through every patch since the last minor (e.g. all of 0.1.0 … 0.1.N) and the new version's changes, then work through this list:
+### Minor or major release (0.1.x → 0.2.0, or 0.x → 1.0): also the docs and the whole site
+
+Do the changelog steps above, then this. A new minor or major version gets its own docs version, like Laravel's docs. Before publishing, go through every patch since the last minor (e.g. all of 0.1.0 … 0.1.N) and the new version's changes, then work through this list:
 
 1. **Gather what changed.**
    - Read every release's notes on `Heang-Dev/kroma` since the last minor: `gh release list -R Heang-Dev/kroma`, then `gh release view vX.Y.Z -R Heang-Dev/kroma` for each.
