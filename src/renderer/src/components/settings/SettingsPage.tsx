@@ -17,10 +17,12 @@ export function SettingsPage() {
 	const active = view.name === "settings" ? view.section : SETTINGS_SECTIONS[0].id;
 	const [settings, setSettings] = useState<SettingsView | null>(null);
 	const [query, setQuery] = useState("");
+	const [version, setVersion] = useState("");
 	const searchRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		void window.kroma.getSettings().then(setSettings);
+		void window.kroma.info().then((info) => setVersion(info.version));
 		// ⌘+ / ⌘− change the size from the menu; keep the Appearance control in step.
 		return window.kroma.onZoomChanged(() => void window.kroma.getSettings().then(setSettings));
 	}, []);
@@ -108,6 +110,11 @@ export function SettingsPage() {
 					))}
 					{visible.length === 0 && <p className="px-2.5 text-xs text-muted-foreground">No settings match "{query}".</p>}
 				</nav>
+				{/* The running version, so it's always clear which Kroma this is. */}
+				<div className="flex h-10 shrink-0 items-center gap-2 border-t px-5 text-[11px] text-muted-foreground">
+					<span>Kroma</span>
+					{version && <span className="font-mono">v{version}</span>}
+				</div>
 			</aside>
 
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
