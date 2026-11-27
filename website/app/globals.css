@@ -1,0 +1,46 @@
+@import "tailwindcss";
+/* Kroma's own tokens, synced from the app (scripts/sync-tokens.mjs). */
+@import "./tokens.css";
+
+/* The site loads the same fonts through next/font. */
+@theme inline {
+	--font-sans: var(--font-geist-mono), var(--font-kantumruy), ui-monospace, Menlo, monospace;
+	--font-khmer: var(--font-kantumruy), "Khmer Sangam MN", sans-serif;
+	--color-glow: var(--glow);
+}
+
+:root {
+	--glow: rgb(127 34 254 / 0.1);
+}
+.dark {
+	--glow: rgb(127 34 254 / 0.17);
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+	html {
+		scroll-behavior: smooth;
+		scroll-padding-top: 72px;
+	}
+	body {
+		@apply bg-background text-foreground font-sans antialiased;
+		font-size: 15px;
+		line-height: 1.6;
+	}
+	h1,
+	h2,
+	h3 {
+		letter-spacing: -0.02em;
+		line-height: 1.2;
+	}
+	summary::-webkit-details-marker {
+		display: none;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+}
