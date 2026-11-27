@@ -117,7 +117,7 @@ export function HomePage({ lang }: { lang: Lang }) {
 				<SectionHead n={2} kicker={t.features.kicker} title={t.features.title} />
 				{t.features.items.map((f, i) => (
 					<Reveal key={FEATURE_IDS[i]}>
-						<article id={FEATURE_IDS[i]} className={cn("mt-16 grid scroll-mt-20 items-center gap-6 md:gap-12", i % 2 ? "md:grid-cols-[7fr_5fr]" : "md:grid-cols-[5fr_7fr]")}>
+						<article id={FEATURE_IDS[i]} className={cn("mt-16 grid scroll-mt-20 grid-cols-1 items-center gap-6 md:gap-12", i % 2 ? "md:grid-cols-[7fr_5fr]" : "md:grid-cols-[5fr_7fr]")}>
 							<div className={cn(i % 2 && "md:order-2")}>
 								<h3 className="text-[22px] font-semibold">{f.title}</h3>
 								<p className="mt-3 text-muted-foreground">{f.text}</p>

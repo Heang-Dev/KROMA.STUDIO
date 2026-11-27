@@ -151,7 +151,7 @@ export function VoiceGallery({ lang }: { lang: Lang }) {
 	};
 
 	return (
-		<div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+		<div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 			{voices.map((v, i) => (
 				<div key={v.name} className={cn("flex flex-col gap-3 rounded-lg border bg-card p-4 transition-colors", playing === i && "border-ring")}>
 					<div className="flex items-start justify-between gap-2">

@@ -5,6 +5,7 @@ import { type DocPage, docGroups, docPages, docsVersions } from "@/lib/docs";
 import { GITHUB_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { CodeCopy } from "./code-copy";
+import { DocsNavToggle } from "./docs-nav-toggle";
 import { DocsToc } from "./docs-toc";
 import { VersionPicker } from "./version-picker";
 
@@ -31,12 +32,13 @@ export function DocsShell({ version, lang, page, children }: { version: string; 
 	const next = at >= 0 && at < all.length - 1 ? all[at + 1] : undefined;
 
 	return (
-		<div className={cn(wrap, "grid gap-10 pt-10 pb-10 lg:grid-cols-[230px_1fr] xl:grid-cols-[230px_1fr_200px]")}>
+		<div className={cn(wrap, "grid grid-cols-1 gap-6 pt-6 pb-10 lg:gap-10 lg:pt-10 lg:grid-cols-[230px_1fr] xl:grid-cols-[230px_1fr_200px]")}>
 			<aside className="lg:sticky lg:top-[84px] lg:max-h-[calc(100vh-100px)] lg:self-start lg:overflow-y-auto lg:pr-2">
 				<Link href={localize(`/docs/${version}/`, lang)} className="mb-3 block text-xs tracking-wider text-muted-foreground uppercase no-underline hover:text-foreground">
 					{t.docs}
 				</Link>
 				<VersionPicker versions={versions} current={version} slug={page?.slug} slugsByVersion={slugsByVersion} lang={lang} latestLabel={t.latest} />
+				<DocsNavToggle current={page?.title} label={t.docs}>
 				<nav aria-label={t.docs} className="mt-5 grid gap-5">
 					{groups.map((g) => (
 						<div key={g.group}>
@@ -57,6 +59,7 @@ export function DocsShell({ version, lang, page, children }: { version: string; 
 						</div>
 					))}
 				</nav>
+				</DocsNavToggle>
 			</aside>
 
 			<main className="min-w-0">
