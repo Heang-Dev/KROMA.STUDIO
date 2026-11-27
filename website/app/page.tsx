@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DownloadCards, HeroDownload } from "@/components/site/downloads";
 import { ThemeToggle } from "@/components/site/theme-toggle";
+import { Showcase } from "@/components/site/showcase";
 import { WindowShot } from "@/components/site/window-shot";
 import { RELEASES_URL, asset } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -148,21 +149,9 @@ export default function Home() {
 					<p className="mt-6 max-w-[60ch] text-[12.5px] text-muted-foreground">No subscription. Your own AI keys, many free. Runs on your computer; the heavy AI work happens in the cloud.</p>
 				</section>
 
-				{/* Product shot */}
+				{/* Product showcase: tabs that switch the screenshot */}
 				<section className={cn(wrap, "pb-6")}>
-					<WindowShot
-						src="/assets/editor-dark.jpg"
-						srcLight="/assets/editor-light.jpg"
-						priority
-						alt="Kroma Studio editor: a vertical video with Khmer subtitles, the Characters panel giving the Narrator and the Young man their own voices, and the subtitle list with each speaker."
-					/>
-					<ul aria-label="What Kroma does" className="mt-5 flex list-none flex-wrap justify-center gap-2 p-0">
-						{["Download", "Subtitles", "Translate", "Characters", "Voices", "Export", "Post"].map((p) => (
-							<li key={p} className="rounded-full border px-3 py-1 text-[12.5px] text-muted-foreground">
-								{p}
-							</li>
-						))}
-					</ul>
+					<Showcase />
 				</section>
 
 				{/* Workflow */}
