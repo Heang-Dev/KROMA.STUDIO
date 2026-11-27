@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { CircleCheck, Loader2, Mic, MoreHorizontal, Plus, Sparkles, Star, Trash2, Wand2 } from "lucide-react";
+import { CircleCheck, Library, Loader2, Mic, Power, Search, MoreHorizontal, Plus, Sparkles, Star, Trash2, Wand2 } from "lucide-react";
 import { KVS_TEMPLATES, groupTemplates, type KvsStatus, type KvsVoice } from "@shared/types";
 import { TARGET_LANGUAGES } from "@shared/languages";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,10 @@ import { forgetVoice, setVoice } from "@/lib/actions";
 import { runTask, useEditor } from "@/state/store";
 import { CloneDialog } from "./VoicePanel";
 import { WaveformPlayer } from "./WaveformPlayer";
+import { EngineChip } from "./EngineStatus";
+import { PageHeader, PageSection } from "./PageHeader";
+import { Segmented } from "./common";
+import { Input } from "@/components/ui/input";
 
 // The voice library: your cloned voices, the template (preset)
 // voices with their samples, and the instant voices, each a card with a waveform player.
@@ -23,8 +27,17 @@ export function VoicesPage() {
 	}, []);
 	useEffect(refresh, [refresh]);
 
-	const clones = voices.filter((v) => !v.preset);
-	const templates = status?.presets.length ? status.presets : KVS_TEMPLATES;
+	const [show, setShow] = useState<"all" | "yours" | "presets" | "instant">("all");
+	const [query, setQuery] = useState("");
+	const q = query.trim().toLowerCase();
+	const matches = (...text: (string | undefined)[]) => !q || text.some((t) => t?.toLowerCase().includes(q));
+
+	const clones = voices.filter((v) => !v.preset && matches(v.name, v.transcript));
+	const allTemplates = status?.presets.length ? status.presets : KVS_TEMPLATES;
+	const templates = allTemplates.filter((t) => matches(t.name, t.description));
+	const instant = TARGET_LANGUAGES.map((lang) => ({ ...lang, voices: lang.voices.filter((v) => matches(v.label, lang.name, lang.native)) })).filter((lang) => lang.voices.length);
+	const instantCount = instant.reduce((n, l) => n + l.voices.length, 0);
+	const engineReady = Boolean(status?.online);
 	const use = (voice: string, label: string) => {
 		setVoice({ voice, enabled: true });
 		useEditor.getState().showToast(`"${label}" is the voice for this project`);
@@ -32,23 +45,52 @@ export function VoicesPage() {
 
 	return (
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+			<PageHeader
+				icon={<Library />}
+				title="Voices"
+				description="Every voice Kroma can speak with. Press ▶ to listen; ⋯ → Use in this project."
+				actions={
+					<>
+						<EngineChip />
+						<Button size="sm" onClick={() => setCloneOpen(true)} disabled={!engineReady} title={engineReady ? undefined : "Cloning needs the voice engine: start it first"}>
+							<Plus /> Clone voice
+						</Button>
+					</>
+				}
+			/>
+			<div className="flex shrink-0 flex-wrap items-center gap-3 border-b px-4 py-2">
+				<Segmented
+					label="Show"
+					value={show}
+					onChange={setShow}
+					options={[
+						{ value: "all", label: "All" },
+						{ value: "yours", label: `Yours · ${clones.length}` },
+						{ value: "presets", label: `Presets · ${templates.length}` },
+						{ value: "instant", label: `Instant · ${instantCount}` },
+					]}
+				/>
+				<div className="relative w-64 max-w-full">
+					<Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+					<Input aria-label="Find a voice" placeholder="Find a voice" className="pl-8 text-xs" value={query} onChange={(e) => setQuery(e.target.value)} />
+				</div>
+			</div>
 			<div className="min-h-0 flex-1 overflow-y-auto">
-				<div className="mx-auto w-full max-w-[1600px] space-y-6 px-8 pt-6 pb-24">
-					<div className="flex flex-wrap items-start justify-between gap-4">
-						<div>
-							<h1 className="text-xl font-semibold">My voices</h1>
-							<p className="mt-1 text-xs text-muted-foreground">Clone a voice from a 5–20 second recording, use a voice template, or an instant voice. Press ▶ to listen.</p>
-						</div>
-						<div className="flex gap-2">
-							<Button size="sm" onClick={() => setCloneOpen(true)} disabled={status !== null && !status.online}>
-								<Plus /> Clone voice
+				<div className="mx-auto w-full max-w-[1600px] space-y-8 px-6 pt-5 pb-24">
+					{!engineReady && status !== null && (
+						<div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card/50 px-3.5 py-3 text-xs">
+							<span className="leading-relaxed text-muted-foreground">
+								<span className="font-medium text-foreground">Your voices and the presets need the voice engine.</span> Instant voices work without it.
+							</span>
+							<Button variant="outline" size="sm" onClick={() => useEditor.getState().openSettings("voice-engine")}>
+								<Power /> {status.local && status.installed === "missing" ? "Install the voice engine" : "Voice engine settings"}
 							</Button>
 						</div>
-					</div>
-
+					)}
+					{(show === "all" || show === "yours") && (
 					<LibrarySection icon={<Mic className="size-4" />} title="Your voices" description="Voices you cloned. Only use voices you have permission to use.">
 						{clones.length === 0 ? (
-							<p className="col-span-full text-xs text-muted-foreground">No cloned voices yet. Clone one from a 5–20 second recording of your own voice (or someone who agreed).</p>
+							<p className="col-span-full text-xs text-muted-foreground">{q ? "None of your voices match." : "No cloned voices yet. Press Clone voice and record 5–20 seconds of your own voice (or of someone who agreed)."}</p>
 						) : (
 							clones.map((v) => (
 								<VoiceCard
@@ -70,7 +112,9 @@ export function VoicesPage() {
 							))
 						)}
 					</LibrarySection>
+					)}
 
+					{(show === "all" || show === "presets") && templates.length > 0 && (
 					<LibrarySection icon={<Star className="size-4" />} title="Preset voices" description="A voice for every kind of character. Each is a saved sample, so it sounds the same in every video.">
 						{groupTemplates(templates).map((g) => (
 							<Fragment key={g.title}>
@@ -95,9 +139,11 @@ export function VoicesPage() {
 							</Fragment>
 						))}
 					</LibrarySection>
+					)}
 
+					{(show === "all" || show === "instant") && instant.length > 0 && (
 					<LibrarySection icon={<Sparkles className="size-4" />} title="Instant voices" description="Microsoft's free voices, ready in seconds. Khmer's are good for drafts; for other languages they're the voice-over.">
-						{TARGET_LANGUAGES.map((lang) => (
+						{instant.map((lang) => (
 							<Fragment key={lang.code}>
 								<h3 className="col-span-full mt-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase first:mt-0">
 									{lang.name} · {lang.native}
@@ -117,6 +163,8 @@ export function VoicesPage() {
 							</Fragment>
 						))}
 					</LibrarySection>
+					)}
+					{q && !clones.length && !templates.length && !instant.length && <p className="py-10 text-center text-xs text-muted-foreground">No voice matches "{query}".</p>}
 				</div>
 			</div>
 			<CloneDialog open={cloneOpen} onOpenChange={setCloneOpen} onCloned={refresh} />
@@ -126,15 +174,9 @@ export function VoicesPage() {
 
 function LibrarySection({ icon, title, description, children }: { icon: React.ReactNode; title: string; description: string; children: React.ReactNode }) {
 	return (
-		<section className="rounded-lg border bg-card/30 p-4">
-			<div className="mb-3">
-				<h2 className="flex items-center gap-2 text-sm font-semibold">
-					{icon} {title}
-				</h2>
-				<p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-			</div>
+		<PageSection icon={icon} title={title} description={description}>
 			<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{children}</div>
-		</section>
+		</PageSection>
 	);
 }
 

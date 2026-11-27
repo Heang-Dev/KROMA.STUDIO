@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { DownloadCenterState, DownloadOptions, FilledTitle, ImportPick, ListedSource, ListedVideo } from "@shared/downloads";
 import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, StoryRecord, StoryRequest, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState } from "@shared/types";
 
 const api = {
@@ -94,6 +95,30 @@ const api = {
 	exportSrt: (name: string, content: string): Promise<string | null> => ipcRenderer.invoke("srt:export", name, content),
 	saveProject: (project: Project, path: string | null): Promise<string | null> => ipcRenderer.invoke("project:save", project, path),
 	openProject: (): Promise<{ project: Project; path: string } | null> => ipcRenderer.invoke("project:open"),
+	readProject: (path: string): Promise<Project> => ipcRenderer.invoke("project:read", path),
+
+	// Download Center
+	listDownloads: (text: string): Promise<ListedSource[]> => ipcRenderer.invoke("downloads:list", text),
+	listMoreDownloads: (url: string, start: number): Promise<ListedSource> => ipcRenderer.invoke("downloads:listMore", url, start),
+	downloadTitles: (urls: string[]): Promise<FilledTitle[]> => ipcRenderer.invoke("downloads:titles", urls),
+	addDownloads: (videos: ListedVideo[], group: string, groupSize: number | undefined): Promise<number> => ipcRenderer.invoke("downloads:add", videos, group, groupSize),
+	downloadState: (): Promise<DownloadCenterState> => ipcRenderer.invoke("downloads:state"),
+	retryDownload: (id: string): Promise<void> => ipcRenderer.invoke("downloads:retry", id),
+	retryFailedDownloads: (): Promise<void> => ipcRenderer.invoke("downloads:retryFailed"),
+	cancelDownload: (id: string): Promise<void> => ipcRenderer.invoke("downloads:cancel", id),
+	removeDownload: (id: string): Promise<void> => ipcRenderer.invoke("downloads:remove", id),
+	clearFinishedDownloads: (): Promise<void> => ipcRenderer.invoke("downloads:clearFinished"),
+	setDownloadOptions: (options: Partial<DownloadOptions>): Promise<DownloadCenterState> => ipcRenderer.invoke("downloads:setOptions", options),
+	pauseDownloads: (paused: boolean): Promise<void> => ipcRenderer.invoke("downloads:pause", paused),
+	showDownload: (id: string): Promise<void> => ipcRenderer.invoke("downloads:show", id),
+	pickImport: (kind: "files" | "folder"): Promise<ImportPick | null> => ipcRenderer.invoke("downloads:pickImport", kind),
+	importProjects: (files: { media: MediaItem; index: number }[], group: string, groupSize: number): Promise<number> => ipcRenderer.invoke("downloads:import", files, group, groupSize),
+	downloadPlatforms: (): Promise<{ name: string; broken: boolean }[]> => ipcRenderer.invoke("downloads:platforms"),
+	onDownloads: (listener: (state: DownloadCenterState) => void): (() => void) => {
+		const handler = (_e: unknown, state: DownloadCenterState) => listener(state);
+		ipcRenderer.on("downloads:update", handler);
+		return () => ipcRenderer.off("downloads:update", handler);
+	},
 	autosave: (project: Project, path: string | null): Promise<void> => ipcRenderer.invoke("autosave:write", project, path),
 	readAutosave: (): Promise<{ project: Project; path: string | null } | null> => ipcRenderer.invoke("autosave:read"),
 	showInFolder: (path: string): Promise<void> => ipcRenderer.invoke("shell:show", path),

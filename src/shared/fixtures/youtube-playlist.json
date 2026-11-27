@@ -1,0 +1,36 @@
+{
+	"_type": "playlist",
+	"id": "PLzMcBGfZo4-lwGZWXz5Qgta_YNX3_vLS2",
+	"title": "AI Plays Flappy Bird - NEAT Python",
+	"playlist_count": 7,
+	"channel": "Tech With Tim",
+	"uploader": "Tech With Tim",
+	"extractor": "youtube:tab",
+	"webpage_url": "https://www.youtube.com/playlist?list=PLzMcBGfZo4-lwGZWXz5Qgta_YNX3_vLS2",
+	"entries": [
+		{
+			"_type": "url",
+			"ie_key": "Youtube",
+			"id": "MMxFDaIOHsE",
+			"url": "https://www.youtube.com/watch?v=MMxFDaIOHsE",
+			"title": "Python Flappy Bird AI Tutorial (with NEAT) - Creating the Bird",
+			"duration": 775
+		},
+		{
+			"_type": "url",
+			"ie_key": "Youtube",
+			"id": "ps55secj7iU",
+			"url": "https://www.youtube.com/watch?v=ps55secj7iU",
+			"title": "Python Flappy Bird AI Tutorial (with NEAT) - Moving Birds",
+			"duration": 1107
+		},
+		{
+			"_type": "url",
+			"ie_key": "Youtube",
+			"id": "1xkykD5Olok",
+			"url": "https://www.youtube.com/watch?v=1xkykD5Olok",
+			"title": "Python Flappy Bird AI Tutorial (with NEAT) - Pixel Perfect Collision w/ Pygame",
+			"duration": 1161
+		}
+	]
+}

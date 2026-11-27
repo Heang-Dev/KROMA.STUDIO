@@ -42,6 +42,9 @@ export function MediaPanel() {
 					</p>
 				)}
 				<TaskProgress prefix="download" />
+				<Button variant="link" size="xs" className="px-0 text-xs" onClick={() => useEditor.getState().openDownloads()}>
+					Download many (series, playlist, channel) →
+				</Button>
 			</Section>
 
 			<Section
