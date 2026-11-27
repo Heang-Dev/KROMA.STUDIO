@@ -1,5 +1,6 @@
 import { openAsBlob } from "node:fs";
 import { basename } from "node:path";
+import { uploadGroups } from "@shared/batch";
 import type { PostAccount, PostProfile, PublishPlatform, PublishRequest, PublishResult } from "@shared/types";
 
 // One-click posting through Upload-Post (upload-post.com): your YouTube, Facebook and TikTok accounts are connected
@@ -138,10 +139,26 @@ export function normaliseResults(results: unknown): PublishResult[] {
 }
 
 /**
- * Uploads the video once to every chosen platform and follows it until each platform is done.
- * The idempotency key stops a retried request from posting twice.
+ * Posts to every chosen platform, each with the file of its own format (16:9 for YouTube, 9:16 for TikTok, …): one
+ * upload per file, one after another, then the results together.
  */
 export async function publish(key: string, req: PublishRequest, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<PublishResult[]> {
+	const groups = uploadGroups(req);
+	if (groups.length === 1) return publishOne(key, { ...req, video: groups[0].video }, onProgress, signal);
+	const results: PublishResult[] = [];
+	for (const [i, group] of groups.entries()) {
+		const part = (p: number, m: string) => onProgress(p < 0 ? -1 : (i + p) / groups.length, `Upload ${i + 1}/${groups.length} · ${m}`);
+		// Each upload has its own key (the same one on a retry), so neither posts twice.
+		results.push(...(await publishOne(key, { ...req, video: group.video, platforms: group.platforms, idempotencyKey: `${req.idempotencyKey}-${i + 1}` }, part, signal)));
+	}
+	return req.platforms.map((p) => results.find((r) => r.platform === p) ?? { platform: p, state: "failed", message: "No answer for this platform." });
+}
+
+/**
+ * Uploads the video once to every platform of the request and follows it until each platform is done.
+ * The idempotency key stops a retried request from posting twice.
+ */
+async function publishOne(key: string, req: PublishRequest, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<PublishResult[]> {
 	const form = new FormData();
 	for (const [name, value] of uploadFields(req)) form.append(name, value);
 	form.append("video", await openAsBlob(req.video, { type: "video/mp4" }), basename(req.video));

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { BatchState, PostFormat } from "@shared/batch";
 import type { MainNotice, SystemNotice } from "@shared/notify";
 import type { DownloadCenterState, DownloadOptions, FilledTitle, ImportPick, ListedSource, ListedVideo } from "@shared/downloads";
 import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, StoryRecord, StoryRequest, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState } from "@shared/types";
@@ -97,6 +98,12 @@ const api = {
 	saveProject: (project: Project, path: string | null): Promise<string | null> => ipcRenderer.invoke("project:save", project, path),
 	openProject: (): Promise<{ project: Project; path: string } | null> => ipcRenderer.invoke("project:open"),
 	readProject: (path: string): Promise<Project> => ipcRenderer.invoke("project:read", path),
+
+	// Batch
+	readBatch: (): Promise<BatchState> => ipcRenderer.invoke("batch:read"),
+	writeBatch: (state: BatchState): Promise<void> => ipcRenderer.invoke("batch:write", state),
+	pickBatchProjects: (): Promise<string[]> => ipcRenderer.invoke("batch:pickProjects"),
+	batchExportPath: (projectPath: string, format: PostFormat): Promise<string> => ipcRenderer.invoke("batch:exportPath", projectPath, format),
 
 	// Download Center
 	listDownloads: (text: string): Promise<ListedSource[]> => ipcRenderer.invoke("downloads:list", text),

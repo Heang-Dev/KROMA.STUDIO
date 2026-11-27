@@ -3,6 +3,8 @@ import { toSrt } from "@shared/srt";
 import { languageOf, languageOfVoice } from "@shared/languages";
 import { ASPECT_SIZE, type Cue, type ExportQuality, type PlatformCaption, type PublishPlatform, type PublishRequest, type PublishResult, DEFAULT_VOICE, type ExportRequest, KHMER_VOICES, KVS_TEMPLATES, isKvsVoice, type MediaItem, type Project, type SourceCue, type VoiceCue, type VoiceSettings } from "@shared/types";
 import { newProject, runTask, useEditor } from "@/state/store";
+import { type PostChoice, type PostFormat, currentExport, neededFormats, publishRequest, recordExport } from "@shared/batch";
+import { batchMode, noteBatchError } from "./batchMode";
 import { notify } from "./notify";
 import { objectsForExport } from "./objects";
 import { ensureFonts, renderBandPng, subtitleBand } from "./subtitleRender";
@@ -65,7 +67,8 @@ export function preferredSiteSubtitle(media: MediaItem): string | null {
 
 /** Asks before replacing lines you already have (and may have fixed by hand). True to go ahead. */
 function confirmReplace(count: number, what: string): boolean {
-	if (!count) return true;
+	// A batch was told what to do for every project: it doesn't ask.
+	if (!count || batchMode.on) return true;
 	return window.confirm(`${what}\n\nThis replaces the ${count} line${count === 1 ? "" : "s"} you have now, including any you fixed by hand. Undo (⌘Z / Ctrl+Z) brings them back.`);
 }
 
@@ -141,8 +144,11 @@ export async function autoKhmer(language: string): Promise<void> {
 	if (ok) await translateCues(false);
 }
 
-/** Exports the video; returns the file (null when cancelled or failed). `quiet` skips revealing it in Finder (posting). */
-export async function exportVideo(quality: ExportQuality, quiet = false): Promise<string | null> {
+/**
+ * Exports the video; returns the file (null when cancelled or failed). `quiet` skips revealing it in Finder (posting).
+ * `outPath` saves it there (batch) instead of a free name in the export folder.
+ */
+export async function exportVideo(quality: ExportQuality, quiet = false, outPath?: string): Promise<string | null> {
 	if (!state().project.clips.length) {
 		state().showToast("The timeline is empty.", "error");
 		return null;
@@ -150,8 +156,8 @@ export async function exportVideo(quality: ExportQuality, quiet = false): Promis
 	// A voice-over made before voices were removed automatically: remove them now, so no original speech is heard.
 	if (voiceCues(state().project).length) await removeVoicesUnlessOff();
 	const { project } = state();
-	const outPath = await window.kroma.saveVideoDialog(`${project.name} (${project.aspect.replace(":", "x")})`);
-	if (!outPath) return null;
+	const target = outPath ?? (await window.kroma.saveVideoDialog(`${project.name} (${project.aspect.replace(":", "x")})`));
+	if (!target) return null;
 	const frame = ASPECT_SIZE[project.aspect];
 	const band = subtitleBand(project.style, frame);
 
@@ -182,7 +188,7 @@ export async function exportVideo(quality: ExportQuality, quiet = false): Promis
 			useEditor.getState().showToast("Some lines have no voice yet; they'll be silent. Press 'Make voice-over' to fill them.", "error");
 		}
 		return window.kroma.exportVideo(id, {
-			outPath,
+			outPath: target,
 			...frame,
 			fit: project.fit,
 			clips,
@@ -198,13 +204,31 @@ export async function exportVideo(quality: ExportQuality, quiet = false): Promis
 		{ kind: "export", done: false, failed: quiet ? "Export for posting failed" : "Export failed", retry: quiet ? undefined : () => exportVideo(quality, quiet) },
 	);
 	if (!result) return null;
-	// Remember it, so posting can reuse this file while nothing in the video changes.
-	state().update((p) => ({ ...p, lastExport: { path: result, fingerprint: videoFingerprint(project) } }), false);
+	// Remember it (per format), so posting can reuse this file while nothing in the video changes.
+	state().update((p) => recordExport(p, project.aspect, result, videoFingerprint(project)), false);
 	if (!quiet) {
 		notify({ kind: "export", tone: "success", title: `Exported ${short(project.name)} · ${Math.min(frame.width, frame.height)}p`, detail: result.replace(/^\/Users\/[^/]+/, "~"), action: { kind: "showFile", path: result } });
 		void window.kroma.showInFolder(result);
 	}
 	return result;
+}
+
+/**
+ * The video in one format: the current export of that format when nothing changed since, else exported now (the
+ * project's format is switched for the export and back after). Returns the file, or null.
+ */
+export async function exportFormat(format: PostFormat, quality: ExportQuality, outPath?: string): Promise<string | null> {
+	const original = state().project.aspect;
+	const as = (aspect: Project["aspect"]) => state().update((p) => (p.aspect === aspect ? p : { ...p, aspect }), false);
+	as(format);
+	try {
+		const now = state().project;
+		const ready = currentExport(now, format, videoFingerprint(now));
+		if (ready && (!outPath || ready === outPath) && (await window.kroma.fileExists(ready))) return ready;
+		return await exportVideo(quality, true, outPath);
+	} finally {
+		as(original);
+	}
 }
 
 /** Changes whenever anything that ends up in the exported video changes (not the posts or notes). */
@@ -244,7 +268,15 @@ export async function importSrt(): Promise<void> {
 	state().showToast(`Imported ${cues.length} lines.`);
 }
 
+/** True (and says why) while a batch is using the editor. */
+export function editorLocked(): boolean {
+	const { locked } = state();
+	if (locked) useEditor.getState().showToast("A batch is using the editor", "error", locked);
+	return Boolean(locked);
+}
+
 export async function saveProject(saveAs = false): Promise<void> {
+	if (editorLocked()) return;
 	const { project, projectPath, markSaved, showToast } = state();
 	const path = await window.kroma.saveProject(project, saveAs ? null : projectPath);
 	if (path) {
@@ -254,12 +286,14 @@ export async function saveProject(saveAs = false): Promise<void> {
 }
 
 export async function openProject(): Promise<void> {
+	if (editorLocked()) return;
 	const res = await window.kroma.openProject();
 	if (res) state().load(res.project, res.path);
 }
 
 /** Opens a project file (from the Download Center) in the editor, asking first when the open one isn't saved. */
 export async function openProjectAt(path: string): Promise<boolean> {
+	if (editorLocked()) return false;
 	const { dirty, projectPath, project, load, showToast } = state();
 	if (dirty && project.clips.length && !window.confirm(projectPath ? "Open another project? Changes to this one since you last saved are lost." : "Open another project? The current one isn't saved to a file (it stays in autosave until you open another).")) return false;
 	try {
@@ -364,12 +398,16 @@ export async function removeOriginalVoices(quality: "fast" | "best"): Promise<bo
 	return true;
 }
 
-export async function makeVoiceOver(): Promise<void> {
+/** Speaks every line that has no current recording. True when every line has its voice. */
+export async function makeVoiceOver(): Promise<boolean> {
 	const { project } = state();
 	const lines = linesNeedingVoice(project);
 	if (!lines.length) {
-		state().showToast(project.cues.some((c) => c.text.trim()) ? "Every line already has a voice." : `Make the ${languageOf(project.language).name} subtitles first.`, "error");
-		return;
+		const has = project.cues.some((c) => c.text.trim());
+		// Nothing left to voice is success for a batch (a retry after the voice-over finished).
+		if (batchMode.on && has) return true;
+		state().showToast(has ? "Every line already has a voice." : `Make the ${languageOf(project.language).name} subtitles first.`, "error");
+		return false;
 	}
 	// One run per voice: each character's lines are spoken together, so the voice stays the same.
 	const groups = new Map<string, { id: string; text: string }[]>();
@@ -393,7 +431,7 @@ export async function makeVoiceOver(): Promise<void> {
 			return { ...p, voice: { ...current, enabled: true, lines: { ...current.lines, ...stamped } } };
 		});
 	}
-	if (!voiced) return;
+	if (!voiced) return false;
 	const missed = lines.length - voiced;
 	notify(
 		missed
@@ -401,6 +439,8 @@ export async function makeVoiceOver(): Promise<void> {
 			: { kind: "voices", tone: "success", title: `Voice-over ready · ${voiced} lines`, detail: short(project.name) },
 	);
 	await removeVoicesUnlessOff();
+	if (missed) noteBatchError(`${missed} of ${lines.length} lines have no voice yet.`);
+	return !missed;
 }
 
 /**
@@ -442,10 +482,13 @@ export function setLanguage(code: string): void {
 }
 
 /** Works out who says each line and gives each character a voice. */
-export async function findCharacters(): Promise<void> {
+export async function findCharacters(): Promise<boolean> {
 	const { project } = state();
 	const lines = project.cues.filter((c) => (c.source || c.text).trim()).map((c) => ({ id: c.id, text: (c.source || c.text).trim(), start: c.start }));
-	if (!lines.length) return state().showToast("Make the subtitles first.", "error");
+	if (!lines.length) {
+		state().showToast("Make the subtitles first.", "error");
+		return false;
+	}
 	// Prefer the voice family already in use: designed voices when the default is one, instant ones otherwise.
 	const all = castableVoices(project.language);
 	const kvs = isKvsVoice(voiceSettings(project).voice) && all.some((v) => isKvsVoice(v.id));
@@ -456,7 +499,7 @@ export async function findCharacters(): Promise<void> {
 		failed: "Couldn't find the characters",
 		retry: () => findCharacters(),
 	});
-	if (!result) return;
+	if (!result) return false;
 	updateVoicing((p) => {
 		const current = voiceSettings(p);
 		// Keep voices the creator already chose for characters with the same name.
@@ -464,6 +507,7 @@ export async function findCharacters(): Promise<void> {
 		return { ...p, cues: p.cues.map((c) => ({ ...c, speaker: result.speakers[c.id] ?? c.speaker })), voice: { ...current, cast } };
 	});
 	notify({ kind: "voices", tone: "success", title: `Found ${result.characters.length} character${result.characters.length === 1 ? "" : "s"}`, detail: "Each has a voice. Change any voice in the list, or who says a line in the subtitles." });
+	return true;
 }
 
 export function setCharacterVoice(name: string, voice: string): void {
@@ -504,6 +548,7 @@ export function setSpeaker(cueId: string, speaker: string | undefined): void {
 }
 
 export function startNewProject(): void {
+	if (editorLocked()) return;
 	const { dirty, projectPath, load } = state();
 	if (dirty && !projectPath && state().project.clips.length && !window.confirm("Start a new project? The current one isn't saved to a file (it stays in autosave until you start another).")) return;
 	load(newProject(), null);
@@ -514,6 +559,8 @@ export function startAutosave(): () => void {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const unsubscribe = useEditor.subscribe((s, prev) => {
 		if (s.project === prev.project && s.projectPath === prev.projectPath) return;
+		// A batch borrows the editor for its projects: the autosave keeps your own project meanwhile.
+		if (s.locked || prev.locked) return;
 		clearTimeout(timer);
 		timer = setTimeout(() => void window.kroma.autosave(s.project, s.projectPath), 1500);
 	});
@@ -577,72 +624,70 @@ export function updatePost(platform: PlatformCaption["platform"], patch: Partial
 	state().update((p) => ({ ...p, posts: (p.posts ?? []).map((x) => (x.platform === platform ? { ...x, ...patch } : x)) }), false);
 }
 
-export interface PublishOptions {
-	platforms: PublishPlatform[];
-	youtubePrivacy: "public" | "unlisted" | "private";
-	tiktokMode: "post" | "draft";
+export interface PublishOptions extends PostChoice {
 	quality: ExportQuality;
 }
 
 /**
- * One click: writes the posts if needed, exports the video (or reuses the last export when nothing changed), uploads
- * it to every chosen platform through Upload-Post, and records where it went.
+ * One click: writes the posts if needed, exports each format the chosen platforms need (or reuses an export when
+ * nothing changed), uploads each platform its own file through Upload-Post, and records where it went. Returns the
+ * results (null when it didn't post).
  */
-export async function publishVideo(options: PublishOptions): Promise<void> {
+export async function publishVideo(options: PublishOptions): Promise<PublishResult[] | null> {
 	const settings = await window.kroma.getSettings();
 	if (!settings.hasPostKey) {
 		state().showToast("Connect your accounts first", "error", "Add your Upload-Post key in Settings → Posting.");
-		state().openSettings("posting");
-		return;
+		if (!batchMode.on) state().openSettings("posting");
+		return null;
 	}
-	if (!options.platforms.length) return state().showToast("Choose where to post.", "error");
-	if (!state().project.posts?.length && !(await writePosts())) return;
+	if (!options.platforms.length) {
+		state().showToast("Choose where to post.", "error");
+		return null;
+	}
+	if (!state().project.posts?.length && !(await writePosts())) return null;
 
 	let pageId = settings.facebookPageId;
 	if (options.platforms.includes("facebook") && !pageId) {
 		const pages = await window.kroma.facebookPages().catch(() => []);
 		if (pages.length !== 1) {
 			state().showToast("Choose your Facebook Page", "error", "Pick the Page to post to in Settings → Posting.");
-			state().openSettings("posting");
-			return;
+			if (!batchMode.on) state().openSettings("posting");
+			return null;
 		}
 		pageId = pages[0].id;
 	}
 
-	// The same video as last time? Post that file instead of exporting again.
-	const project = state().project;
-	const last = project.lastExport;
-	const reuse = last && last.fingerprint === videoFingerprint(project) && (await window.kroma.fileExists(last.path));
-	const video = reuse ? last.path : await exportVideo(options.quality, true);
-	if (!video) return;
+	// Each format once, however many platforms share it.
+	const files: Partial<Record<PostFormat, string>> = {};
+	for (const format of neededFormats(options)) {
+		const file = await exportFormat(format, options.quality);
+		if (!file) return null;
+		files[format] = file;
+	}
 
-	const posts = state().project.posts ?? [];
-	const post = (name: PlatformCaption["platform"]) => posts.find((p) => p.platform === name) ?? { platform: name, title: project.name, description: "", hashtags: [] };
-	const yt = post("YouTube");
-	const fb = post("Facebook");
-	const tt = post("TikTok");
-	const duration = totalDuration(project.clips);
-	const req: PublishRequest = {
-		video,
+	const project = state().project;
+	const req: PublishRequest = publishRequest({
+		name: project.name,
+		posts: project.posts ?? [],
+		choice: options,
+		files,
+		duration: totalDuration(project.clips),
 		profile: settings.postProfile,
-		platforms: options.platforms,
-		youtube: { title: yt.title, description: yt.description, tags: yt.hashtags, privacy: options.youtubePrivacy },
-		// Reels must be vertical and at most 90 s; anything else goes up as a normal Page video.
-		facebook: { title: fb.title, description: fb.description, tags: fb.hashtags, pageId, mediaType: project.aspect === "9:16" && duration <= 90 ? "REELS" : "VIDEO" },
-		tiktok: { caption: [tt.title, tt.description].filter(Boolean).join("\n").slice(0, 1800), tags: tt.hashtags, mode: options.tiktokMode },
-		idempotencyKey: `${videoFingerprint(project)}-${Date.now()}`,
-	};
+		pageId,
+		key: `${videoFingerprint(project)}-${Date.now()}`,
+	});
 	const results = await runTask(`publish-${Date.now()}`, "Post", (id) => window.kroma.publish(id, req), { kind: "export", done: false, failed: "Posting failed", retry: () => publishVideo(options) });
-	if (!results) return;
+	if (!results) return null;
 	state().update((p) => ({ ...p, published: [...(p.published ?? []), { at: Date.now(), results }] }), false);
 	const failed = results.filter((r) => r.state === "failed");
 	const names = (rs: PublishResult[]) => rs.map((r) => PLATFORM_NAMES[r.platform]).join(", ");
 	if (failed.length) notify({ kind: "export", tone: "error", title: `Not posted to ${names(failed)}`, detail: failed[0].message ?? "See the Post panel for details." });
 	else notify({ kind: "export", tone: "success", title: `Posted ${short(project.name)} to ${names(results)}`, detail: options.tiktokMode === "draft" && options.platforms.includes("tiktok") ? "TikTok: open the app and post it from your drafts." : undefined });
+	return results;
 }
 
 /** A name short enough for a notification title. */
-function short(text: string, max = 48): string {
+export function short(text: string, max = 48): string {
 	const t = text.trim();
 	return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }

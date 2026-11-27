@@ -1,4 +1,5 @@
 import type { Aspect, FitMode, SubtitleStyle } from "@shared/types";
+import { PRESETS, PRESET_OPTIONS, type Preset, currentPreset } from "@/lib/stylePresets";
 import { useEditor } from "@/state/store";
 import { Card, ChoiceTiles, Row, Section, Segmented, SliderField, SwitchRow } from "./common";
 
@@ -13,21 +14,6 @@ const FITS: { value: FitMode; label: string }[] = [
 	{ value: "black", label: "Bars" },
 	{ value: "fill", label: "Crop" },
 ];
-
-type Preset = "classic" | "yellow" | "box" | "tiktok";
-
-// Subtitle colours are part of the video picture, not the app theme, so they are plain colour values.
-const PRESETS: Record<Preset, Partial<SubtitleStyle>> = {
-	classic: { color: "#ffffff", outlineColor: "#000000", outline: 0.12, box: false },
-	yellow: { color: "#ffe14d", outlineColor: "#000000", outline: 0.12, box: false },
-	box: { color: "#ffffff", outline: 0, box: true, boxColor: "rgba(0,0,0,0.6)" },
-	tiktok: { color: "#ffffff", outlineColor: "#000000", outline: 0.16, box: false, bold: true },
-};
-
-function currentPreset(style: SubtitleStyle): Preset | "" {
-	const match = (Object.keys(PRESETS) as Preset[]).find((key) => Object.entries(PRESETS[key]).every(([k, v]) => style[k as keyof SubtitleStyle] === v));
-	return match ?? "";
-}
 
 export function StylePanel() {
 	const project = useEditor((s) => s.project);
@@ -55,12 +41,7 @@ export function StylePanel() {
 								label="Preset"
 								equalWidth
 								value={currentPreset(style)}
-								options={[
-									{ value: "classic", label: "Classic" },
-									{ value: "yellow", label: "Yellow" },
-									{ value: "box", label: "Box" },
-									{ value: "tiktok", label: "TikTok" },
-								]}
+								options={PRESET_OPTIONS}
 								onChange={(v) => v && setStyle(PRESETS[v])}
 							/>
 						}

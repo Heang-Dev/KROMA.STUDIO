@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Check, ExternalLink, CircleAlert, CircleCheck, Clock, Download, FileInput, FileVideo, FolderInput, FolderOpen, Loader2, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ArrowRight, Ban, Check, ExternalLink, CircleAlert, CircleCheck, Clock, Download, FileInput, FileVideo, FolderInput, FolderOpen, Loader2, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { DEFAULT_DOWNLOAD_OPTIONS, type DownloadCenterState, type DownloadItem, type DownloadQuality, type ImportPick, type ListedSource, type ListedVideo, PLATFORMS, queueSummary } from "@shared/downloads";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { openProjectAt } from "@/lib/actions";
+import { addToBatch } from "@/lib/batch";
 import { formatTime } from "@/lib/timeline";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { AppSelect, Card, IconButton, ProgressBar, Row, Section, Segmented } from "./common";
 import { PageHeader, PageSection } from "./PageHeader";
 import { transferText } from "./UpdateButton";
+import { EmptyState } from "@/components/empty/EmptyState";
 
 // Download Center: paste links (a video, a multi-part upload, a collection, a playlist, a channel), pick the videos,
 // and download them all, each into its own Kroma project. Left: adding videos. Right: the queue (or the sites list).
@@ -32,6 +34,8 @@ const key = (source: ListedSource, video: ListedVideo) => `${source.url}\n${vide
 export function DownloadsPage() {
 	const [center, setCenter] = useState<DownloadCenterState>({ items: [], options: DEFAULT_DOWNLOAD_OPTIONS, paused: false });
 	const [tab, setTab] = useState<"queue" | "sites">("queue");
+	/** Finished downloads ticked to send to Batch. */
+	const [picked, setPicked] = useState<Set<string>>(new Set());
 	useEffect(() => {
 		void window.kroma.downloadState().then(setCenter);
 		return window.kroma.onDownloads(setCenter);
@@ -43,7 +47,7 @@ export function DownloadsPage() {
 				icon={<Download />}
 				title="Downloads"
 				description="Whole series, playlists and channels — each video becomes its own project"
-				actions={tab === "queue" ? <QueueActions center={center} /> : undefined}
+				actions={tab === "queue" ? <QueueActions center={center} picked={picked} onSent={() => setPicked(new Set())} /> : undefined}
 			>
 				<Segmented
 						label="Queue or supported sites"
@@ -58,7 +62,7 @@ export function DownloadsPage() {
 			</PageHeader>
 			<div className="flex min-h-0 flex-1">
 				<AddVideos center={center} onAdded={() => setTab("queue")} />
-				<div className="flex min-w-0 flex-1 flex-col">{tab === "queue" ? <Queue center={center} onShowSites={() => setTab("sites")} /> : <Sites />}</div>
+				<div className="flex min-w-0 flex-1 flex-col">{tab === "queue" ? <Queue center={center} picked={picked} onPick={setPicked} onShowSites={() => setTab("sites")} /> : <Sites />}</div>
 			</div>
 		</div>
 	);
@@ -401,7 +405,17 @@ function SourceGroup({
 
 // ── The queue ──
 
-function QueueActions({ center }: { center: DownloadCenterState }) {
+/** A finished download whose project can be processed in Batch. */
+const processable = (item: DownloadItem) => (item.status === "done" || item.status === "skipped") && Boolean(item.projectPath);
+
+function QueueActions({ center, picked, onSent }: { center: DownloadCenterState; picked: Set<string>; onSent: () => void }) {
+	const toBatch = center.items.filter((i) => picked.has(i.id) && processable(i));
+	const process = () => {
+		const added = addToBatch(toBatch.map((i) => i.projectPath!));
+		onSent();
+		useEditor.getState().openBatch("process");
+		useEditor.getState().showToast(added ? `${added} video${added === 1 ? "" : "s"} ready to process` : "Those are already in Batch", "info", added ? "Choose the steps, then press Process." : undefined);
+	};
 	const failed = center.items.some((i) => i.status === "failed" || i.status === "cancelled");
 	const finished = center.items.some((i) => i.status === "done" || i.status === "skipped");
 	const active = center.items.some((i) => i.status === "waiting" || i.status === "downloading");
@@ -423,6 +437,11 @@ function QueueActions({ center }: { center: DownloadCenterState }) {
 					Clear finished
 				</Button>
 			)}
+			{toBatch.length > 0 && (
+				<Button size="sm" onClick={process} title="Run every step on them in Batch (subtitles, translation, voice-over, export…)">
+					Process {toBatch.length} selected <ArrowRight />
+				</Button>
+			)}
 			<AppSelect
 				label="Downloads at the same time"
 				className="w-36 shrink-0"
@@ -438,7 +457,13 @@ function QueueActions({ center }: { center: DownloadCenterState }) {
 	);
 }
 
-function Queue({ center, onShowSites }: { center: DownloadCenterState; onShowSites: () => void }) {
+function Queue({ center, picked, onPick, onShowSites }: { center: DownloadCenterState; picked: Set<string>; onPick: (s: Set<string>) => void; onShowSites: () => void }) {
+	const pick = (id: string, on: boolean) => {
+		const next = new Set(picked);
+		if (on) next.add(id);
+		else next.delete(id);
+		onPick(next);
+	};
 	const groups = useMemo(() => {
 		const map = new Map<string, DownloadItem[]>();
 		for (const item of center.items) map.set(item.group, [...(map.get(item.group) ?? []), item]);
@@ -447,16 +472,16 @@ function Queue({ center, onShowSites }: { center: DownloadCenterState; onShowSit
 
 	if (!center.items.length) {
 		return (
-			<div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-				<Download className="size-6 text-muted-foreground" />
-				<p className="text-[13px] font-medium">Nothing downloading yet</p>
-				<p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-					Paste links on the left and press Find videos. Videos download here one after another, and keep going while you work on other pages.
-				</p>
-				<Button variant="outline" size="sm" className="mt-1" onClick={onShowSites}>
-					Which sites work?
-				</Button>
-			</div>
+			<EmptyState
+				scene="download"
+				title="Nothing downloading yet"
+				description="Paste links on the left and press Find videos. Videos download here one after another, and keep going while you work on other pages."
+				action={
+					<Button variant="outline" size="sm" onClick={onShowSites}>
+						Which sites work?
+					</Button>
+				}
+			/>
 		);
 	}
 	return (
@@ -467,15 +492,30 @@ function Queue({ center, onShowSites }: { center: DownloadCenterState; onShowSit
 					<span className="min-w-0 flex-1">{center.pauseReason ?? "Paused. Downloads that were running finish; press Resume to start the rest."}</span>
 				</div>
 			)}
-			{groups.map(([group, items]) => (
-				<PageSection key={group} title={<span className="min-w-0 truncate" title={group}>{group}</span>} description={queueSummary(items)}>
+			{groups.map(([group, items]) => {
+				const ready = items.filter(processable);
+				const all = ready.length > 0 && ready.every((i) => picked.has(i.id));
+				return (
+				<PageSection
+					key={group}
+					title={<span className="min-w-0 truncate" title={group}>{group}</span>}
+					description={queueSummary(items)}
+					action={
+						ready.length > 1 && (
+							<Button variant="ghost" size="xs" onClick={() => onPick(new Set([...[...picked].filter((id) => !ready.some((i) => i.id === id)), ...(all ? [] : ready.map((i) => i.id))]))}>
+								{all ? "Select none" : "Select finished"}
+							</Button>
+						)
+					}
+				>
 					<Card className="px-0">
 						{items.map((item) => (
-							<QueueRow key={item.id} item={item} />
+							<QueueRow key={item.id} item={item} picked={picked.has(item.id)} onPick={processable(item) ? (on) => pick(item.id, on) : undefined} />
 						))}
 					</Card>
 				</PageSection>
-			))}
+				);
+			})}
 		</div>
 	);
 }
@@ -496,7 +536,7 @@ function StatusIcon({ status }: { status: DownloadItem["status"] }) {
 	);
 }
 
-function QueueRow({ item }: { item: DownloadItem }) {
+function QueueRow({ item, picked, onPick }: { item: DownloadItem; picked: boolean; onPick?: (on: boolean) => void }) {
 	const detail = (() => {
 		switch (item.status) {
 			case "waiting":
@@ -520,6 +560,7 @@ function QueueRow({ item }: { item: DownloadItem }) {
 	const open = () => item.projectPath && void openProjectAt(item.projectPath);
 	return (
 		<div className="flex items-center gap-3 px-3.5 py-2">
+			{onPick ? <Checkbox checked={picked} onCheckedChange={(on) => onPick(on === true)} aria-label={`Select ${item.title} to process`} /> : <span className="size-4 shrink-0" />}
 			<StatusIcon status={item.status} />
 			{item.index > 0 && <span className="w-7 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums">{item.index}</span>}
 			<div className="min-w-0 flex-1 space-y-1">
@@ -626,7 +667,7 @@ function Sites() {
 							<Loader2 className="size-3 animate-spin" /> Loading the list…
 						</p>
 					) : matches.length === 0 ? (
-						<p className="text-xs text-muted-foreground">{all.length ? `No site matches "${query}".` : "The list isn't available (yt-dlp is missing)."}</p>
+						<EmptyState fill={false} compact className="rounded-lg border border-dashed" scene={all.length ? "search" : "error"} tone={all.length ? "primary" : "warning"} title={all.length ? "No site matches" : "The list isn't available"} description={all.length ? `Nothing called "${query}". Sites not listed may still work: try the link.` : "yt-dlp, the downloader inside Kroma, is missing."} />
 					) : (
 						<ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-4 rounded-lg border bg-card/50 px-3.5 py-2.5">
 							{matches.map((s) => (

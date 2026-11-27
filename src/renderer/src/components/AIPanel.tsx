@@ -7,7 +7,8 @@ import { autoKhmer, getSubtitles, setLanguage as setTargetLanguage, mainMedia, p
 import { useEditor } from "@/state/store";
 import { AppSelect, ProgressBar, Section, TaskProgress, useBusy } from "./common";
 
-const LANGUAGES = [
+/** What the videos speak, for speech to text. */
+export const LANGUAGES = [
 	{ value: "zh", label: "Chinese (Mandarin)" },
 	{ value: "yue", label: "Cantonese" },
 	{ value: "en", label: "English" },

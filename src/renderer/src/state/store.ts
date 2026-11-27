@@ -4,6 +4,7 @@ import { DEFAULT_STYLE, type Project } from "@shared/types";
 import { totalDuration } from "@/lib/timeline";
 import type { NoticeKind } from "@shared/notify";
 import { type NotifyAction, type NotifyInput, notify } from "@/lib/notify";
+import { batchMode, noteBatchError, noteBatchMessage } from "@/lib/batchMode";
 
 export type Panel = "media" | "ai" | "voice" | "style" | "objects" | "post";
 
@@ -35,7 +36,9 @@ interface EditorState {
 	zoom: number; // pixels per second
 	panel: Panel;
 	/** The editor, or the full-page Settings (Orca-style) open at one section. */
-	view: { name: "editor" } | { name: "settings"; section: string } | { name: "voices" } | { name: "story" } | { name: "downloads" };
+	view: { name: "editor" } | { name: "settings"; section: string } | { name: "voices" } | { name: "story" } | { name: "downloads" } | { name: "batch"; tab?: "process" | "ready" };
+	/** Set while a batch uses the editor for its projects: the editor can't be used until it's done (says why). */
+	locked: string | null;
 	selection: Selection | null;
 	tasks: Record<string, TaskState>;
 	toast: { text: string; tone: "info" | "error" } | null;
@@ -61,6 +64,8 @@ interface EditorState {
 	openStory: () => void;
 	/** Download Center: playlists and channels, a project per video. */
 	openDownloads: () => void;
+	/** Batch: several projects through every step, then "Ready to post". */
+	openBatch: (tab?: "process" | "ready") => void;
 	select: (selection: Selection | null) => void;
 	setTask: (task: TaskState) => void;
 	/**
@@ -88,6 +93,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 	zoom: 40,
 	panel: "media",
 	view: { name: "editor" },
+	locked: null,
 	selection: null,
 	tasks: {},
 	toast: null,
@@ -131,9 +137,16 @@ export const useEditor = create<EditorState>((set, get) => ({
 	closeVoices: () => set({ view: { name: "editor" } }),
 	openStory: () => set({ playing: false, view: { name: "story" } }),
 	openDownloads: () => set({ playing: false, view: { name: "downloads" } }),
+	openBatch: (tab) => set({ playing: false, view: { name: "batch", tab } }),
 	select: (selection) => set({ selection }),
 	setTask: (task) => set((s) => ({ tasks: { ...s.tasks, [task.id]: task } })),
 	showToast: (text, tone = "info", description, action) => {
+		// A batch reports once per project; an error the action shows is why its step failed.
+		if (batchMode.on) {
+			if (tone === "error") noteBatchError(description ? `${text}: ${description}` : text);
+			else noteBatchMessage(text.replace(/\.$/, ""));
+			return;
+		}
 		set({ toast: { text, tone } });
 		if (tone === "error") toast.error(text, { description, action, duration: 9000, closeButton: true });
 		else toast.success(text, { description, action, duration: action ? 6000 : undefined });
@@ -172,7 +185,8 @@ export async function runTask<T>(id: string, label: string, work: (taskId: strin
 	} catch (err) {
 		const message = cleanError(err);
 		setTask({ id, label, progress: 0, message, status: "error", error: message });
-		if (message !== "Cancelled") {
+		noteBatchError(message);
+		if (message !== "Cancelled" && !batchMode.on) {
 			const action = options.failedAction ?? (options.retry ? { kind: "retry" as const, run: options.retry } : undefined);
 			notify({ tone: "error", kind: options.kind, title: options.failed ?? `${label} failed`, detail: message, action });
 		}
