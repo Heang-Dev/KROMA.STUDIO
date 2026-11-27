@@ -255,6 +255,9 @@ OLD="$TARGET.old-$$"
 if mv "$TARGET" "$OLD" && /usr/bin/ditto "$STAGED" "$TARGET"; then
   /usr/bin/xattr -cr "$TARGET" 2>/dev/null
   rm -rf "$OLD" "$STAGED"
+  # Tell Finder and the Dock the app changed, so they show the new version's icon rather than a cached one.
+  /usr/bin/touch "$TARGET"
+  /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$TARGET" 2>/dev/null
 else
   rm -rf "$TARGET"; mv "$OLD" "$TARGET"
 fi

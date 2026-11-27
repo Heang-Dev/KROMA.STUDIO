@@ -92,27 +92,29 @@ export function StepBar() {
 					</div>
 				);
 			})}
-			<span className="flex-1" />
-			<span className="mr-2 shrink-0">
-				<UpdateStatus />
-			</span>
-			{next ? (
-				next.id === "export" ? (
-					<ExportMenu>
-						<Button size="xs" className="h-5 shrink-0 rounded-sm px-1.5 text-[11px]">
+			<span className="ml-2 flex shrink-0 items-center">
+				{next ? (
+					next.id === "export" ? (
+						<ExportMenu>
+							<Button size="xs" className="h-5 shrink-0 rounded-sm px-1.5 text-[11px]">
+								Next: {next.next} <ArrowRight />
+							</Button>
+						</ExportMenu>
+					) : (
+						<Button size="xs" variant="outline" className="h-5 shrink-0 rounded-sm px-1.5 text-[11px]" onClick={() => open(next.panel)}>
 							Next: {next.next} <ArrowRight />
 						</Button>
-					</ExportMenu>
+					)
 				) : (
-					<Button size="xs" variant="outline" className="h-5 shrink-0 rounded-sm px-1.5 text-[11px]" onClick={() => open(next.panel)}>
-						Next: {next.next} <ArrowRight />
-					</Button>
-				)
-			) : (
-				<span className="flex shrink-0 items-center gap-1 px-1 text-success">
-					<Check className="size-3" /> All done
-				</span>
-			)}
+					<span className="flex shrink-0 items-center gap-1 px-1 text-success">
+						<Check className="size-3" /> All done
+					</span>
+				)}
+			</span>
+			<span className="flex-1" />
+			<span className="shrink-0">
+				<UpdateStatus />
+			</span>
 		</nav>
 	);
 }

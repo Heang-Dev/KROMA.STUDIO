@@ -14,6 +14,7 @@ import { Timeline, deleteSelection, splitAtPlayhead } from "./components/Timelin
 import { VoicePanel } from "./components/VoicePanel";
 import { VoicesPage } from "./components/VoicesPage";
 import { StoryPage } from "./components/StoryPage";
+import kromaIcon from "./assets/kroma-icon.png";
 import { UpdateNotice } from "./components/UpdateButton";
 import { ExportMenu, StepBar } from "./components/StepBar";
 import { IconButton, ProgressBar, latestTask } from "./components/common";
@@ -204,7 +205,10 @@ function TopBar() {
 
 	return (
 		<header className="title-bar drag flex shrink-0 items-center gap-2 border-b bg-sidebar pr-2 text-[13px]">
-			<span className="font-semibold">Kroma</span>
+			<span className="flex items-center gap-1.5 font-semibold">
+				<img src={kromaIcon} alt="" width={18} height={18} className="rounded-[4px]" draggable={false} />
+				Kroma
+			</span>
 			<Separator orientation="vertical" className="mx-1 h-4!" />
 			<input
 				className="no-drag h-7 w-64 rounded-md border border-transparent bg-transparent px-2 text-[13px] outline-none hover:border-input focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"

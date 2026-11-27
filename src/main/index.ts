@@ -420,6 +420,11 @@ app.whenReady().then(() => {
 	createWindow();
 	startUpdater(() => loadSettings().autoUpdate);
 	// Right-click the Dock icon (Mac) or the taskbar button (Windows) → New Window.
+	// From source (bun run dev) the Dock would show Electron's own icon; the installed app has Kroma's in its bundle.
+	if (!app.isPackaged && process.platform === "darwin") {
+		const icon = join(__dirname, "../../resources/icon.png");
+		if (existsSync(icon)) app.dock?.setIcon(icon);
+	}
 	app.dock?.setMenu(Menu.buildFromTemplate([{ label: "New Window", click: () => createWindow() }]));
 	if (process.platform === "win32") app.setUserTasks([{ program: process.execPath, arguments: "--new-window", iconPath: process.execPath, iconIndex: 0, title: "New Window", description: "Open another Kroma window" }]);
 	app.on("activate", () => {
