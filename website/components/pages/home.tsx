@@ -3,6 +3,7 @@ import { ArrowRight, Check, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandIcon } from "@/components/site/brand-icons";
 import { DownloadCards, HeroDownload } from "@/components/site/downloads";
+import { Faq } from "@/components/site/faq";
 import { Reveal } from "@/components/site/reveal";
 import { Showcase } from "@/components/site/showcase";
 import { VoiceGallery } from "@/components/site/voice-gallery";
@@ -217,17 +218,10 @@ export function HomePage({ lang }: { lang: Lang }) {
 			</section>
 
 			{/* 07 FAQ */}
-			<section id="faq" className="mx-auto w-[min(780px,100%-32px)] pt-20 md:pt-28">
+			<section id="faq" className={section}>
 				<SectionHead n={7} kicker={t.faq.kicker} title={t.faq.title} />
 				<Reveal>
-					<div className="mt-8 border-t">
-						{t.faq.items.map(([q, a]) => (
-							<details key={q} className="group border-b py-4.5">
-								<summary className="flex cursor-pointer list-none justify-between gap-4 font-medium after:text-muted-foreground after:content-['+'] group-open:after:content-['−']">{q}</summary>
-								<p className="mt-2.5 text-sm text-muted-foreground">{a}</p>
-							</details>
-						))}
-					</div>
+					<Faq items={t.faq.items} />
 				</Reveal>
 			</section>
 
