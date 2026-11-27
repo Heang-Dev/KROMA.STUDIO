@@ -88,7 +88,7 @@ export function Logo({ size = 28, href = "/" }: { size?: number; href?: string }
 	return (
 		<Link href={href} className="inline-flex items-center gap-2.5 font-semibold tracking-tight no-underline">
 			{/* eslint-disable-next-line @next/next/no-img-element */}
-			<img src={asset("/assets/icon.png")} alt="" width={size} height={size} className="rounded-md" />
+			<img src={asset("/assets/kroma-icon.png")} alt="" width={size} height={size} className="rounded-md" />
 			<span>Kroma Studio</span>
 		</Link>
 	);

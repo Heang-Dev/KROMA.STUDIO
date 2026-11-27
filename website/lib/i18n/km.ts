@@ -105,7 +105,7 @@ export const km: Messages = {
 		sub: "ទាញយកកម្មវិធីសម្រាប់កុំព្យូទ័ររបស់អ្នក។ FFmpeg និង yt-dlp មកជាមួយស្រាប់នៅលើ Windows និង Linux។ ក្រោយមក វាធ្វើបច្ចុប្បន្នភាពដោយខ្លួនឯង។",
 		facts: { platforms: "ប្រព័ន្ធ", platformsValue: "macOS (Apple silicon) · Windows 10/11 x64 · Linux x64", size: "ទំហំ", sizeValue: "ប្រហែល 200 MB", version: "កំណែ", latest: "កំណែចុងក្រោយ" },
 		yourSystem: "ប្រព័ន្ធរបស់អ្នក",
-		mac: { detail: "Apple silicon (M1 និងថ្មីជាងនេះ)", button: "ទាញយក .dmg", help: "បង្ហាញថា «Kroma Studio is damaged» ឬបើកមិនកើត?", helpText: "កម្មវិធីនេះមិនទាន់មានហត្ថលេខាវិញ្ញាបនបត្ររបស់ Apple នៅឡើយទេ។ បន្ទាប់ពីដាក់វាទៅក្នុង Applications សូមដំណើរការពាក្យបញ្ជានេះម្តងក្នុង Terminal៖" },
+		mac: { detail: "Apple silicon (M1 និងថ្មីជាងនេះ)", button: "ទាញយក .dmg", help: "បង្ហាញថា «damaged» ឬបើកមិនកើត?", helpText: "កម្មវិធីនេះមិនទាន់មានហត្ថលេខាវិញ្ញាបនបត្ររបស់ Apple នៅឡើយទេ។ បន្ទាប់ពីដាក់វាទៅក្នុង Applications សូមដំណើរការពាក្យបញ្ជានេះម្តងក្នុង Terminal៖" },
 		windows: { detail: "Windows 10 និង 11 · x64", button: "ទាញយកកម្មវិធីដំឡើង", help: "បង្ហាញថា «Windows protected your PC»?", helpBefore: "កម្មវិធីដំឡើងមិនទាន់មានហត្ថលេខាកូដនៅឡើយទេ។ ចុច", more: "More info", helpMiddle: " រួចចុច", run: "Run anyway", helpAfter: "។" },
 		linux: { detail: "x64 · AppImage ឬកញ្ចប់ Debian", help: "ការដំណើរការ AppImage" },
 		copy: "ចម្លង",

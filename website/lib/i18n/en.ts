@@ -103,7 +103,7 @@ export const en = {
 		sub: "Download the app for your computer. FFmpeg and yt-dlp come with it on Windows and Linux. It updates itself after that.",
 		facts: { platforms: "Platforms", platformsValue: "macOS (Apple silicon) · Windows 10/11 x64 · Linux x64", size: "Size", sizeValue: "About 200 MB", version: "Version", latest: "Latest release" },
 		yourSystem: "Your system",
-		mac: { detail: "Apple silicon (M1 and later)", button: "Download .dmg", help: "“Kroma Studio is damaged” or won't open?", helpText: "The app isn't signed with an Apple certificate yet. After moving it to Applications, run this once in Terminal:" },
+		mac: { detail: "Apple silicon (M1 and later)", button: "Download .dmg", help: "Says “damaged” or won't open?", helpText: "The app isn't signed with an Apple certificate yet. After moving it to Applications, run this once in Terminal:" },
 		windows: { detail: "Windows 10 and 11 · x64", button: "Download installer", help: "“Windows protected your PC”?", helpBefore: "The installer isn't code-signed yet. Click", more: "More info", helpMiddle: ", then", run: "Run anyway", helpAfter: "." },
 		linux: { detail: "x64 · AppImage or Debian package", help: "Running the AppImage" },
 		copy: "Copy",

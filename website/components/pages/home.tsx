@@ -229,7 +229,7 @@ export function HomePage({ lang }: { lang: Lang }) {
 			<section className={cn(wrap, "mt-28")}>
 				<Reveal className="flex flex-col items-center gap-4 rounded-lg border bg-card bg-[radial-gradient(closest-side,var(--glow),transparent)] bg-[length:70%_120%] bg-center bg-no-repeat px-6 py-16 text-center">
 					{/* eslint-disable-next-line @next/next/no-img-element */}
-					<img src={asset("/assets/icon.png")} alt="" width={64} height={64} className="rounded-[14px]" />
+					<img src={asset("/assets/kroma-icon.png")} alt="" width={64} height={64} className="rounded-[14px]" />
 					<h2 className="text-[clamp(26px,3.6vw,36px)] font-semibold">{t.community.title}</h2>
 					<p className="max-w-[58ch] text-muted-foreground">{t.community.text}</p>
 					<div className="mt-2 flex flex-wrap justify-center gap-2.5">
