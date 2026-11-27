@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { RELEASES_REPO, RELEASES_URL } from "@/lib/site";
+import { GITHUB_URL, RELEASES_REPO, RELEASES_URL } from "@/lib/site";
+import { BrandIcon } from "./brand-icons";
 import { cn } from "@/lib/utils";
 
 // Download links from the latest GitHub release, with the visitor's system picked out.
@@ -66,7 +67,9 @@ export function HeroDownload() {
 					</a>
 				</Button>
 				<Button asChild size="lg" variant="outline" className="h-11 px-5 text-[15px]">
-					<a href="#workflow">See how it works</a>
+					<a href={GITHUB_URL} target="_blank" rel="noreferrer">
+						<BrandIcon name="github" /> View on GitHub
+					</a>
 				</Button>
 			</div>
 			<p className="mt-3 text-[12.5px] text-muted-foreground">

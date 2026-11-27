@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Kantumruy_Pro } from "next/font/google";
+import { Footer, Header } from "@/components/site/chrome";
 import { asset } from "@/lib/site";
 import "./globals.css";
 
@@ -25,7 +26,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 			<head>
 				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>
-			<body>{children}</body>
+			<body>
+				<Header />
+				{children}
+				<Footer />
+			</body>
 		</html>
 	);
 }
