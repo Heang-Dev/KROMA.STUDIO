@@ -119,6 +119,15 @@ The AI writes a title, text and hashtags for each platform. Connect YouTube, Fac
 </tr>
 </table>
 
+## More in Kroma
+
+- **Batch.** Add many videos at once, from the Download Center or your project files, choose the steps once (subtitles, translate, characters, voice-over, style, export, post text) and press **Process**. Each video goes through every step while you do something else, then waits in **Ready to post** so you check it first.
+- **The right format for each platform.** YouTube gets 16:9; TikTok, Facebook and Reels get 9:16. Kroma exports each format it needs and uploads the right file to each platform.
+- **Download Center.** Paste a whole series, a playlist or a channel, tick the episodes you want, and each video becomes its own project, numbered in a folder. The queue keeps going while you work and picks up after a restart.
+- **Story studio.** Write a story one line per speaker, give every character a voice, and Kroma reads it aloud. Save the audio with its subtitles.
+- **A voice engine built in.** One button installs it on your computer, or run it on a free Google Colab GPU. [Voice engine →](https://heang-dev.github.io/kroma/docs/0.1/voice-engine/)
+- **Notifications.** A bell in the title bar keeps everything that finished or failed, with **Retry** or **Open**, and your computer tells you when Kroma is in the background.
+
 ## Download
 
 | System | File | |
@@ -127,7 +136,7 @@ The AI writes a title, text and hashtags for each platform. Connect YouTube, Fac
 | **Windows** 10 / 11 (x64) | `Kroma-Studio-Setup-<version>.exe` | [Download](https://github.com/Heang-Dev/kroma/releases/latest) |
 | **Linux** (x64) | `.AppImage` (any distro) or `.deb` (Ubuntu, Debian) | [Download](https://github.com/Heang-Dev/kroma/releases/latest) |
 
-Kroma updates itself: new versions download in the background and a **Restart to update** card appears in the bottom-right corner.
+Kroma updates itself: new versions download in the background and a **Restart to update** card appears in the bottom-right corner. Every version and what changed in it is in the [changelog](CHANGELOG.md).
 
 <details>
 <summary><b>The installers aren't code-signed yet</b></summary>
@@ -142,13 +151,14 @@ Kroma updates itself: new versions download in the background and a **Restart to
 
 | Step | How |
 | --- | --- |
-| Download | `yt-dlp`, with the site's own subtitles when it has them |
+| Download | `yt-dlp`, with the site's own subtitles when it has them; the Download Center queues whole series, playlists and channels |
 | Speech to text | Gemini (default), Groq Whisper large-v3 or OpenAI: a 5-minute video in seconds |
 | Translate | Gemini (free tier), Google Translate (free, no key) or Claude; lines written to fit their time on screen |
-| Characters & voices | Finds who says each line; 36 Khmer voices (Khmer Voice Studio engine), voice cloning, free instant voices; original voices removed with audio-separator |
+| Characters & voices | Finds who says each line; 36 Khmer voices and voice cloning on Kroma's own voice engine (`engine/`, installed with one button or run on Google Colab), free instant voices; original voices removed with audio-separator |
 | Edit | Preview, timeline (split, trim, reorder), subtitle list, styles, blur boxes, logos and text |
 | Export | FFmpeg, Small / Standard / High; subtitles drawn by Chromium (correct Khmer shaping), so the export matches the preview |
-| Post | AI-written titles, text and hashtags; one-click posting to YouTube, Facebook and TikTok through Upload-Post |
+| Post | AI-written titles, text and hashtags; one-click posting to YouTube, Facebook and TikTok through Upload-Post, in the right format for each (16:9 or 9:16) |
+| Batch | Runs many videos through the same steps, one after another, and stops before posting |
 
 The heavy AI work runs in the cloud with your own keys (many free), so long videos are fast on any computer. Your videos, projects and keys stay on your machine; keys are encrypted with your system's keychain.
 
@@ -175,7 +185,7 @@ Windows and Linux builds are made and smoke-tested on GitHub Actions (`.github/w
 
 ### Project layout
 
-- `src/main/`: Electron main process: `download.ts` (yt-dlp), `transcribe.ts` (speech to text), `ai.ts` + `gemini.ts` + `google-translate.ts` (translation and posts), `voice.ts` (voice-over), `export.ts` (FFmpeg), `updater.ts` (auto-update), `settings.ts` (keys encrypted with the keychain), `index.ts` (windows, `kroma://` media protocol, IPC)
+- `src/main/`: Electron main process: `download.ts` (yt-dlp), `downloads.ts` (Download Center queue), `batch.ts` (Batch), `story.ts` (Story studio), `engine.ts` (the voice engine), `notify.ts` (system notifications), `transcribe.ts` (speech to text), `ai.ts` + `gemini.ts` + `google-translate.ts` (translation and posts), `voice.ts` (voice-over), `export.ts` (FFmpeg), `updater.ts` (auto-update), `settings.ts` (keys encrypted with the keychain), `index.ts` (windows, `kroma://` media protocol, IPC)
 - `src/preload/`: the `window.kroma` API
 - `src/renderer/src/`: the React editor. `lib/timeline.ts` (clip maths), `lib/subtitleRender.ts` (one renderer for preview and export), `lib/actions.ts`, `state/store.ts` (zustand, undo/redo)
 - `src/shared/`: types, languages and SRT parsing
