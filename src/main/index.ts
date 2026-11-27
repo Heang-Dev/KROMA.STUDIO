@@ -405,7 +405,8 @@ function registerIpc(): void {
 	});
 	// Updates (see updater.ts).
 	ipcMain.handle("update:get", () => updateState());
-	ipcMain.handle("update:check", () => checkForUpdates(true));
+	// A check from the buttons follows "Update automatically": off means it only says a new version is out (Download is yours to press).
+	ipcMain.handle("update:check", () => checkForUpdates(loadSettings().autoUpdate));
 	ipcMain.handle("update:download", () => downloadUpdate());
 	ipcMain.handle("update:install", () => installUpdate());
 	ipcMain.handle("file:exists", (_e, path: string) => existsSync(path));
