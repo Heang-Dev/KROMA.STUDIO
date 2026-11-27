@@ -7,6 +7,7 @@
   <a href="https://github.com/Heang-Dev/kroma/releases"><img src="https://img.shields.io/github/downloads/Heang-Dev/kroma/total?style=flat&label=downloads&color=7F22FE" alt="Total downloads" /></a>
   <a href="https://github.com/Heang-Dev/KROMA.STUDIO"><img src="https://img.shields.io/github/stars/Heang-Dev/KROMA.STUDIO?style=flat&label=%E2%98%85&color=7F22FE" alt="GitHub stars" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7F22FE?style=flat" alt="License: MIT" /></a>
+  <a href="https://t.me/kromastudio_community"><img src="https://img.shields.io/badge/Telegram-26A5E4?logo=telegram&logoColor=white" alt="Telegram" /></a>
   <img src="https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-171717?style=flat" alt="macOS, Windows and Linux" />
 </p>
 
@@ -189,6 +190,8 @@ Follows [Orca](https://github.com/stablyai/orca)'s look (MIT): shadcn/ui on Radi
 Only download, translate and repost videos you have the right to use, and only clone voices that are your own or that you have the speaker's permission for. Videos protected with DRM can't be downloaded.
 
 ## Contributing
+
+Questions and chat: join the [Telegram group](https://t.me/kromastudio_community).
 
 Bug reports, ideas and fixes are welcome: [open an issue](https://github.com/Heang-Dev/KROMA.STUDIO/issues) or send a pull request.
 

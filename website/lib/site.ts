@@ -11,7 +11,7 @@ export const RELEASES_URL = `https://github.com/${RELEASES_REPO}/releases`;
 /** Community channels: set the link to show the button (here or as NEXT_PUBLIC_DISCORD_URL etc. at build time). */
 export const COMMUNITY = {
 	discord: process.env.NEXT_PUBLIC_DISCORD_URL || "",
-	telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || "",
+	telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/kromastudio_community",
 	youtube: process.env.NEXT_PUBLIC_YOUTUBE_URL || "",
 };
 

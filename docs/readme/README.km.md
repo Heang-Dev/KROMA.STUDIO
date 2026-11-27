@@ -7,6 +7,7 @@
   <a href="https://github.com/Heang-Dev/kroma/releases"><img src="https://img.shields.io/github/downloads/Heang-Dev/kroma/total?style=flat&label=downloads&color=7F22FE" alt="ចំនួនទាញយកសរុប" /></a>
   <a href="https://github.com/Heang-Dev/KROMA.STUDIO"><img src="https://img.shields.io/github/stars/Heang-Dev/KROMA.STUDIO?style=flat&label=%E2%98%85&color=7F22FE" alt="ផ្កាយលើ GitHub" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-MIT-7F22FE?style=flat" alt="អាជ្ញាប័ណ្ណ MIT" /></a>
+  <a href="https://t.me/kromastudio_community"><img src="https://img.shields.io/badge/Telegram-26A5E4?logo=telegram&logoColor=white" alt="Telegram" /></a>
   <img src="https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-171717?style=flat" alt="macOS, Windows និង Linux" />
 </p>
 
@@ -142,6 +143,8 @@ Kroma ធ្វើបច្ចុប្បន្នភាពខ្លួនឯ�
 ទាញយក បកប្រែ និងបង្ហោះឡើងវិញ តែវីដេអូដែលអ្នកមានសិទ្ធិប្រើប៉ុណ្ណោះ ហើយចម្លងតែសំឡេងរបស់អ្នក ឬសំឡេងអ្នកដែលបានយល់ព្រម។ វីដេអូដែលការពារដោយ DRM មិនអាចទាញយកបានទេ។
 
 ## ការរួមចំណែក
+
+សួរសំណួរ និងជជែក៖ ចូលរួម [ក្រុម Telegram](https://t.me/kromastudio_community)។
 
 យើងស្វាគមន៍ការរាយការណ៍បញ្ហា គំនិត និងការកែលម្អ៖ [បើក issue](https://github.com/Heang-Dev/KROMA.STUDIO/issues) ឬផ្ញើ pull request។
 
