@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 /* Kroma's own tokens, synced from the app (scripts/sync-tokens.mjs). */
 @import "./tokens.css";
 
@@ -43,4 +44,17 @@
 	html {
 		scroll-behavior: auto;
 	}
+}
+
+/* Theme switch: the new theme is revealed by a growing circle (see theme-toggle.tsx), not a cross-fade. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+	z-index: 1;
+}
+::view-transition-new(root) {
+	z-index: 2;
 }

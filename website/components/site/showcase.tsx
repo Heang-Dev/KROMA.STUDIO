@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { type Lang, messages } from "@/lib/i18n";
 import { asset } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +20,8 @@ const TABS = [
 ];
 const SECONDS = 6;
 
-export function Showcase() {
+export function Showcase({ lang }: { lang: Lang }) {
+	const t = messages[lang].showcase;
 	const [active, setActive] = useState(0);
 	const [paused, setPaused] = useState(false);
 	const reduced = useReducedMotion();
@@ -33,7 +35,7 @@ export function Showcase() {
 
 	return (
 		<div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-			<div role="tablist" aria-label="What Kroma does" className="mx-auto mb-5 flex w-fit max-w-full overflow-x-auto rounded-lg border bg-background p-1">
+			<div role="tablist" aria-label={t.label} className="mx-auto mb-5 flex w-fit max-w-full overflow-x-auto rounded-lg border bg-background p-1">
 				{TABS.map((tab, i) => (
 					<button
 						key={tab.id}
@@ -45,7 +47,7 @@ export function Showcase() {
 						className={cn("relative shrink-0 rounded-md px-3 py-1.5 text-[13px] whitespace-nowrap transition-colors", i === active ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
 					>
 						{i === active && <motion.span layoutId="showcase-pill" className="absolute inset-0 rounded-md bg-accent" transition={{ type: "spring", stiffness: 420, damping: 36 }} />}
-						<span className="relative">{tab.label}</span>
+						<span className="relative">{t.tabs[tab.id as keyof typeof t.tabs]}</span>
 						{/* How long until the next tab. */}
 						{i === active && auto && (
 							<motion.span key={`bar-${active}`} className="absolute inset-x-2 bottom-0 h-px origin-left bg-foreground/50" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: SECONDS, ease: "linear" }} />

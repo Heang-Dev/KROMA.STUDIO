@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { motion } from "motion/react";
 import voices from "@/lib/voices.json";
+import { type Lang, messages } from "@/lib/i18n";
 import { asset } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,8 @@ const GROUP: Record<string, string> = {
 // Fixed bar heights per card, so the server and the browser draw the same thing.
 const bars = (seed: number) => Array.from({ length: 28 }, (_, i) => 0.25 + 0.75 * Math.abs(Math.sin(seed * 7.1 + i * 1.37) * Math.cos(i * 0.61 + seed)));
 
-export function VoiceGallery() {
+export function VoiceGallery({ lang }: { lang: Lang }) {
+	const t = messages[lang].voices;
 	const [playing, setPlaying] = useState<number | null>(null);
 	const [progress, setProgress] = useState(0);
 	const audio = useRef<HTMLAudioElement | null>(null);
@@ -61,13 +63,13 @@ export function VoiceGallery() {
 								<p className="text-[11px] text-muted-foreground tabular-nums">{String(i + 1).padStart(2, "0")}</p>
 								<h3 className="truncate text-[14px] font-semibold">{v.name}</h3>
 							</div>
-							<span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">{GROUP[v.name] ?? "Preset"}</span>
+							<span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">{GROUP[v.name] ? t.groups[GROUP[v.name] as keyof typeof t.groups] : "Preset"}</span>
 						</div>
 						<div className="flex items-center gap-3">
 							<button
 								type="button"
 								onClick={() => toggle(i)}
-								aria-label={on ? `Pause ${v.name}` : `Play ${v.name}`}
+								aria-label={on ? `${t.pause} ${v.name}` : `${t.play} ${v.name}`}
 								className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
 							>
 								{on ? <Pause className="size-4 fill-current" /> : <Play className="ml-0.5 size-4 fill-current" />}

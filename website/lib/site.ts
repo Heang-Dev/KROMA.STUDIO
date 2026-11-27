@@ -15,6 +15,17 @@ export const COMMUNITY = {
 	youtube: process.env.NEXT_PUBLIC_YOUTUBE_URL || "",
 };
 
+/** Community channels that have a link (Discord, Telegram, YouTube). */
+export function communityLinks(): { name: "discord" | "telegram" | "youtube"; label: string; href: string }[] {
+	return (
+		[
+			{ name: "discord", label: "Discord", href: COMMUNITY.discord },
+			{ name: "telegram", label: "Telegram", href: COMMUNITY.telegram },
+			{ name: "youtube", label: "YouTube", href: COMMUNITY.youtube },
+		] as const
+	).filter((c) => c.href);
+}
+
 /** A file in public/, under the site's base path. */
 export const asset = (path: string) => `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}${path}`;
 

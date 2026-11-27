@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { type Lang, messages } from "@/lib/i18n";
 import { GITHUB_URL, RELEASES_REPO, RELEASES_URL } from "@/lib/site";
 import { BrandIcon } from "./brand-icons";
 import { cn } from "@/lib/utils";
@@ -55,33 +56,34 @@ function useDownloads(): Downloads {
 const link = (d: Downloads, kind: Kind) => d.urls[kind] ?? `${RELEASES_URL}/latest`;
 
 /** The hero's button: "Download for macOS", with the other systems below. */
-export function HeroDownload() {
+export function HeroDownload({ lang }: { lang: Lang }) {
 	const d = useDownloads();
+	const t = messages[lang].hero;
 	const others = (Object.keys(OS_NAMES) as Os[]).filter((o) => o !== d.os).map((o) => OS_NAMES[o]);
 	return (
 		<>
 			<div className="mt-8 flex flex-wrap justify-center gap-2.5">
 				<Button asChild size="lg" className="h-11 px-5 text-[15px]">
 					<a href={d.os ? link(d, OS_FILE[d.os]) : "#download"}>
-						<Download /> {d.os ? `Download for ${OS_NAMES[d.os]}` : "Download Kroma Studio"}
+						<Download /> {d.os ? `${t.downloadFor} ${OS_NAMES[d.os]}` : t.downloadAny}
 					</a>
 				</Button>
 				<Button asChild size="lg" variant="outline" className="h-11 px-5 text-[15px]">
 					<a href={GITHUB_URL} target="_blank" rel="noreferrer">
-						<BrandIcon name="github" /> View on GitHub
+						<BrandIcon name="github" /> {t.viewGithub}
 					</a>
 				</Button>
 			</div>
 			<p className="mt-3 text-[12.5px] text-muted-foreground">
 				{d.os ? (
 					<>
-						Also for{" "}
+						{t.alsoFor}{" "}
 						<a href="#download" className="underline underline-offset-2">
 							{others.join(" · ")}
 						</a>
 					</>
 				) : (
-					"For macOS, Windows and Linux"
+					t.forAll
 				)}
 			</p>
 		</>
@@ -94,7 +96,7 @@ const LOGOS: Record<Os, React.ReactNode> = {
 	linux: <path d="M12 2c-2.2 0-3.6 1.9-3.6 4.6 0 1.6.4 2.8-.6 4.4-1.3 2-2.8 4.2-2.6 6.6.1 1.3.9 2 1.9 2.3.8.3 1.6.9 2.4 1.5.6.4 1.5.6 2.5.6s1.9-.2 2.5-.6c.8-.6 1.6-1.2 2.4-1.5 1-.3 1.8-1 1.9-2.3.2-2.4-1.3-4.6-2.6-6.6-1-1.6-.6-2.8-.6-4.4C15.6 3.9 14.2 2 12 2Z" />,
 };
 
-function OsCard({ os, current, title, detail, children, help }: { os: Os; current: boolean; title: string; detail: string; children: React.ReactNode; help: React.ReactNode }) {
+function OsCard({ os, current, title, detail, children, help, yourSystem }: { os: Os; current: boolean; title: string; detail: string; children: React.ReactNode; help: React.ReactNode; yourSystem: string }) {
 	return (
 		<div className={cn("flex flex-col gap-4 rounded-lg border bg-card p-5", current && "border-ring")}>
 			<div className="flex items-center gap-3">
@@ -105,7 +107,7 @@ function OsCard({ os, current, title, detail, children, help }: { os: Os; curren
 					<h3 className="text-base font-semibold">{title}</h3>
 					<p className="text-[12.5px] text-muted-foreground">{detail}</p>
 				</div>
-				{current && <span className="ml-auto rounded-full border border-success/40 px-2 py-0.5 text-[11px] whitespace-nowrap text-success">Your system</span>}
+				{current && <span className="ml-auto rounded-full border border-success/40 px-2 py-0.5 text-[11px] whitespace-nowrap text-success">{yourSystem}</span>}
 			</div>
 			{children}
 			<details className="text-[13px] text-muted-foreground">{help}</details>
@@ -113,7 +115,8 @@ function OsCard({ os, current, title, detail, children, help }: { os: Os; curren
 	);
 }
 
-export function CopyCode({ code }: { code: string }) {
+export function CopyCode({ code, lang = "en" }: { code: string; lang?: Lang }) {
+	const t = messages[lang].download;
 	const [copied, setCopied] = useState(false);
 	return (
 		<div className="mt-2.5 flex items-center gap-2 rounded-lg border bg-muted py-2 pr-2 pl-3">
@@ -128,7 +131,7 @@ export function CopyCode({ code }: { code: string }) {
 					});
 				}}
 			>
-				{copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy"}
+				{copied ? <Check /> : <Copy />} {copied ? t.copied : t.copy}
 			</Button>
 		</div>
 	);
@@ -137,15 +140,16 @@ export function CopyCode({ code }: { code: string }) {
 const summary = "cursor-pointer";
 
 /** The install section: facts, a card per system with its downloads, and help for unsigned installers. */
-export function DownloadCards() {
+export function DownloadCards({ lang }: { lang: Lang }) {
 	const d = useDownloads();
+	const t = messages[lang].download;
 	return (
 		<>
 			<dl className="mt-8 grid gap-x-10 gap-y-2 sm:grid-cols-[repeat(3,auto)] sm:justify-start">
 				{[
-					["Platforms", "macOS (Apple silicon) · Windows 10/11 x64 · Linux x64"],
-					["Size", "About 200 MB"],
-					["Version", d.version ?? "Latest release"],
+					[t.facts.platforms, t.facts.platformsValue],
+					[t.facts.size, t.facts.sizeValue],
+					[t.facts.version, d.version ?? t.facts.latest],
 				].map(([k, v]) => (
 					<div key={k} className="grid gap-0.5">
 						<dt className="text-xs tracking-wider text-muted-foreground uppercase">{k}</dt>
@@ -157,47 +161,52 @@ export function DownloadCards() {
 				<OsCard
 					os="mac"
 					current={d.os === "mac"}
+					yourSystem={t.yourSystem}
 					title="macOS"
-					detail="Apple silicon (M1 and later)"
+					detail={t.mac.detail}
 					help={
 						<>
-							<summary className={summary}>&ldquo;Kroma Studio is damaged&rdquo; or won&apos;t open?</summary>
-							<p className="mt-2">The app isn&apos;t signed with an Apple certificate yet. After moving it to Applications, run this once in Terminal:</p>
-							<CopyCode code={'xattr -cr "/Applications/Kroma Studio.app"'} />
+							<summary className={summary}>{t.mac.help}</summary>
+							<p className="mt-2">{t.mac.helpText}</p>
+							<CopyCode code={'xattr -cr "/Applications/Kroma Studio.app"'} lang={lang} />
 						</>
 					}
 				>
 					<Button asChild>
-						<a href={link(d, "dmg")}>Download .dmg</a>
+						<a href={link(d, "dmg")}>{t.mac.button}</a>
 					</Button>
 				</OsCard>
 				<OsCard
 					os="windows"
 					current={d.os === "windows"}
+					yourSystem={t.yourSystem}
 					title="Windows"
-					detail="Windows 10 and 11 · x64"
+					detail={t.windows.detail}
 					help={
 						<>
-							<summary className={summary}>&ldquo;Windows protected your PC&rdquo;?</summary>
+							<summary className={summary}>{t.windows.help}</summary>
 							<p className="mt-2">
-								The installer isn&apos;t code-signed yet. Click <strong className="text-foreground">More info</strong>, then <strong className="text-foreground">Run anyway</strong>.
+								{t.windows.helpBefore} <strong className="text-foreground">{t.windows.more}</strong>
+								{t.windows.helpMiddle} <strong className="text-foreground">{t.windows.run}</strong>
+								{t.windows.helpAfter}
 							</p>
 						</>
 					}
 				>
 					<Button asChild>
-						<a href={link(d, "exe")}>Download installer</a>
+						<a href={link(d, "exe")}>{t.windows.button}</a>
 					</Button>
 				</OsCard>
 				<OsCard
 					os="linux"
 					current={d.os === "linux"}
+					yourSystem={t.yourSystem}
 					title="Linux"
-					detail="x64 · AppImage or Debian package"
+					detail={t.linux.detail}
 					help={
 						<>
-							<summary className={summary}>Running the AppImage</summary>
-							<CopyCode code="chmod +x Kroma-Studio-*.AppImage && ./Kroma-Studio-*.AppImage" />
+							<summary className={summary}>{t.linux.help}</summary>
+							<CopyCode code="chmod +x Kroma-Studio-*.AppImage && ./Kroma-Studio-*.AppImage" lang={lang} />
 						</>
 					}
 				>

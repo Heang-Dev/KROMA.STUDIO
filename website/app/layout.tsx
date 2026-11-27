@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 // The theme before the page draws (no flash): the visitor's choice, else the system's.
-const themeScript = `try{var t=localStorage.getItem("kroma-theme");var d=t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d)}catch(e){}`;
+const themeScript = `try{if(/\/km(\/|$)/.test(location.pathname.replace(${JSON.stringify(process.env.NEXT_PUBLIC_BASE_PATH ?? "")},"")))document.documentElement.lang="km";var t=localStorage.getItem("kroma-theme");var d=t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d)}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
