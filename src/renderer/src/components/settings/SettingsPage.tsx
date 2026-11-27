@@ -4,6 +4,7 @@ import type { SettingsView } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { isMac } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { SETTINGS_SECTIONS, type SettingsPatch } from "./sections";
@@ -73,7 +74,7 @@ export function SettingsPage() {
 							onKeyDown={(e) => e.key === "Enter" && visible[0] && open(visible[0].id)}
 						/>
 						<span className="pointer-events-none absolute top-1/2 right-2 flex -translate-y-1/2 gap-0.5">
-							<Kbd>⌘</Kbd>
+							<Kbd>{isMac ? "⌘" : "Ctrl"}</Kbd>
 							<Kbd>F</Kbd>
 						</span>
 					</div>

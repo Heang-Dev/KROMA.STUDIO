@@ -83,7 +83,7 @@ export function SubtitleList() {
 				{visible.map((cue) => (
 					<CueRow key={cue.id} cue={cue} cast={cast} active={cues[active]?.id === cue.id} selected={selectedId === cue.id} />
 				))}
-				{cues.length === 0 && <p className="px-4 py-6 text-xs leading-relaxed text-muted-foreground">Subtitles appear here after "Make Khmer subtitles". You can fix any line by typing in it.</p>}
+				{cues.length === 0 && <p className="px-4 py-6 text-xs leading-relaxed text-muted-foreground">Subtitles appear here after "Make {languageOf(language).name} subtitles". You can fix any line by typing in it.</p>}
 			</div>
 			<FindReplace open={replacing} onOpenChange={setReplacing} initial={query} />
 		</aside>

@@ -56,13 +56,23 @@ export function mainMedia(): MediaItem | null {
 
 export function preferredSiteSubtitle(media: MediaItem): string | null {
 	const subs = media.siteSubtitles ?? {};
-	const order = ["zh-Hans", "zh-CN", "zh", "ai-zh", "zh-Hant", "zh-TW"];
-	const key = order.find((k) => subs[k]) ?? Object.keys(subs).find((k) => k.startsWith("zh"));
+	// Chinese first (most dramas), then English, then whatever language the site has.
+	const order = ["zh-Hans", "zh-CN", "zh", "ai-zh", "zh-Hant", "zh-TW", "en", "en-US", "en-GB"];
+	const key = order.find((k) => subs[k]) ?? Object.keys(subs).find((k) => k.startsWith("zh")) ?? Object.keys(subs).find((k) => k.startsWith("en")) ?? Object.keys(subs)[0];
 	return key ? subs[key] : null;
 }
 
-/** Fills the subtitle track from the site's subtitles or cloud speech-to-text. Replaces existing cues of that media. */
+/** Asks before replacing lines you already have (and may have fixed by hand). True to go ahead. */
+function confirmReplace(count: number, what: string): boolean {
+	if (!count) return true;
+	return window.confirm(`${what}\n\nThis replaces the ${count} line${count === 1 ? "" : "s"} you have now, including any you fixed by hand. Undo (⌘Z / Ctrl+Z) brings them back.`);
+}
+
+/** Fills the subtitle track from the site's subtitles or cloud speech-to-text. Replaces existing cues of that media (after asking). */
 export async function getSubtitles(media: MediaItem, source: { kind: "site"; path: string } | { kind: "cloud"; language: string }): Promise<boolean> {
+	const { project } = state();
+	const existing = project.cues.filter((c) => placeClips(project.clips).some((clip) => clip.mediaId === media.id && c.start >= clip.start && c.start < clip.end));
+	if (!confirmReplace(existing.length, "Get the subtitles again?")) return false;
 	let cues: SourceCue[] | null;
 	let note: string | undefined;
 	if (source.kind === "site") cues = await window.kroma.readSubtitles(source.path);
@@ -93,6 +103,8 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 		return false;
 	}
 	const lang = languageOf(project.language);
+	const replacing = onlyMissing ? 0 : project.cues.filter((c) => c.source.trim() && c.text.trim()).length;
+	if (!confirmReplace(replacing, `Translate every line to ${lang.name} again?`)) return false;
 	const answer = await runTask(`translate-${Date.now()}`, `Translate to ${lang.name}`, (id) => window.kroma.translate(id, lines, project.context, lang.code));
 	if (!answer) return false;
 	const result = answer.translations;
@@ -104,7 +116,7 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 	return true;
 }
 
-/** One click: site subtitles if any, otherwise cloud speech-to-text, then Claude translation. */
+/** One click: site subtitles if any, otherwise cloud speech-to-text, then translation (with the chosen translator). */
 export async function autoKhmer(language: string): Promise<void> {
 	const media = mainMedia();
 	if (!media) {
@@ -177,11 +189,18 @@ export async function exportVideo(quality: ExportQuality, quiet = false): Promis
 }
 
 /** Changes whenever anything that ends up in the exported video changes (not the posts or notes). */
+// Projects are replaced, never changed in place, so each version's fingerprint is worked out once (the step bar asks
+// on every playback tick).
+const fingerprints = new WeakMap<Project, string>();
 export function videoFingerprint(p: Project): string {
+	const cached = fingerprints.get(p);
+	if (cached) return cached;
 	const text = JSON.stringify([p.aspect, p.fit, p.media.map((m) => m.path), p.clips, p.cues, p.style, p.objects, p.voice]);
 	let h = 5381;
 	for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
-	return `${text.length}:${(h >>> 0).toString(36)}`;
+	const print = `${text.length}:${(h >>> 0).toString(36)}`;
+	fingerprints.set(p, print);
+	return print;
 }
 
 export async function exportSrt(which: "khmer" | "source"): Promise<void> {
@@ -197,6 +216,7 @@ export async function exportSrt(which: "khmer" | "source"): Promise<void> {
 export async function importSrt(): Promise<void> {
 	const cues = await window.kroma.importSrt();
 	if (!cues) return;
+	if (!confirmReplace(state().project.cues.length, `Import ${cues.length} lines from this file?`)) return;
 	const khmer = cues.some((c) => /[ក-៿]/.test(c.text));
 	state().update((p) => ({
 		...p,
@@ -272,6 +292,16 @@ function stamped(p: Project): Project {
 
 /** Changes anything that decides which voice speaks a line (voices, cast, speakers). */
 const updateVoicing = (fn: (p: Project) => Project) => state().update((p) => fn(stamped(p)));
+
+/** After deleting a voice: the project and any character that used it move to the language's first instant voice. */
+export function forgetVoice(voice: string): void {
+	const { project } = state();
+	const v = voiceSettings(project);
+	const fallback = languageOf(project.language).voices[0].id;
+	const usedByCast = v.cast?.some((c) => c.voice === voice) ?? false;
+	if (v.voice !== voice && !usedByCast) return;
+	setVoice({ ...(v.voice === voice ? { voice: fallback } : {}), ...(usedByCast ? { cast: v.cast?.map((c) => (c.voice === voice ? { ...c, voice: fallback } : c)) } : {}) });
+}
 
 export function setVoice(patch: Partial<VoiceSettings>): void {
 	updateVoicing((p) => ({ ...p, voice: { ...voiceSettings(p), ...patch } }));

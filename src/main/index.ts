@@ -95,7 +95,7 @@ function createWindow(): void {
 	win.once("ready-to-show", () => win.show());
 	// Closing an extra window with unsaved work asks first (the editor flags it); its autosave then goes away.
 	win.webContents.on("will-prevent-unload", (event) => {
-		const choice = dialog.showMessageBoxSync(win, { type: "warning", buttons: ["Close Window", "Cancel"], defaultId: 1, cancelId: 1, message: "Close this window?", detail: "This window's project has changes that aren't saved to a file. Save it first (⌘S) to keep them." });
+		const choice = dialog.showMessageBoxSync(win, { type: "warning", buttons: ["Close Window", "Cancel"], defaultId: 1, cancelId: 1, message: "Close this window?", detail: `This window's project has changes that aren't saved to a file. Save it first (${process.platform === "darwin" ? "⌘S" : "Ctrl+S"}) to keep them.` });
 		if (choice === 0) event.preventDefault();
 	});
 	win.on("closed", () => {
@@ -229,14 +229,14 @@ function registerIpc(): void {
 		}
 		return listKvsVoices();
 	});
-	// The KVS project folder: the saved setting, or the usual place next to this project.
 	/** A template's sample: KVS's own when it has one (so both apps match), otherwise designed here once. */
 async function presetFromKvsOrDesign(name: string, p: (v: number, m: string) => void, s?: AbortSignal) {
 	await syncKvsPresets(kvsDir()).catch(() => 0);
 	return presetVoice(name) ?? makePresetVoice(loadSettings(), name, p, s);
 }
 
-const kvsDir = () => loadSettings().kvsProjectDir || join(app.getPath("home"), "Documents", "PERSONAL", "PROJECTS", "KHMER.VOICE.STUDIO");
+/** The Khmer Voice Studio folder chosen in Settings → Voice Engine ("" when none: importing from KVS is then off). */
+const kvsDir = () => loadSettings().kvsProjectDir;
 	ipcMain.handle("kvs:importable", () => kvsImportable(kvsDir()));
 	ipcMain.handle("kvs:import", (_e, ids: number[]) => importKvsVoices(kvsDir(), ids));
 	ipcMain.handle("kvs:delete", (_e, id: string) => deleteKvsVoice(id));

@@ -5,6 +5,7 @@ import { planVoice } from "@shared/voice";
 import { voiceCues, voiceSettings } from "@/lib/actions";
 import { drawCue } from "@/lib/subtitleRender";
 import { type PlacedClip, cueAt, formatTime, placeClips, totalDuration } from "@/lib/timeline";
+import { languageOf } from "@shared/languages";
 import { useEditor } from "@/state/store";
 import { ObjectLayer } from "./ObjectLayer";
 import { IconButton } from "./common";
@@ -294,10 +295,11 @@ function Transport({ total, playing, onToggle }: { total: number; playing: boole
 }
 
 function EmptyState() {
+	const target = languageOf(useEditor((s) => s.project.language));
 	return (
 		<div className="max-w-sm text-center">
 			<p className="font-khmer text-2xl font-semibold text-foreground">សូមស្វាគមន៍</p>
-			<p className="mt-2 text-sm text-muted-foreground">Paste a video link or import a file on the left. Then press <span className="text-primary">Make Khmer subtitles</span>.</p>
+			<p className="mt-2 text-sm text-muted-foreground">Paste a video link or import a file on the left. Then press <span className="text-primary">Make {target.name} subtitles</span>.</p>
 		</div>
 	);
 }

@@ -6,7 +6,7 @@ import { LIBRARY_DIR } from "./download";
 import { findTool, requireTool, run } from "./tools";
 
 // Client for the Khmer Voice Studio engine (../KHMER.VOICE.STUDIO/engine): VoxCPM2 cloned and designed Khmer voices.
-// It runs on this Mac (make engine) or on a free Colab GPU (its notebook prints a URL + token). The engine keeps no
+// It runs on this computer or on a free Colab GPU (its notebook prints a URL + token). The engine keeps no
 // voices: each job carries the reference recording. Kroma sends all lines as one "story" job so the voice stays
 // consistent, then cuts the result into one clip per subtitle line using the engine's own timings.
 
@@ -32,7 +32,7 @@ async function call<T>(settings: Settings, path: string, init: RequestInit = {},
 	try {
 		response = await fetch(`${base(settings)}${path}`, { ...init, headers: { ...headers(settings), ...(init.headers as Record<string, string>) }, signal: init.signal ?? AbortSignal.timeout(timeoutMs) });
 	} catch {
-		throw new Error(`Can't reach the voice engine at ${settings.kvsUrl}. Start it (KVS: make engine, or the Colab notebook) and check Settings → Voice Engine.`);
+		throw new Error(`Can't reach the voice engine at ${settings.kvsUrl}. Start it (on this computer, or in its Colab notebook) and check Settings → Voice Engine.`);
 	}
 	if (response.status === 401 || response.status === 403) throw new Error("The voice engine refused the token. Copy the token from the engine (Colab prints it) into Settings → Voice Engine.");
 	if (!response.ok) {
@@ -354,6 +354,8 @@ function fileHash(path: string): string {
 
 /** KVS keeps voices in its Postgres database (names, transcripts) and storage/app/private (the recordings). */
 async function kvsDashboardVoices(projectDir: string): Promise<(KvsImportable & { file: string })[]> {
+	if (!projectDir) throw new Error("Choose your Khmer Voice Studio folder first: Settings → Voice Engine → Khmer Voice Studio folder.");
+	if (!existsSync(join(projectDir, ".env"))) throw new Error(`That folder doesn't look like Khmer Voice Studio (no .env file in ${projectDir}). Choose it again in Settings → Voice Engine.`);
 	const env = readFileSync(join(projectDir, ".env"), "utf8");
 	const get = (k: string) => env.match(new RegExp(`^${k}=(.*)$`, "m"))?.[1]?.trim().replace(/^"|"$/g, "") ?? "";
 	const psql = findTool("psql");
@@ -406,7 +408,7 @@ export async function importKvsVoices(projectDir: string, ids: number[]): Promis
 
 /** Brings over KVS's preset samples that Kroma doesn't have yet (or has a different one of). Presets need no consent. */
 export async function syncKvsPresets(projectDir: string): Promise<number> {
-	if (!existsSync(join(projectDir, ".env"))) return 0;
+	if (!projectDir || !existsSync(join(projectDir, ".env"))) return 0;
 	const all = await kvsDashboardVoices(projectDir);
 	const missing = all.filter((v) => v.kind === "preset" && !v.imported).map((v) => v.kvsId);
 	return missing.length ? importKvsVoices(projectDir, missing) : 0;

@@ -56,7 +56,7 @@ export function AIPanel() {
 					<Zap /> Make {target.name} subtitles
 				</Button>
 				{!media && <p className="text-xs text-muted-foreground">Add a video to the timeline first.</p>}
-				{media && site && <p className="text-xs text-muted-foreground">This video has the site's own Chinese subtitles, so speech-to-text is skipped.</p>}
+				{media && site && <p className="text-xs text-muted-foreground">This video has the site's own subtitles, so speech-to-text is skipped.</p>}
 				<TaskProgress prefix="asr" />
 				<TaskProgress prefix="translate" />
 			</Section>

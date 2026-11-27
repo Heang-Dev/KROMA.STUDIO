@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { setVoice } from "@/lib/actions";
+import { forgetVoice, setVoice } from "@/lib/actions";
 import { runTask, useEditor } from "@/state/store";
 import { CloneDialog } from "./VoicePanel";
 import { WaveformPlayer } from "./WaveformPlayer";
@@ -46,7 +46,7 @@ export function VoicesPage() {
 					<div className="flex flex-wrap items-start justify-between gap-4">
 						<div>
 							<h1 className="text-xl font-semibold">My voices</h1>
-							<p className="mt-1 text-xs text-muted-foreground">Clone a voice from a 10–20 second recording, use a voice template, or an instant voice. Press ▶ to listen.</p>
+							<p className="mt-1 text-xs text-muted-foreground">Clone a voice from a 5–20 second recording, use a voice template, or an instant voice. Press ▶ to listen.</p>
 						</div>
 						<div className="flex gap-2">
 							<Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
@@ -82,7 +82,11 @@ export function VoicesPage() {
 									player={<WaveformPlayer path={v.path} />}
 									onUse={() => use(`kvs-clone:${v.id}`, v.name)}
 									onDelete={() => {
-										if (window.confirm(`Delete the voice "${v.name}"?`)) void window.kroma.kvsDelete(v.id).then(refresh);
+										if (!window.confirm(`Delete the voice "${v.name}"?`)) return;
+										void window.kroma.kvsDelete(v.id).then(() => {
+											forgetVoice(`kvs-clone:${v.id}`);
+											refresh();
+										});
 									}}
 								/>
 							))

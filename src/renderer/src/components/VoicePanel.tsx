@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { linesNeedingVoice, makeVoiceOver, removeOriginalVoices, setVoice, voiceSettings } from "@/lib/actions";
+import { linesNeedingVoice, makeVoiceOver, removeOriginalVoices, setVoice, voiceSettings, forgetVoice } from "@/lib/actions";
 import { runTask, useEditor } from "@/state/store";
 import { CharactersSection } from "./CharactersSection";
 import { VoiceRecorder } from "./VoiceRecorder";
@@ -177,7 +177,7 @@ export function VoicePanel() {
 												onClick={() => {
 													if (!window.confirm(`Delete the voice "${v.name}"?`)) return;
 													void window.kroma.kvsDelete(v.id).then(() => {
-														if (on) setVoice({ voice: instant[0].id });
+														forgetVoice(id);
 														kvs.refresh();
 													});
 												}}

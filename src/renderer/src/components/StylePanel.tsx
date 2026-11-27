@@ -71,7 +71,7 @@ export function StylePanel() {
 					<Row label="Outline colour" control={<ColorSwatch label="Outline colour" value={style.outlineColor} onChange={(v) => setStyle({ outlineColor: v })} />} />
 					<SwitchRow label="Bold" checked={style.bold} onChange={(v) => setStyle({ bold: v })} />
 					<SwitchRow label="Dark box behind the text" checked={style.box} onChange={(v) => setStyle({ box: v })} />
-					<SwitchRow label="Bilingual" description="The Chinese line above the Khmer one." checked={style.showSource} onChange={(v) => setStyle({ showSource: v })} />
+					<SwitchRow label="Bilingual" description="The original line above the translation." checked={style.showSource} onChange={(v) => setStyle({ showSource: v })} />
 				</Card>
 			</Section>
 		</>

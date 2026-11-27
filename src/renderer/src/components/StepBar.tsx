@@ -4,7 +4,7 @@ import { languageOf } from "@shared/languages";
 import { ASPECT_SIZE, DEFAULT_STYLE, type ExportQuality, type Project, estimateSize } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { exportVideo, linesNeedingVoice, voiceSettings } from "@/lib/actions";
+import { exportVideo, linesNeedingVoice, videoFingerprint, voiceSettings } from "@/lib/actions";
 import { totalDuration } from "@/lib/timeline";
 import { isMac } from "@/lib/platform";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,8 @@ export function stepsOf(project: Project, exported: boolean): Step[] {
 export function StepBar() {
 	const project = useEditor((s) => s.project);
 	const panel = useEditor((s) => s.panel);
-	const exported = useEditor((s) => latestTask(s.tasks, "export")?.status === "done");
+	// Exported = the saved project's last export still matches the video (survives a restart), or an export just finished.
+	const exported = useEditor((s) => latestTask(s.tasks, "export")?.status === "done" || (!!s.project.lastExport && s.project.lastExport.fingerprint === videoFingerprint(s.project)));
 	const steps = stepsOf(project, exported);
 	const next = steps.find((s) => s.status === "todo");
 	// Several steps share a panel (Subtitles + Khmer, Characters + Voices): the open panel's first unfinished one is current.

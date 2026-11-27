@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { keyCaps } from "@/lib/platform";
 import { applyAppearance } from "@/lib/appearance";
 import { useEditor } from "@/state/store";
 import { useUpdateState } from "../UpdateButton";
@@ -217,10 +218,37 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 					<KeyRow label="Token" saved={settings.hasKvsToken} placeholder="Only needed for Colab" onSave={(v) => save({ kvsToken: v })} />
 				</Card>
 			</Group>
-			<Group title="Starting the engine">
+			<Group title="Starting the engine" description="The engine is part of Khmer Voice Studio, a separate project you run yourself.">
 				<Card>
-					<Row label="On a free Colab GPU (fast)" description="Open KHMER.VOICE.STUDIO/engine/colab/KhmerVoiceStudio_Colab.ipynb in Google Colab, choose a T4 GPU, run the cells, then paste the address and token it prints here." />
-					<Row label="On this computer (slower)" description={<span>In the KHMER.VOICE.STUDIO folder run <span className="font-mono">make engine</span>. The first time downloads the voice model (about 5 GB).</span>} />
+					<Row label="On a free Colab GPU (fast)" description="Open Khmer Voice Studio's Colab notebook (engine/colab/KhmerVoiceStudio_Colab.ipynb in its folder) in Google Colab, choose a T4 GPU, run the cells, then paste the address and token it prints here." />
+					<Row label="On this computer (slower)" description={<span>In your Khmer Voice Studio folder run <span className="font-mono">make engine</span>. The first time downloads the voice model (about 5 GB).</span>} />
+				</Card>
+			</Group>
+			<Group title="Import from Khmer Voice Studio" description="If you also run the KVS dashboard on this computer, choose its folder to bring its voices into Kroma (Voices → Import from KVS). Leave it empty otherwise.">
+				<Card>
+					<Row
+						label="Khmer Voice Studio folder"
+						description={settings.kvsProjectDir ? <span className="font-mono break-all">{settings.kvsProjectDir}</span> : "Not set: importing from KVS is off."}
+						control={
+							<span className="flex gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={async () => {
+										const picked = await window.kroma.chooseFolder(settings.kvsProjectDir);
+										if (picked) await save({ kvsProjectDir: picked });
+									}}
+								>
+									<FolderOpen /> Choose…
+								</Button>
+								{settings.kvsProjectDir && (
+									<Button variant="ghost" size="sm" onClick={() => void save({ kvsProjectDir: "" })}>
+										Clear
+									</Button>
+								)}
+							</span>
+						}
+					/>
 				</Card>
 			</Group>
 		</>
@@ -513,6 +541,8 @@ const SHORTCUTS: [string, string[]][] = [
 	["New project", ["⌘", "N"]],
 	["Open project", ["⌘", "O"]],
 	["Save project", ["⌘", "S"]],
+	["Save as a new file", ["⇧", "⌘", "S"]],
+	["New window", ["⇧", "⌘", "N"]],
 	["Settings", ["⌘", ","]],
 	["Bigger interface", ["⌘", "+"]],
 	["Smaller interface", ["⌘", "−"]],
@@ -530,7 +560,7 @@ function ShortcutsSection() {
 						label={label}
 						control={
 							<span className="flex gap-1">
-								{keys.map((k) => (
+								{keyCaps(keys).map((k) => (
 									<Kbd key={k}>{k}</Kbd>
 								))}
 							</span>
@@ -608,7 +638,7 @@ function AboutSection() {
 		<>
 			<Group title="About">
 				<Card>
-					<Row label={`Kroma Studio ${info.version}`} description="Turns Chinese and online videos into Khmer-subtitled posts for YouTube, Facebook and TikTok." />
+					<Row label={`Kroma Studio ${info.version}`} description="Turns online videos into Khmer (and Thai, Vietnamese, Lao…) videos with subtitles and voices, posted to YouTube, Facebook and TikTok." />
 				</Card>
 			</Group>
 			<UpdatesGroup />

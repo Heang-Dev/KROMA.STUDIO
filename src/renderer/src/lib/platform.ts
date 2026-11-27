@@ -13,5 +13,14 @@ export function keyLabel(shortcut: string, mac = isMac): string {
 	return `Ctrl+${alt ? "Alt+" : ""}${shift ? "Shift+" : ""}${rest}`;
 }
 
+/** Key caps for a shortcut: Mac symbols on a Mac; Ctrl, Shift, Alt and Backspace elsewhere, Ctrl first. */
+export function keyCaps(keys: string[], mac = isMac): string[] {
+	if (mac) return keys;
+	const names: Record<string, string> = { "⌘": "Ctrl", "⇧": "Shift", "⌥": "Alt", "⌫": "Backspace" };
+	const order = ["Ctrl", "Shift", "Alt"];
+	const mapped = keys.map((k) => names[k] ?? k);
+	return [...order.filter((m) => mapped.includes(m)), ...mapped.filter((k) => !order.includes(k))];
+}
+
 /** The system's file browser, for "Show in …". */
 export const fileBrowser = isMac ? "Finder" : isWindows ? "File Explorer" : "Files";
