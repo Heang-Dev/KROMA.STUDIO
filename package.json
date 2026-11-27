@@ -18,6 +18,7 @@
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^1.14.0",
+		"cmdk": "^1.1.1",
 		"cn": "^0.5.2",
 		"electron-updater": "6.8.11",
 		"msedge-tts": "^2.1.1",
