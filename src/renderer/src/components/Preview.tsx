@@ -3,7 +3,7 @@ import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { ASPECT_SIZE } from "@shared/types";
 import { planVoice } from "@shared/voice";
 import { voiceCues, voiceSettings } from "@/lib/actions";
-import { drawCue } from "@/lib/subtitleRender";
+import { drawCue, ensureFonts } from "@/lib/subtitleRender";
 import { type PlacedClip, cueAt, formatTime, placeClips, totalDuration } from "@/lib/timeline";
 import { languageOf } from "@shared/languages";
 import { useEditor } from "@/state/store";
@@ -180,6 +180,11 @@ function SubtitleCanvas({ width, height }: { width: number; height: number }) {
 	const aspect = useEditor((s) => s.project.aspect);
 	const index = cueAt(cues, time);
 	const cue = index >= 0 ? cues[index] : null;
+	// Draw again once the subtitle fonts have loaded (a style's font may not be in use anywhere yet).
+	const [fontsReady, setFontsReady] = useState(false);
+	useEffect(() => {
+		void ensureFonts().then(() => setFontsReady(true));
+	}, []);
 
 	useEffect(() => {
 		const canvas = ref.current;
@@ -193,7 +198,7 @@ function SubtitleCanvas({ width, height }: { width: number; height: number }) {
 		const output = ASPECT_SIZE[aspect];
 		ctx.scale(canvas.width / output.width, canvas.height / output.height);
 		drawCue(ctx, cue, style, output);
-	}, [cue, style, aspect, width, height]);
+	}, [cue, style, aspect, width, height, fontsReady]);
 
 	return <canvas ref={ref} className="pointer-events-none absolute inset-0 size-full" />;
 }

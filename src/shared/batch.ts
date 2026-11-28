@@ -12,7 +12,18 @@ export const POST_FORMATS: PostFormat[] = ["16:9", "9:16"];
 /** The format each platform gets unless you choose another: YouTube wide, Facebook (Reels) and TikTok tall. */
 export const DEFAULT_PLATFORM_FORMAT: Record<PublishPlatform, PostFormat> = { youtube: "16:9", facebook: "9:16", tiktok: "9:16" };
 
-export type StylePreset = "classic" | "yellow" | "box" | "tiktok";
+/** The subtitle style presets (their looks are in the renderer's stylePresets). */
+export const STYLE_PRESETS = [
+	// Outlined
+	"classic", "yellow", "tiktok", "minimal", "shadow", "cinema", "neon", "pink", "lime", "orange",
+	// Glow
+	"goldGlow", "fire", "ice", "magic",
+	// Khmer fonts
+	"koulen", "poster", "moulGold", "moulRed", "comic", "battambang", "serif", "rounded", "handwritten", "karaoke",
+	// On a box
+	"box", "softBox", "whiteBox", "highlight", "violetBox", "redBox", "news", "blueBox", "greenBox",
+] as const;
+export type StylePreset = (typeof STYLE_PRESETS)[number];
 
 export interface BatchOptions {
 	/** The site's subtitles when the video has them, else cloud speech to text. */

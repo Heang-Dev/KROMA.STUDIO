@@ -54,7 +54,27 @@ export interface SubtitleStyle {
 	/** Show the original line above the Khmer one. */
 	showSource: boolean;
 	bold: boolean;
+	/** Soft shadow under the text, as a fraction of the font size (0 or missing = none). */
+	shadow?: number;
+	/** The shadow's colour; a bright one makes a glow. Missing = a dark shadow. */
+	shadowColor?: string;
+	/** The subtitle font (see SUBTITLE_FONTS). Missing = Kantumruy Pro. */
+	font?: SubtitleFont;
 }
+
+export type SubtitleFont = "kantumruy" | "koulen" | "moul" | "battambang" | "bayon" | "dangrek" | "fasthand" | "hanuman";
+
+/** The subtitle fonts Kroma ships (all SIL Open Font License), and whether each has a real bold. */
+export const SUBTITLE_FONTS: Record<SubtitleFont, { family: string; label: string; description: string; bold: boolean }> = {
+	kantumruy: { family: "Kantumruy Pro Variable", label: "Kantumruy Pro", description: "Clear and modern (the default)", bold: true },
+	koulen: { family: "Koulen", label: "Koulen", description: "Bold poster letters", bold: false },
+	bayon: { family: "Bayon", label: "Bayon", description: "Heavy and loud", bold: false },
+	moul: { family: "Moul", label: "Moul", description: "Traditional title letters", bold: false },
+	battambang: { family: "Battambang", label: "Battambang", description: "Plain and easy to read", bold: true },
+	hanuman: { family: "Hanuman", label: "Hanuman", description: "Serif, like a book", bold: true },
+	dangrek: { family: "Dangrek", label: "Dangrek", description: "Rounded and friendly", bold: false },
+	fasthand: { family: "Fasthand", label: "Fasthand", description: "Handwritten", bold: false },
+};
 
 export interface Project {
 	version: 1;

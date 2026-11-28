@@ -1,4 +1,4 @@
-import type { Cue, SubtitleStyle } from "@shared/types";
+import { type Cue, SUBTITLE_FONTS, type SubtitleStyle } from "@shared/types";
 
 // One renderer for both the preview and the export, so what you see is what gets burned in.
 // Chromium shapes Khmer correctly; Intl.Segmenter knows Khmer word boundaries (Khmer has no spaces).
@@ -6,6 +6,15 @@ import type { Cue, SubtitleStyle } from "@shared/types";
 // Kantumruy Pro comes with Kroma; the rest are each system's fallbacks (Khmer, Chinese, Thai, Lao).
 export const SUBTITLE_FONT = '"Kantumruy Pro Variable", "Khmer Sangam MN", "Khmer UI", "Leelawadee UI", "Noto Sans Khmer", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans Thai", "Noto Sans Lao", sans-serif';
 const LINE_HEIGHT = 1.55;
+
+/** The style's font, then the usual fallbacks (the original Chinese line etc. still has a font). */
+export function fontStack(style: Pick<SubtitleStyle, "font">): string {
+	const font = style.font && style.font !== "kantumruy" ? SUBTITLE_FONTS[style.font] : null;
+	return font ? `"${font.family}", ${SUBTITLE_FONT}` : SUBTITLE_FONT;
+}
+
+/** Bold only where the font has one; display fonts are heavy already, and a faked bold smudges Khmer. */
+const weightOf = (style: Pick<SubtitleStyle, "font" | "bold">): number => (style.bold && SUBTITLE_FONTS[style.font ?? "kantumruy"].bold ? 700 : style.font && style.font !== "kantumruy" ? 400 : 500);
 const MAX_WIDTH = 0.88;
 
 const segmenters = new Map<string, Intl.Segmenter>();
@@ -86,10 +95,12 @@ export function drawCue(ctx: CanvasRenderingContext2D | OffscreenCanvasRendering
 		ctx.font = `500 ${size}px ${SUBTITLE_FONT}`;
 		blocks.push({ lines: wrapText(ctx, cue.source, maxWidth), size, color: "#f5d76e" });
 	}
-	ctx.font = `${style.bold ? 700 : 500} ${px}px ${SUBTITLE_FONT}`;
+	const mainFont = fontStack(style);
+	ctx.font = `${weightOf(style)} ${px}px ${mainFont}`;
 	blocks.push({ lines: wrapText(ctx, main, maxWidth), size: px, color: style.color });
 
-	const rows = blocks.flatMap((b) => b.lines.map((line) => ({ line, size: b.size, color: b.color, weight: b === blocks[blocks.length - 1] && style.bold ? 700 : 500 })));
+	const last = blocks[blocks.length - 1];
+	const rows = blocks.flatMap((b) => b.lines.map((line) => ({ line, size: b.size, color: b.color, weight: b === last ? weightOf(style) : 500, font: b === last ? mainFont : SUBTITLE_FONT })));
 	const heights = rows.map((r) => r.size * LINE_HEIGHT);
 	let y = style.position * frame.height - heights.reduce((a, b) => a + b, 0);
 
@@ -100,19 +111,32 @@ export function drawCue(ctx: CanvasRenderingContext2D | OffscreenCanvasRendering
 	rows.forEach((row, i) => {
 		const h = heights[i];
 		const cy = y + h / 2;
-		ctx.font = `${row.weight} ${row.size}px ${SUBTITLE_FONT}`;
+		ctx.font = `${row.weight} ${row.size}px ${row.font}`;
 		if (style.box) {
 			const w = ctx.measureText(row.line).width + row.size * 0.7;
 			ctx.fillStyle = style.boxColor;
 			roundRect(ctx, frame.width / 2 - w / 2, y + h * 0.04, w, h * 0.92, row.size * 0.22);
 		}
+		// A soft shadow lies under the outline (or under the letters when there's no outline), never over them.
+		const shadow = style.shadow ?? 0;
+		// A coloured shadow is a glow: all around the letters, not dropped below them.
+		const glow = Boolean(style.shadowColor);
+		const shadowColor = style.shadowColor || "rgba(0,0,0,0.75)";
+		const setShadow = (on: boolean) => {
+			ctx.shadowColor = on ? shadowColor : "transparent";
+			ctx.shadowBlur = on ? row.size * shadow : 0;
+			ctx.shadowOffsetY = on && !glow ? row.size * shadow * 0.25 : 0;
+		};
 		if (style.outline > 0) {
+			setShadow(shadow > 0);
 			ctx.strokeStyle = style.outlineColor;
 			ctx.lineWidth = row.size * style.outline * 2;
 			ctx.strokeText(row.line, frame.width / 2, cy);
-		}
+			setShadow(false);
+		} else setShadow(shadow > 0);
 		ctx.fillStyle = row.color;
 		ctx.fillText(row.line, frame.width / 2, cy);
+		setShadow(false);
 		y += h;
 	});
 }
@@ -131,8 +155,11 @@ export function subtitleBand(style: SubtitleStyle, frame: Layout): { top: number
 	return { top: 0, height: bottom };
 }
 
+/** Loads every subtitle font (Khmer and Latin), so the canvas never draws before a font has arrived. */
 export async function ensureFonts(): Promise<void> {
-	await Promise.all([document.fonts.load(`700 40px ${SUBTITLE_FONT}`, "ក"), document.fonts.load(`500 40px ${SUBTITLE_FONT}`, "ក")]);
+	const loads = [document.fonts.load(`700 40px ${SUBTITLE_FONT}`, "ក"), document.fonts.load(`500 40px ${SUBTITLE_FONT}`, "ក")];
+	for (const font of Object.values(SUBTITLE_FONTS)) for (const weight of font.bold ? [400, 700] : [400]) loads.push(document.fonts.load(`${weight} 40px "${font.family}"`, "កA"));
+	await Promise.all(loads);
 }
 
 /** Draws one cue into a transparent PNG covering the subtitle band of the output frame. */
