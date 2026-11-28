@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from "@shared/types";
 import { type MainNotice, type NoticeEntry, type NoticeKind, type NoticeTone, type NotifyPrefs, type StoredAction, actionLabel, noticePlan, soundFor } from "@shared/notify";
-import { useNotifications } from "@/state/notifications";
+import { unreadCount, useNotifications } from "@/state/notifications";
 import { useEditor } from "@/state/store";
 import { batchMode, noteBatchMessage } from "./batchMode";
 import { platform } from "./platform";
@@ -161,6 +161,14 @@ export function startNotifications(): () => void {
 			if (entry) void runAction(entry);
 		}),
 	];
+	// The unread count on the Dock icon, so finished or failed work shows even when banners are off.
+	let lastBadge = -1;
+	const badge = () => {
+		const n = unreadCount(useNotifications.getState().entries);
+		if (n !== lastBadge) void window.kroma.setBadge?.((lastBadge = n)).catch(() => undefined);
+	};
+	badge();
+	stops.push(useNotifications.subscribe(badge));
 	const onStorage = (e: StorageEvent) => {
 		if (e.key === null || e.key === "kroma.notifications") useNotifications.getState().reload();
 	};

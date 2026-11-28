@@ -151,6 +151,10 @@ const api = {
 	/** Plays a notification sound (true on the Mac; elsewhere false, and the window plays its own chime). */
 	notifySound: (name: string): Promise<boolean> => ipcRenderer.invoke("notify:sound", name),
 	openNotificationSettings: (): Promise<void> => ipcRenderer.invoke("notify:openSystemSettings"),
+	/** The unread count on the Dock icon. */
+	setBadge: (count: number): Promise<void> => ipcRenderer.invoke("notify:badge", count),
+	/** Shows notify.log in Finder. */
+	showNotifyLog: (): Promise<void> => ipcRenderer.invoke("notify:showLog"),
 	onNotice: (listener: (notice: MainNotice) => void): (() => void) => {
 		const handler = (_e: unknown, notice: MainNotice) => listener(notice);
 		ipcRenderer.on("notify:entry", handler);
