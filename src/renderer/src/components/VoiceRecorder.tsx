@@ -3,6 +3,7 @@ import { Mic, RefreshCw, RotateCcw, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WaveformPlayer } from "./WaveformPlayer";
+import { t } from "@shared/i18n";
 
 // Record a voice to clone, right in the app: read the text aloud (about 15 s), watch the level, listen back, redo.
 // Reading a known text means the engine needn't write down what was said .
@@ -37,14 +38,14 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 		setState({ kind: "asking" });
 		const access = await window.kroma.micAccess();
 		if (access !== "granted") {
-			setState({ kind: "error", message: "Kroma isn't allowed to use the microphone. Turn it on in System Settings → Privacy & Security → Microphone, then try again.", settings: true });
+			setState({ kind: "error", message: t("Kroma isn't allowed to use the microphone. Turn it on in System Settings → Privacy & Security → Microphone, then try again."), settings: true });
 			return;
 		}
 		let stream: MediaStream;
 		try {
 			stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
 		} catch (err) {
-			setState({ kind: "error", message: `Couldn't open the microphone: ${(err as Error).message}` });
+			setState({ kind: "error", message: t("Couldn't open the microphone: {error}", { error: (err as Error).message }) });
 			return;
 		}
 		setDevice(stream.getAudioTracks()[0]?.label ?? "");
@@ -77,7 +78,7 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 
 		const release = () => {
 			cancelAnimationFrame(frame);
-			for (const t of stream.getTracks()) t.stop();
+			for (const track of stream.getTracks()) track.stop();
 			void ctx.close();
 			stop.current = null;
 		};
@@ -87,7 +88,7 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 				release();
 				const seconds = (performance.now() - since) / 1000;
 				if (seconds < MIN_SECONDS) {
-					setState({ kind: "error", message: `That was only ${seconds.toFixed(1)} s. Read the whole text: at least ${MIN_SECONDS} seconds.` });
+					setState({ kind: "error", message: t("That was only {seconds} s. Read the whole text: at least {min} seconds.", { seconds: seconds.toFixed(1), min: MIN_SECONDS }) });
 					return;
 				}
 				setState({ kind: "saving" });
@@ -97,7 +98,7 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 					setState({ kind: "done", path, seconds });
 					onChange({ path, transcript: text });
 				} catch (err) {
-					setState({ kind: "error", message: `Couldn't save the recording: ${(err as Error).message}` });
+					setState({ kind: "error", message: t("Couldn't save the recording: {error}", { error: (err as Error).message }) });
 				}
 			};
 			recorder.stop();
@@ -128,9 +129,9 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 		<div className="space-y-3">
 			<div className="rounded-lg border bg-muted/40 p-3">
 				<div className="mb-1.5 flex items-center justify-between">
-					<span className="text-[11px] text-muted-foreground">Read this aloud, clearly and at an easy pace</span>
+					<span className="text-[11px] text-muted-foreground">{t("Read this aloud, clearly and at an easy pace")}</span>
 					<Button variant="ghost" size="xs" disabled={recording || state.kind === "done"} onClick={() => setScript((s) => (s + 1) % READ_ALOUD.length)}>
-						<RefreshCw /> Another text
+						<RefreshCw /> {t("Another text")}
 					</Button>
 				</div>
 				<p lang="km" className={cn("font-khmer text-[15px] leading-loose select-text", recording && "text-foreground")}>
@@ -142,9 +143,9 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 				<div className="space-y-2 rounded-lg border p-3">
 					<WaveformPlayer path={state.path} />
 					<div className="flex items-center justify-between text-xs text-muted-foreground">
-						<span>Recorded {state.seconds.toFixed(1)} s. Listen back: it should be clear, with no music or echo.</span>
+						<span>{t("Recorded {seconds} s. Listen back: it should be clear, with no music or echo.", { seconds: state.seconds.toFixed(1) })}</span>
 						<Button variant="outline" size="xs" onClick={again}>
-							<RotateCcw /> Record again
+							<RotateCcw /> {t("Record again")}
 						</Button>
 					</div>
 				</div>
@@ -152,7 +153,7 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 				<div className="flex items-center gap-3 rounded-lg border p-3">
 					<button
 						type="button"
-						aria-label={recording ? "Stop recording" : "Start recording"}
+						aria-label={recording ? t("Stop recording") : t("Start recording")}
 						disabled={state.kind === "asking" || state.kind === "saving"}
 						onClick={() => (recording ? stopRecording.current?.() : void start())}
 						className={cn(
@@ -171,12 +172,14 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 						<div className="mt-1 flex justify-between text-[11px] text-muted-foreground tabular-nums">
 							<span>
 								{recording
-									? `Recording… ${elapsed < MIN_SECONDS ? "keep reading" : "press stop when you finish the text"}`
+									? elapsed < MIN_SECONDS
+										? t("Recording… keep reading")
+										: t("Recording… press stop when you finish the text")
 									: state.kind === "asking"
-										? "Asking for the microphone…"
+										? t("Asking for the microphone…")
 										: state.kind === "saving"
-											? "Saving…"
-											: "Press the red button and start reading"}
+											? t("Saving…")
+											: t("Press the red button and start reading")}
 							</span>
 							<span>
 								{elapsed.toFixed(0)} / {MAX_SECONDS} s
@@ -185,13 +188,13 @@ export function VoiceRecorder({ onChange }: { onChange: (recording: { path: stri
 					</div>
 				</div>
 			)}
-			{device && recording && <p className="text-[11px] text-muted-foreground">Microphone: {device}</p>}
+			{device && recording && <p className="text-[11px] text-muted-foreground">{t("Microphone: {device}", { device })}</p>}
 			{state.kind === "error" && (
 				<div className="rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
 					{state.message}
 					{state.settings && (
 						<Button variant="outline" size="xs" className="mt-2 block" onClick={() => void window.kroma.openMicSettings()}>
-							Open Microphone settings
+							{t("Open Microphone settings")}
 						</Button>
 					)}
 				</div>

@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { Card, Row, Section, Segmented, TaskProgress, useBusy } from "./common";
 import { CoverSection } from "./CoverSection";
+import { t } from "@shared/i18n";
 
 // Post: the AI writes each platform's title, text and hashtags (kept in the project, editable), then one click
 // exports the video in each platform's format (YouTube 16:9, Facebook and TikTok 9:16 unless you choose otherwise) and
@@ -53,6 +54,7 @@ export function PostPanel() {
 	const posting = useBusy("publish");
 	const exporting = useBusy("export");
 	const lang = languageOf(project.language);
+	const langName = t(lang.name);
 	const translated = project.cues.filter((c) => c.text.trim());
 	const posts = project.posts ?? [];
 
@@ -76,13 +78,13 @@ export function PostPanel() {
 	return (
 		<>
 			<Section
-				title="1 · Posts"
-				hint={`The AI reads the ${lang.name} subtitles and writes a title, text and hashtags for each platform. Edit anything before posting; it's saved with the project.`}
+				title={t("1 · Posts")}
+				hint={t("The AI reads the {language} subtitles and writes a title, text and hashtags for each platform. Edit anything before posting; it's saved with the project.", { language: langName })}
 			>
 				<Button variant={posts.length ? "outline" : "default"} className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!translated.length || writing} onClick={() => void writePosts()}>
-					{writing ? <Loader2 className="animate-spin" /> : <WandSparkles />} {posts.length ? "Write them again" : "Write the posts"}
+					{writing ? <Loader2 className="animate-spin" /> : <WandSparkles />} {posts.length ? t("Write them again") : t("Write the posts")}
 				</Button>
-				{!translated.length && <p className="text-xs text-muted-foreground">Make the {lang.name} subtitles first.</p>}
+				{!translated.length && <p className="text-xs text-muted-foreground">{t("Make the {language} subtitles first.", { language: langName })}</p>}
 				<TaskProgress prefix="captions" />
 				{ORDER.map(({ caption }) => {
 					const post = posts.find((p) => p.platform === caption);
@@ -90,12 +92,12 @@ export function PostPanel() {
 				})}
 			</Section>
 
-			<Section title="2 · Post to" hint="Each platform gets its own format (YouTube 16:9, Facebook and TikTok 9:16 to start with). Exports what's needed and posts everywhere you tick, in one go.">
+			<Section title={t("2 · Post to")} hint={t("Each platform gets its own format (YouTube 16:9, Facebook and TikTok 9:16 to start with). Exports what's needed and posts everywhere you tick, in one go.")}>
 				{hasKey === false && (
 					<div className="rounded-lg border border-dashed p-3 text-xs leading-relaxed">
-						<p className="mb-2">Connect YouTube, Facebook and TikTok once, and posting is one click from here.</p>
+						<p className="mb-2">{t("Connect YouTube, Facebook and TikTok once, and posting is one click from here.")}</p>
 						<Button size="sm" onClick={() => useEditor.getState().openSettings("posting")}>
-							<Settings /> Connect accounts
+							<Settings /> {t("Connect accounts")}
 						</Button>
 					</div>
 				)}
@@ -116,7 +118,7 @@ export function PostPanel() {
 										<label htmlFor={`post-${id}`} className={cn("min-w-0 flex-1", !account && "opacity-60")}>
 											<span className="block text-[13px] font-medium">{PLATFORM_NAMES[id]}</span>
 											<span className="block truncate text-[11px] text-muted-foreground">
-												{account ? `${account.name}${account.needsReconnect ? " · sign-in expired" : ""}` : profile || hasKey === false ? "Not connected" : "Checking…"}
+												{account ? `${account.name}${account.needsReconnect ? t(" · sign-in expired") : ""}` : profile || hasKey === false ? t("Not connected") : t("Checking…")}
 											</span>
 										</label>
 										{/* The format shows before an account is connected too: it's what that platform will get. */}
@@ -133,13 +135,13 @@ export function PostPanel() {
 									control={
 										<Segmented
 											equalWidth
-											label="YouTube visibility"
+											label={t("YouTube visibility")}
 											size="sm"
 											value={privacy}
 											options={[
-												{ value: "public", label: "Public" },
-												{ value: "unlisted", label: "Unlisted" },
-												{ value: "private", label: "Private" },
+												{ value: "public", label: t("Public") },
+												{ value: "unlisted", label: t("Unlisted") },
+												{ value: "private", label: t("Private") },
 											]}
 											onChange={setPrivacy}
 										/>
@@ -150,7 +152,7 @@ export function PostPanel() {
 								<Row
 									stack
 									label="TikTok"
-									description={tiktokMode === "draft" ? "Goes to your TikTok drafts: add music or effects in the app, then post." : undefined}
+									description={tiktokMode === "draft" ? t("Goes to your TikTok drafts: add music or effects in the app, then post.") : undefined}
 									control={
 										<Segmented
 											equalWidth
@@ -158,8 +160,8 @@ export function PostPanel() {
 											size="sm"
 											value={tiktokMode}
 											options={[
-												{ value: "post", label: "Post now" },
-												{ value: "draft", label: "To drafts" },
+												{ value: "post", label: t("Post now") },
+												{ value: "draft", label: t("To drafts") },
 											]}
 											onChange={setTiktokMode}
 										/>
@@ -168,13 +170,17 @@ export function PostPanel() {
 							)}
 							<Row
 								stack
-								label={needed.length > 1 ? "Videos" : "Video"}
+								label={needed.length > 1 ? t("Videos") : t("Video")}
 								description={
 									!needed.length
-										? "Each platform gets its own format."
+										? t("Each platform gets its own format.")
 										: reuse
-											? `Uses your ${needed.join(" and ")} export${needed.length > 1 ? "s" : ""} (nothing changed since).`
-											: `Exports ${toExport.join(" and ")} now, at this size${toExport.length < needed.length ? `; ${needed.filter((f) => !toExport.includes(f)).join(", ")} is already exported` : ""}.`
+											? needed.length > 1
+												? t("Uses your {formats} exports (nothing changed since).", { formats: needed.join(t(" and ")) })
+												: t("Uses your {formats} export (nothing changed since).", { formats: needed.join(t(" and ")) })
+											: toExport.length < needed.length
+												? t("Exports {formats} now, at this size; {done} is already exported.", { formats: toExport.join(t(" and ")), done: needed.filter((f) => !toExport.includes(f)).join(", ") })
+												: t("Exports {formats} now, at this size.", { formats: toExport.join(t(" and ")) })
 								}
 								control={
 									reuse ? (
@@ -182,12 +188,12 @@ export function PostPanel() {
 									) : (
 										<Segmented
 											equalWidth
-											label="Export size"
+											label={t("Export size")}
 											value={quality}
 											options={[
-												{ value: "small", label: "Small" },
-												{ value: "standard", label: "Standard" },
-												{ value: "high", label: "High" },
+												{ value: "small", label: t("Small") },
+												{ value: "standard", label: t("Standard") },
+												{ value: "high", label: t("High") },
 											]}
 											onChange={setQuality}
 										/>
@@ -201,7 +207,7 @@ export function PostPanel() {
 							onClick={() => void publishVideo({ platforms: selected, formats, youtubePrivacy: privacy, tiktokMode, quality })}
 						>
 							{busy ? <Loader2 className="animate-spin" /> : <Send />}{" "}
-							{selected.length ? `Post to ${selected.map((s) => PLATFORM_NAMES[s]).join(", ")}` : "Choose where to post"}
+							{selected.length ? t("Post to {platforms}", { platforms: selected.map((s) => PLATFORM_NAMES[s]).join(", ") }) : t("Choose where to post")}
 						</Button>
 						<TaskProgress prefix="export" />
 						<TaskProgress prefix="publish" />
@@ -210,7 +216,7 @@ export function PostPanel() {
 			</Section>
 
 			{(project.published ?? []).length > 0 && (
-				<Section title="Posted">
+				<Section title={t("Posted")}>
 					<Card className="px-0">
 						{[...(project.published ?? [])].reverse().map((record) => (
 							<div key={record.at} className="space-y-1 px-3 py-2.5">
@@ -220,11 +226,11 @@ export function PostPanel() {
 										{r.state === "done" ? <CircleCheck className="size-3.5 text-success" /> : r.state === "failed" ? <CircleX className="size-3.5 text-destructive" /> : <Loader2 className="size-3.5 text-muted-foreground" />}
 										<span className="w-16 font-medium">{PLATFORM_NAMES[r.platform]}</span>
 										<span className="min-w-0 flex-1 truncate text-muted-foreground" title={r.message}>
-											{r.state === "failed" ? r.message : r.state === "working" ? (r.message ?? "Still processing") : r.url ? "" : (r.message ?? "Posted")}
+											{r.state === "failed" ? r.message : r.state === "working" ? (r.message ?? t("Still processing")) : r.url ? "" : (r.message ?? t("Posted"))}
 										</span>
 										{r.url && (
 											<Button variant="ghost" size="xs" onClick={() => void window.kroma.openExternal(r.url!)}>
-												<ExternalLink /> Open
+												<ExternalLink /> {t("Open")}
 											</Button>
 										)}
 									</div>
@@ -237,13 +243,13 @@ export function PostPanel() {
 
 			<CoverSection />
 
-			<Section title="Subtitle files" hint="For YouTube's subtitle upload, or to keep a copy.">
+			<Section title={t("Subtitle files")} hint={t("For YouTube's subtitle upload, or to keep a copy.")}>
 				<div className="grid grid-cols-1 gap-1.5 @[17rem]:grid-cols-2">
 					<Button variant="outline" size="sm" disabled={!translated.length} onClick={() => void exportSrt("khmer")}>
-						<FileDown /> {lang.name} .srt
+						<FileDown /> {t("{language} .srt", { language: langName })}
 					</Button>
 					<Button variant="outline" size="sm" disabled={!project.cues.length} onClick={() => void exportSrt("source")}>
-						<FileDown /> Original .srt
+						<FileDown /> {t("Original .srt")}
 					</Button>
 				</div>
 			</Section>
@@ -255,7 +261,7 @@ export function PostPanel() {
 export function FormatPicker({ platform, value, onChange, disabled }: { platform: PublishPlatform; value: PostFormat; onChange: (f: PostFormat) => void; disabled?: boolean }) {
 	return (
 		<div className={cn("shrink-0", disabled && "pointer-events-none opacity-60")}>
-			<Segmented size="sm" label={`${PLATFORM_NAMES[platform]} format`} value={value} options={POST_FORMATS.map((f) => ({ value: f, label: f }))} onChange={onChange} />
+			<Segmented size="sm" label={t("{platform} format", { platform: PLATFORM_NAMES[platform] })} value={value} options={POST_FORMATS.map((f) => ({ value: f, label: f }))} onChange={onChange} />
 		</div>
 	);
 }
@@ -281,8 +287,8 @@ export function PostFields({ post, onChange, onBegin }: { post: PlatformCaption;
 				<span className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{post.platform}</span>
 				<CopyButton text={text} />
 			</div>
-			<Input lang="km" aria-label={`${post.platform} title`} className="font-khmer text-[13px] font-medium" value={post.title} onFocus={begin} onChange={(e) => onChange({ title: e.target.value })} />
-			<Textarea lang="km" aria-label={`${post.platform} text`} className="min-h-20 font-khmer text-xs" value={post.description} onFocus={begin} onChange={(e) => onChange({ description: e.target.value })} />
+			<Input lang="km" aria-label={t("{platform} title", { platform: post.platform })} className="font-khmer text-[13px] font-medium" value={post.title} onFocus={begin} onChange={(e) => onChange({ title: e.target.value })} />
+			<Textarea lang="km" aria-label={t("{platform} text", { platform: post.platform })} className="min-h-20 font-khmer text-xs" value={post.description} onFocus={begin} onChange={(e) => onChange({ description: e.target.value })} />
 			<HashtagInput post={post} onChange={(hashtags) => {
 				begin();
 				onChange({ hashtags });
@@ -300,7 +306,7 @@ function HashtagInput({ post, onChange }: { post: PlatformCaption; onChange: (ha
 		const tags = draft.split(/[\s,]+/).map((h) => h.replace(/^#+/, "")).filter(Boolean);
 		if (tags.join(" ") !== post.hashtags.join(" ")) onChange(tags);
 	};
-	return <Input aria-label={`${post.platform} hashtags`} className="text-xs" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />;
+	return <Input aria-label={t("{platform} hashtags", { platform: post.platform })} className="text-xs" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -315,7 +321,7 @@ function CopyButton({ text }: { text: string }) {
 				setTimeout(() => setCopied(false), 1500);
 			}}
 		>
-			{copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy"}
+			{copied ? <Check /> : <Copy />} {copied ? t("Copied") : t("Copy")}
 		</Button>
 	);
 }

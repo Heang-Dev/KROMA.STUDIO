@@ -1,6 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@/lib/utils";
 import { type PanelKey, PANEL_LIMITS, useLayout } from "@/state/layout";
+import { t } from "@shared/i18n";
 
 /**
  * A draggable divider on a panel's edge. `edge` is the side of the panel it sits on; dragging away from the panel
@@ -54,7 +55,7 @@ export function ResizeHandle({ panel, edge, label }: { panel: PanelKey; edge: "l
 			aria-valuemin={PANEL_LIMITS[panel].min}
 			aria-valuemax={PANEL_LIMITS[panel].max}
 			tabIndex={0}
-			title={`${label} · double-click to reset`}
+			title={t("{label} · double-click to reset", { label })}
 			onPointerDown={start}
 			onDoubleClick={() => useLayout.getState().reset(panel)}
 			onKeyDown={onKey}

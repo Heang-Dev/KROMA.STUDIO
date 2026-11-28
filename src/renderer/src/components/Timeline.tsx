@@ -9,6 +9,7 @@ import { useEditor } from "@/state/store";
 import { ResizeHandle } from "./ResizeHandle";
 import { Slider } from "@/components/ui/slider";
 import { IconButton } from "./common";
+import { t } from "@shared/i18n";
 
 const PAD = 16;
 const RULER = 26;
@@ -81,7 +82,7 @@ export function Timeline() {
 	const scrubStart = (e: ReactPointerEvent) => {
 		(e.target as Element).setPointerCapture(e.pointerId);
 		useEditor.getState().seek(timeFromEvent(e.clientX));
-		if (!(e.target as Element).closest('[aria-label="Playhead"]')) useEditor.getState().select(null);
+		if (!(e.target as Element).closest("[data-playhead]")) useEditor.getState().select(null);
 		const move = (ev: PointerEvent) => useEditor.getState().seek(timeFromEvent(ev.clientX));
 		const up = () => {
 			window.removeEventListener("pointermove", move);
@@ -135,25 +136,25 @@ export function Timeline() {
 
 	return (
 		<section className="relative flex shrink-0 flex-col border-t border-border bg-card" style={{ height }}>
-			<ResizeHandle panel="timeline" edge="top" label="Resize the timeline" />
+			<ResizeHandle panel="timeline" edge="top" label={t("Resize the timeline")} />
 			<div className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-2">
-				<IconButton label="Split at the playhead (S)" onClick={splitAtPlayhead} disabled={!total}>
+				<IconButton label={t("Split at the playhead (S)")} onClick={splitAtPlayhead} disabled={!total}>
 					<Scissors className="size-4" />
 				</IconButton>
-				<IconButton label="Delete the selection (Delete)" onClick={deleteSelection} disabled={!selection}>
+				<IconButton label={t("Delete the selection (Delete)")} onClick={deleteSelection} disabled={!selection}>
 					<Trash2 className="size-4" />
 				</IconButton>
 				<div className="mx-2 h-5 w-px bg-border" />
-				<span className="text-[11px] text-muted-foreground">{selection?.kind === "clip" ? "Video clip selected · drag to reorder, edges to trim" : selection?.kind === "cue" ? "Subtitle selected · drag to move, edges to retime" : ""}</span>
+				<span className="text-[11px] text-muted-foreground">{selection?.kind === "clip" ? t("Video clip selected · drag to reorder, edges to trim") : selection?.kind === "cue" ? t("Subtitle selected · drag to move, edges to retime") : ""}</span>
 				<div className="ml-auto flex items-center gap-1">
-					<IconButton label="Zoom out" onClick={() => setZoom(zoom / 1.5)}>
+					<IconButton label={t("Zoom out")} onClick={() => setZoom(zoom / 1.5)}>
 						<ZoomOut className="size-4" />
 					</IconButton>
-					<div className="w-28 px-1"><Slider min={0} max={1} step={0.001} value={[Math.log(zoom / 0.5) / Math.log(800)]} onValueChange={(v) => setZoom(0.5 * 800 ** (Array.isArray(v) ? v[0] : v))} aria-label="Zoom" /></div>
-					<IconButton label="Zoom in" onClick={() => setZoom(zoom * 1.5)}>
+					<div className="w-28 px-1"><Slider min={0} max={1} step={0.001} value={[Math.log(zoom / 0.5) / Math.log(800)]} onValueChange={(v) => setZoom(0.5 * 800 ** (Array.isArray(v) ? v[0] : v))} aria-label={t("Zoom")} /></div>
+					<IconButton label={t("Zoom in")} onClick={() => setZoom(zoom * 1.5)}>
 						<ZoomIn className="size-4" />
 					</IconButton>
-					<IconButton label="Fit the whole video" onClick={fit} disabled={!total}>
+					<IconButton label={t("Fit the whole video")} onClick={fit} disabled={!total}>
 						<MoveHorizontal className="size-4" />
 					</IconButton>
 				</div>
@@ -161,8 +162,8 @@ export function Timeline() {
 
 			<div className="flex min-h-0 flex-1">
 				<div className="w-[72px] shrink-0 border-r border-border text-[11px] text-muted-foreground" style={{ paddingTop: RULER }}>
-					<div className="flex items-center px-3" style={{ height: SUB_TRACK }}>Subtitles</div>
-					<div className="flex items-center px-3" style={{ height: VIDEO_TRACK }}>Video</div>
+					<div className="flex items-center px-3" style={{ height: SUB_TRACK }}>{t("Subtitles")}</div>
+					<div className="flex items-center px-3" style={{ height: VIDEO_TRACK }}>{t("Video")}</div>
 				</div>
 				<div ref={scrollRef} className="relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden" onScroll={onScroll} onWheel={onWheel}>
 					<div className="relative h-full" style={{ width }}>
@@ -395,7 +396,8 @@ function Playhead({ zoom, scrollRef, onScrub }: { zoom: number; scrollRef: React
 			{/* The knob drags the playhead (scrub); a wider invisible grip makes it easy to catch. */}
 			<div
 				role="slider"
-				aria-label="Playhead"
+				aria-label={t("Playhead")}
+				data-playhead
 				aria-valuenow={Math.round(useEditor.getState().time)}
 				className="pointer-events-auto absolute -top-px -left-[7px] flex h-4 w-[15px] cursor-ew-resize justify-center"
 				onPointerDown={(e) => {

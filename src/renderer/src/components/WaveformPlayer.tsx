@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mediaUrl } from "./Preview";
+import { t } from "@shared/i18n";
 
 // The voice player: play button, waveform bars that fill as it plays (click to seek), and the times.
 // Only one player sounds at a time across the app. Every player looks the same at any width: bars are always
@@ -150,7 +151,7 @@ export function WaveformPlayer({ path, resolve, className }: { path?: string | n
 			<div className="flex items-center gap-3">
 				<button
 					type="button"
-					aria-label={playing ? "Pause" : "Play"}
+					aria-label={playing ? t("Pause") : t("Play")}
 					onClick={() => {
 						if (!file && resolve) wantPlay.current = true;
 						void toggle();
@@ -164,7 +165,7 @@ export function WaveformPlayer({ path, resolve, className }: { path?: string | n
 					className="flex h-9 min-w-0 flex-1 cursor-pointer items-center justify-between overflow-hidden"
 					onClick={seek}
 					role="slider"
-					aria-label="Position"
+					aria-label={t("Position")}
 					aria-valuenow={Math.round(time)}
 					aria-valuemax={Math.round(duration)}
 				>

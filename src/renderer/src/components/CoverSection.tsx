@@ -10,6 +10,7 @@ import { ensureFonts } from "@/lib/subtitleRender";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { AppSelect, Card, Row, Section, Segmented } from "./common";
+import { t } from "@shared/i18n";
 
 const COLORS = ["#e11d48", "#f97316", "#facc15", "#22c55e", "#0ea5e9", "#7f22fe", "#111111"];
 const SIZES: { value: PostFormat; label: string }[] = [
@@ -57,8 +58,8 @@ export function CoverSection() {
 		let cancelled = false;
 		void (async () => {
 			await ensureFonts();
-			const t = await coverTime().catch(() => 0);
-			const image = await coverFrame(media.path, t).catch(() => null);
+			const at = await coverTime().catch(() => 0);
+			const image = await coverFrame(media.path, at).catch(() => null);
 			if (!cancelled) setFrame(image);
 		})();
 		return () => {
@@ -71,8 +72,8 @@ export function CoverSection() {
 
 	if (!media)
 		return (
-			<Section title="Cover" hint="A thumbnail with the episode number, for YouTube and the other platforms.">
-				<p className="text-xs text-muted-foreground">Add a video first.</p>
+			<Section title={t("Cover")} hint={t("A thumbnail with the episode number, for YouTube and the other platforms.")}>
+				<p className="text-xs text-muted-foreground">{t("Add a video first.")}</p>
 			</Section>
 		);
 
@@ -95,13 +96,13 @@ export function CoverSection() {
 	const saved = (Object.entries(project.covers ?? {}) as [PostFormat, string][]).filter(([, path]) => path);
 
 	return (
-		<Section title="Cover" hint="A thumbnail with the episode number and the series title. Batch can make them for a whole series.">
+		<Section title={t("Cover")} hint={t("A thumbnail with the episode number and the series title. Batch can make them for a whole series.")}>
 			<div className="@container space-y-3">
 				{/* Preview */}
 				<Card className="space-y-2.5 px-3 py-3 [&>*+*]:border-t-0">
-					<Segmented label="Cover size" equalWidth size="sm" value={format} options={SIZES} onChange={setFormat} />
+					<Segmented label={t("Cover size")} equalWidth size="sm" value={format} options={SIZES} onChange={setFormat} />
 					<div className={cn("relative mx-auto overflow-hidden rounded-md border bg-black", format === "9:16" ? "w-[56%] max-w-56" : "w-full")}>
-						<canvas ref={preview} className={cn("block w-full", format === "9:16" ? "aspect-[9/16]" : "aspect-video")} aria-label="Cover preview" />
+						<canvas ref={preview} className={cn("block w-full", format === "9:16" ? "aspect-[9/16]" : "aspect-video")} aria-label={t("Cover preview")} />
 						{!frame && (
 							<span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
 								<Loader2 className="size-5 animate-spin" />
@@ -113,21 +114,21 @@ export function CoverSection() {
 						</span>
 					</div>
 					<div className="grid grid-cols-1 gap-1.5 @[24rem]:grid-cols-2">
-						<Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void pick()} title="Kroma picks a sharp, bright moment without subtitles">
-							{busy === "pick" ? <Loader2 className="animate-spin" /> : <Sparkles />} Auto-pick a frame
+						<Button variant="outline" size="sm" disabled={busy !== ""} onClick={() => void pick()} title={t("Kroma picks a sharp, bright moment without subtitles")}>
+							{busy === "pick" ? <Loader2 className="animate-spin" /> : <Sparkles />} {t("Auto-pick a frame")}
 						</Button>
-						<Button variant="outline" size="sm" onClick={() => setCover({ time })} title="Use the frame under the playhead">
-							<Crosshair /> Use the playhead
+						<Button variant="outline" size="sm" onClick={() => setCover({ time })} title={t("Use the frame under the playhead")}>
+							<Crosshair /> {t("Use the playhead")}
 						</Button>
 					</div>
 				</Card>
 
 				{/* Design: each one drawn on this episode's frame */}
 				<div className="space-y-1.5">
-					<p className="px-0.5 text-[11px] text-muted-foreground">Design</p>
-					<div role="radiogroup" aria-label="Design" className="grid grid-cols-2 gap-1.5 @[26rem]:grid-cols-4">
-						{COVER_TEMPLATES.map((t) => (
-							<DesignTile key={t.value} template={t.value} label={t.label} description={t.description} on={settings.template === t.value} frame={frame} settings={settings} words={words} blurs={blurs} />
+					<p className="px-0.5 text-[11px] text-muted-foreground">{t("Design")}</p>
+					<div role="radiogroup" aria-label={t("Design")} className="grid grid-cols-2 gap-1.5 @[26rem]:grid-cols-4">
+						{COVER_TEMPLATES.map((tpl) => (
+							<DesignTile key={tpl.value} template={tpl.value} label={t(tpl.label)} description={t(tpl.description)} on={settings.template === tpl.value} frame={frame} settings={settings} words={words} blurs={blurs} />
 						))}
 					</div>
 				</div>
@@ -136,30 +137,30 @@ export function CoverSection() {
 				<Card>
 					<Row
 						stack
-						label="Episode"
-						description={settings.episode === undefined ? (episode === null ? "No number in the name: type one." : "Read from the project's name.") : undefined}
+						label={t("Episode")}
+						description={settings.episode === undefined ? (episode === null ? t("No number in the name: type one.") : t("Read from the project's name.")) : undefined}
 						control={
 							<div className="flex flex-wrap gap-1.5">
 								<Input
 									type="number"
 									min={0}
-									aria-label="Episode number"
+									aria-label={t("Episode number")}
 									className="w-20 shrink-0"
 									placeholder="–"
 									value={episode ?? ""}
 									onChange={(e) => setCover({ episode: e.target.value === "" ? undefined : Math.max(0, Number.parseInt(e.target.value, 10) || 0) })}
 								/>
-								<AppSelect<CoverLabel> label="Label" className="min-w-32 flex-1" value={settings.label} options={COVER_LABELS} onChange={(label) => setCover({ label })} />
-								{settings.label === "custom" && <Input aria-label="Word before the number" className="min-w-32 flex-1 basis-full" placeholder="វគ្គ, Episode…" value={settings.customWord ?? ""} onChange={(e) => setCover({ customWord: e.target.value }, false)} />}
+								<AppSelect<CoverLabel> label={t("Label")} className="min-w-32 flex-1" value={settings.label} options={COVER_LABELS.map((l) => ({ ...l, label: t(l.label) }))} onChange={(label) => setCover({ label })} />
+								{settings.label === "custom" && <Input aria-label={t("Word before the number")} className="min-w-32 flex-1 basis-full" placeholder="វគ្គ, Episode…" value={settings.customWord ?? ""} onChange={(e) => setCover({ customWord: e.target.value }, false)} />}
 							</div>
 						}
 					/>
-					<Row stack label="Title" description={settings.title ? undefined : "The series folder's name, unless you type one."} control={<Input aria-label="Cover title" lang="km" placeholder={words.title || "The series name"} value={settings.title ?? ""} onChange={(e) => setCover({ title: e.target.value }, false)} />} />
+					<Row stack label={t("Title")} description={settings.title ? undefined : t("The series folder's name, unless you type one.")} control={<Input aria-label={t("Cover title")} lang="km" placeholder={words.title || t("The series name")} value={settings.title ?? ""} onChange={(e) => setCover({ title: e.target.value }, false)} />} />
 					<Row
 						stack
-						label="Colour"
+						label={t("Colour")}
 						control={
-							<div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Cover colour">
+							<div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label={t("Cover colour")}>
 								{COLORS.map((c) => (
 									<button
 										key={c}
@@ -172,9 +173,9 @@ export function CoverSection() {
 										style={{ background: c }}
 									/>
 								))}
-								<label className="relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed text-[10px] text-muted-foreground hover:text-foreground" title="Another colour">
+								<label className="relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed text-[10px] text-muted-foreground hover:text-foreground" title={t("Another colour")}>
 									+
-									<input type="color" aria-label="Another colour" value={settings.color} onChange={(e) => setCover({ color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
+									<input type="color" aria-label={t("Another colour")} value={settings.color} onChange={(e) => setCover({ color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
 								</label>
 							</div>
 						}
@@ -183,14 +184,14 @@ export function CoverSection() {
 
 				<div className="space-y-1.5">
 					<Button className="w-full" disabled={busy !== "" || !frame} onClick={() => void save()}>
-						{busy === "save" ? <Loader2 className="animate-spin" /> : <ImageDown />} Save covers
+						{busy === "save" ? <Loader2 className="animate-spin" /> : <ImageDown />} {t("Save covers")}
 					</Button>
-					<p className="px-0.5 text-[11px] leading-relaxed text-muted-foreground">Both sizes, saved as JPEG next to this episode's exported videos.</p>
+					<p className="px-0.5 text-[11px] leading-relaxed text-muted-foreground">{t("Both sizes, saved as JPEG next to this episode's exported videos.")}</p>
 					{saved.length > 0 && (
 						<div className="flex flex-wrap gap-1">
 							{saved.map(([f, path]) => (
 								<Button key={f} variant="ghost" size="xs" onClick={() => void window.kroma.showInFolder(path)}>
-									<FolderOpen /> {f} cover
+									<FolderOpen /> {t("{format} cover", { format: f })}
 								</Button>
 							))}
 						</div>

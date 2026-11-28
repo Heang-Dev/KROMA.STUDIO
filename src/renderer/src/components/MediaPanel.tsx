@@ -9,6 +9,7 @@ import { formatTime } from "@/lib/timeline";
 import { useEditor } from "@/state/store";
 import { Card, IconButton, Section, TaskProgress, useBusy } from "./common";
 import { EmptyState } from "@/components/empty/EmptyState";
+import { t } from "@shared/i18n";
 
 export function MediaPanel() {
 	const media = useEditor((s) => s.project.media);
@@ -17,14 +18,14 @@ export function MediaPanel() {
 	const shareTitle = extractShareTitle(url);
 
 	const submit = async () => {
-		if (!extractLink(url)) return useEditor.getState().showToast("Paste a link that starts with https:// (a share message with a link in it works too).", "error");
+		if (!extractLink(url)) return useEditor.getState().showToast(t("Paste a link that starts with https:// (a share message with a link in it works too)."), "error");
 		const ok = await downloadFromLink(url);
 		if (ok) setUrl("");
 	};
 
 	return (
 		<>
-			<Section title="Download from a link" hint="YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook, TikTok and 1,000+ more. The site's own subtitles come too.">
+			<Section title={t("Download from a link")} hint={t("YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook, TikTok and 1,000+ more. The site's own subtitles come too.")}>
 				<form
 					className="flex gap-1.5"
 					onSubmit={(e) => {
@@ -32,32 +33,32 @@ export function MediaPanel() {
 						void submit();
 					}}
 				>
-					<Input className="text-xs" placeholder="Paste a link or a share message" value={url} onChange={(e) => setUrl(e.target.value)} disabled={downloading} aria-label="Video link" />
+					<Input className="text-xs" placeholder={t("Paste a link or a share message")} value={url} onChange={(e) => setUrl(e.target.value)} disabled={downloading} aria-label={t("Video link")} />
 					<Button type="submit" size="sm" disabled={downloading || !url.trim()}>
-						<Download /> Get
+						<Download /> {t("Get")}
 					</Button>
 				</form>
 				{shareTitle && !downloading && (
 					<p className="truncate text-xs text-muted-foreground" title={shareTitle}>
-						Title: <span className="text-foreground">{shareTitle}</span>
+						{t("Title:")} <span className="text-foreground">{shareTitle}</span>
 					</p>
 				)}
 				<TaskProgress prefix="download" />
 				<Button variant="link" size="xs" className="px-0 text-xs" onClick={() => useEditor.getState().openDownloads()}>
-					Download many (series, playlist, channel) →
+					{t("Download many (series, playlist, channel) →")}
 				</Button>
 			</Section>
 
 			<Section
-				title="Media"
+				title={t("Media")}
 				action={
 					<Button variant="outline" size="xs" onClick={() => void importFiles()}>
-						<FolderOpen /> Import
+						<FolderOpen /> {t("Import")}
 					</Button>
 				}
 			>
 				{media.length === 0 ? (
-					<EmptyState compact fill={false} className="rounded-lg border border-dashed" scene="video" title="No videos yet" description="Paste a link above to download one, or import a file from your Mac." />
+					<EmptyState compact fill={false} className="rounded-lg border border-dashed" scene="video" title={t("No videos yet")} description={t("Paste a link above to download one, or import a file from your Mac.")} />
 				) : (
 					<Card className="px-0 [&>*+*]:border-t">
 						{media.map((m) => {
@@ -74,13 +75,13 @@ export function MediaPanel() {
 										<p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
 											<span className="tabular-nums">{formatTime(m.duration)}</span>· {m.width}×{m.height}
 											{subs.length > 0 && (
-												<Badge variant="secondary" className="h-4 gap-1 px-1.5 text-[10px]" title="This video came with subtitles from the site">
+												<Badge variant="secondary" className="h-4 gap-1 px-1.5 text-[10px]" title={t("This video came with subtitles from the site")}>
 													<Captions className="size-3" /> {subs.join(", ")}
 												</Badge>
 											)}
 										</p>
 									</div>
-									<IconButton label="Add to the end of the timeline" size="icon-xs" onClick={() => appendToTimeline(m)}>
+									<IconButton label={t("Add to the end of the timeline")} size="icon-xs" onClick={() => appendToTimeline(m)}>
 										<Plus />
 									</IconButton>
 								</div>

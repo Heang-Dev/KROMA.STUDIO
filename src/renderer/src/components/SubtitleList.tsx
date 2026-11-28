@@ -13,6 +13,7 @@ import { ResizeHandle } from "./ResizeHandle";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "./common";
 import { EmptyState } from "@/components/empty/EmptyState";
+import { t } from "@shared/i18n";
 
 export function SubtitleList() {
 	const cues = useEditor((s) => s.project.cues);
@@ -56,20 +57,20 @@ export function SubtitleList() {
 
 	return (
 		<aside className="relative flex shrink-0 flex-col border-l border-border bg-card" style={{ width }}>
-			<ResizeHandle panel="right" edge="left" label="Resize the subtitles panel" />
+			<ResizeHandle panel="right" edge="left" label={t("Resize the subtitles panel")} />
 			<header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
 				<div>
-					<h2 className="text-[13px] font-semibold">Subtitles</h2>
-					<p className="text-[11px] text-muted-foreground">{cues.length ? `${cues.length} lines · ${translated} in ${languageOf(language).name}` : "None yet"}</p>
+					<h2 className="text-[13px] font-semibold">{t("Subtitles")}</h2>
+					<p className="text-[11px] text-muted-foreground">{cues.length ? t("{n} lines · {translated} in {language}", { n: cues.length, translated, language: t(languageOf(language).name) }) : t("None yet")}</p>
 				</div>
 				<div className="flex">
-					<IconButton label="Import an .srt file" onClick={() => void importSrt()}>
+					<IconButton label={t("Import an .srt file")} onClick={() => void importSrt()}>
 						<FileUp className="size-4" />
 					</IconButton>
-					<IconButton label="Find and replace" onClick={() => setReplacing(true)} disabled={!cues.length}>
+					<IconButton label={t("Find and replace")} onClick={() => setReplacing(true)} disabled={!cues.length}>
 						<Replace className="size-4" />
 					</IconButton>
-					<IconButton label="Add a line at the playhead" onClick={addLine}>
+					<IconButton label={t("Add a line at the playhead")} onClick={addLine}>
 						<Plus className="size-4" />
 					</IconButton>
 				</div>
@@ -77,14 +78,14 @@ export function SubtitleList() {
 			{cues.length > 0 && (
 				<div className="relative border-b border-border px-3 py-2">
 					<Search className="absolute top-1/2 left-5.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-					<Input className="pl-8" aria-label="Find in subtitles" placeholder="Find in subtitles" value={query} onChange={(e) => setQuery(e.target.value)} />
+					<Input className="pl-8" aria-label={t("Find in subtitles")} placeholder={t("Find in subtitles")} value={query} onChange={(e) => setQuery(e.target.value)} />
 				</div>
 			)}
 			<div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
 				{visible.map((cue) => (
 					<CueRow key={cue.id} cue={cue} cast={cast} active={cues[active]?.id === cue.id} selected={selectedId === cue.id} />
 				))}
-				{cues.length === 0 && <EmptyState compact fill={false} scene="subtitles" title="No subtitles yet" description={`They appear here after "Make ${languageOf(language).name} subtitles". You can fix any line by typing in it.`} />}
+				{cues.length === 0 && <EmptyState compact fill={false} scene="subtitles" title={t("No subtitles yet")} description={t(`They appear here after "Make {language} subtitles". You can fix any line by typing in it.`, { language: t(languageOf(language).name) })} />}
 			</div>
 			<FindReplace open={replacing} onOpenChange={setReplacing} initial={query} />
 		</aside>
@@ -114,8 +115,8 @@ const CueRow = memo(function CueRow({ cue, cast, active, selected }: { cue: Cue;
 				<span className="flex-1" />
 				<button
 					type="button"
-					aria-label="Delete line"
-					title="Delete line"
+					aria-label={t("Delete line")}
+					title={t("Delete line")}
 					className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
 					onClick={() => update((p) => ({ ...p, cues: p.cues.filter((c) => c.id !== cue.id) }))}
 				>
@@ -126,7 +127,7 @@ const CueRow = memo(function CueRow({ cue, cast, active, selected }: { cue: Cue;
 			<textarea
 				rows={1}
 				value={cue.text}
-				placeholder={cue.source ? "Not translated yet" : "Type the translated line"}
+				placeholder={cue.source ? t("Not translated yet") : t("Type the translated line")}
 				onFocus={focus}
 				onChange={(e) => setText(e.target.value)}
 				className="field-sizing-content w-full resize-none rounded-none border border-transparent bg-transparent px-1.5 py-1 font-khmer text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground hover:border-border focus:border-primary focus:bg-background focus:outline-none"
@@ -144,10 +145,10 @@ function SpeakerChip({ cue, cast }: { cue: Cue; cast: CastMember[] }) {
 				<button
 					type="button"
 					className="flex max-w-36 items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
-					aria-label={`Who says this line: ${index >= 0 ? cue.speaker : "default voice"}`}
+					aria-label={t("Who says this line: {name}", { name: index >= 0 ? (cue.speaker ?? "") : t("default voice") })}
 				>
 					<span className="size-2 shrink-0 rounded-full border" style={{ background: castColor(index), borderColor: index >= 0 ? castColor(index) : "var(--border)" }} />
-					<span className="truncate">{index >= 0 ? cue.speaker : "Default voice"}</span>
+					<span className="truncate">{index >= 0 ? cue.speaker : t("Default voice")}</span>
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="min-w-44">
@@ -157,10 +158,10 @@ function SpeakerChip({ cue, cast }: { cue: Cue; cast: CastMember[] }) {
 					</DropdownMenuItem>
 				))}
 				<DropdownMenuItem onClick={() => setSpeaker(cue.id, undefined)}>
-					<span className="size-2 rounded-full border" /> Default voice
+					<span className="size-2 rounded-full border" /> {t("Default voice")}
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem onClick={() => setSpeaker(cue.id, addCharacter())}>New character…</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => setSpeaker(cue.id, addCharacter())}>{t("New character…")}</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
