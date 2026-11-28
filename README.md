@@ -137,7 +137,7 @@ The AI writes a title, text and hashtags for each platform. Connect YouTube, Fac
 | **Windows** 10 / 11 (x64) | `Kroma-Studio-Setup-<version>.exe` | [Download](https://github.com/Heang-Dev/kroma/releases/latest) |
 | **Linux** (x64) | `.AppImage` (any distro) or `.deb` (Ubuntu, Debian) | [Download](https://github.com/Heang-Dev/kroma/releases/latest) |
 
-Kroma updates itself: new versions download in the background and a **Restart to update** card appears in the bottom-right corner. Every version and what changed in it is in the [changelog](CHANGELOG.md).
+Kroma updates itself: new versions download in the background and a **Restart to update** card appears in the bottom-right corner. Every version and what changed in it is in the [changelog](CHANGELOG.md) ([ខ្មែរ](CHANGELOG.km.md)).
 
 <details>
 <summary><b>The installers aren't code-signed yet</b></summary>

@@ -137,7 +137,7 @@ AI សរសេរចំណងជើង អត្ថបទ និង hashtag ស
 | **Windows** 10 / 11 (x64) | `Kroma-Studio-Setup-<version>.exe` | [ទាញយក](https://github.com/Heang-Dev/kroma/releases/latest) |
 | **Linux** (x64) | `.AppImage` (គ្រប់ distro) ឬ `.deb` (Ubuntu, Debian) | [ទាញយក](https://github.com/Heang-Dev/kroma/releases/latest) |
 
-Kroma ធ្វើបច្ចុប្បន្នភាពខ្លួនឯង៖ កំណែថ្មីទាញយកនៅពីក្រោយ ហើយប្រអប់ **Restart to update** លេចឡើងនៅជ្រុងខាងក្រោមស្តាំ។ កំណែនីមួយៗ និងអ្វីដែលបានផ្លាស់ប្តូរ មាននៅក្នុង [កំណត់ត្រាការផ្លាស់ប្តូរ](../../CHANGELOG.md) (ជាភាសាអង់គ្លេស)។
+Kroma ធ្វើបច្ចុប្បន្នភាពខ្លួនឯង៖ កំណែថ្មីទាញយកនៅពីក្រោយ ហើយប្រអប់ **Restart to update** លេចឡើងនៅជ្រុងខាងក្រោមស្តាំ។ កំណែនីមួយៗ និងអ្វីដែលបានផ្លាស់ប្តូរ មាននៅក្នុង [កំណត់ត្រាការផ្លាស់ប្តូរ](../../CHANGELOG.km.md) ([English](../../CHANGELOG.md))។
 
 <details>
 <summary><b>កម្មវិធីដំឡើងមិនទាន់មានហត្ថលេខានៅឡើយទេ</b></summary>
