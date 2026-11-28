@@ -1,4 +1,5 @@
-import { Droplets, Eye, EyeOff, ImagePlus, Subtitles, Trash2, Type } from "lucide-react";
+import { useState } from "react";
+import { Droplets, Eye, EyeOff, ImagePlus, Loader2, Subtitles, Trash2, Type } from "lucide-react";
 import type { VideoObject } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,12 +17,21 @@ export function ObjectsPanel() {
 	const objects = objectsOf(project);
 	const selected = objects.find((o) => o.id === selectedId);
 	const hasVideo = project.clips.length > 0;
+	const [finding, setFinding] = useState(false);
+	const hideSubtitles = async () => {
+		setFinding(true);
+		try {
+			await coverOriginalSubtitles();
+		} finally {
+			setFinding(false);
+		}
+	};
 
 	return (
 		<>
 			<Section title="Add to the video" hint="Placed on the preview: drag to move, drag the corner to resize. Your subtitles always stay on top.">
-				<Button className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!hasVideo} onClick={coverOriginalSubtitles}>
-					<Subtitles /> Cover original subtitles
+				<Button className="h-auto min-h-control w-full whitespace-normal py-2 leading-snug" disabled={!hasVideo || finding} onClick={() => void hideSubtitles()}>
+					{finding ? <Loader2 className="animate-spin" /> : <Subtitles />} {finding ? "Looking for burned-in subtitles…" : "Hide original subtitles"}
 				</Button>
 				<div className="grid grid-cols-1 gap-1.5 @[17rem]:grid-cols-3">
 					<Button variant="outline" size="sm" disabled={!hasVideo} onClick={addBlurBox}>

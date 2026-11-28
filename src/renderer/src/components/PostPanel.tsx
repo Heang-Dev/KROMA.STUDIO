@@ -11,6 +11,7 @@ import { PLATFORM_NAMES, exportSrt, publishVideo, updatePost, videoFingerprint, 
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { Card, Row, Section, Segmented, TaskProgress, useBusy } from "./common";
+import { CoverSection } from "./CoverSection";
 
 // Post: the AI writes each platform's title, text and hashtags (kept in the project, editable), then one click
 // exports the video in each platform's format (YouTube 16:9, Facebook and TikTok 9:16 unless you choose otherwise) and
@@ -233,6 +234,8 @@ export function PostPanel() {
 					</Card>
 				</Section>
 			)}
+
+			<CoverSection />
 
 			<Section title="Subtitle files" hint="For YouTube's subtitle upload, or to keep a copy.">
 				<div className="grid grid-cols-1 gap-1.5 @[17rem]:grid-cols-2">

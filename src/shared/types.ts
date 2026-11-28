@@ -1,3 +1,5 @@
+import type { CoverSettings } from "./cover";
+import type { CaptionAnimation } from "./captionMotion";
 // Types shared by the main process, the preload bridge and the editor UI.
 
 export type Aspect = "16:9" | "9:16" | "1:1";
@@ -60,6 +62,17 @@ export interface SubtitleStyle {
 	shadowColor?: string;
 	/** The subtitle font (see SUBTITLE_FONTS). Missing = Kantumruy Pro. */
 	font?: SubtitleFont;
+	/** How each line comes in or follows the speech (shared/captionMotion). Missing = none. */
+	animation?: CaptionAnimation;
+	/** The colour of the word being said (Spoken word). Missing = yellow. */
+	highlightColor?: string;
+}
+
+/** A subtitle style the person saved (Style → Save as my style): the whole look, size and position included. */
+export interface MyStyle {
+	id: string;
+	name: string;
+	style: SubtitleStyle;
 }
 
 export type SubtitleFont = "kantumruy" | "koulen" | "moul" | "battambang" | "bayon" | "dangrek" | "fasthand" | "hanuman";
@@ -99,6 +112,10 @@ export interface Project {
 	published?: PublishRecord[];
 	/** The last export, reused for posting while the project hasn't changed since. */
 	lastExport?: { path: string; fingerprint: string };
+	/** The episode cover's design (Post → Cover). */
+	cover?: CoverSettings;
+	/** The saved covers, by format. */
+	covers?: Partial<Record<"16:9" | "9:16", string>>;
 	/** The latest export of each format (16:9, 9:16), reused for posting while it still matches the project. */
 	exports?: Partial<Record<Aspect, { path: string; fingerprint: string }>>;
 }

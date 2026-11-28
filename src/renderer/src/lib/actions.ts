@@ -7,8 +7,10 @@ import { type PostChoice, type PostFormat, currentExport, neededFormats, publish
 import { batchMode, noteBatchError } from "./batchMode";
 import { notify } from "./notify";
 import { objectsForExport } from "./objects";
-import { ensureFonts, renderBandPng, subtitleBand } from "./subtitleRender";
+import { captionWords, ensureFonts, renderBandPng, subtitleBand } from "./subtitleRender";
+import { motionFrames, wordShares } from "@shared/captionMotion";
 import { placeClips, placeSourceCues, totalDuration, uid } from "./timeline";
+import { useGlossary } from "@/state/glossary";
 
 const state = () => useEditor.getState();
 
@@ -116,7 +118,9 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 	const lang = languageOf(project.language);
 	const replacing = onlyMissing ? 0 : project.cues.filter((c) => c.source.trim() && c.text.trim()).length;
 	if (!confirmReplace(replacing, `Translate every line to ${lang.name} again?`)) return false;
-	const answer = await runTask(`translate-${Date.now()}`, `Translate to ${lang.name}`, (id) => window.kroma.translate(id, lines, project.context, lang.code), {
+	const projectPath = state().projectPath;
+	const glossary = await useGlossary.getState().load(projectPath);
+	const answer = await runTask(`translate-${Date.now()}`, `Translate to ${lang.name}`, (id) => window.kroma.translate(id, lines, project.context, lang.code, projectPath), {
 		kind: "subtitles",
 		done: false,
 		failed: "Translation failed",
@@ -129,7 +133,40 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 	if (missed) notify({ kind: "subtitles", tone: "error", title: `Translated ${lines.length - missed} of ${lines.length} lines`, detail: `${missed} need another try.`, action: { label: "Translate missing", run: () => translateCues(true) } });
 	else if (answer.fallback) notify({ kind: "subtitles", tone: "success", title: `Translated ${lines.length} lines to ${lang.name}`, detail: `Gemini was busy, so ${answer.fallback} lines used Google Translate. Press "Translate all" later for Gemini's better wording.` });
 	else notify({ kind: "subtitles", tone: "success", title: `Translated ${lines.length} lines to ${lang.name}`, detail: short(project.name) });
+	// The first translated episode of a series fills the glossary, so the next ones spell names the same way.
+	if (projectPath && !glossary.length) void findGlossaryNames(true);
 	return true;
+}
+
+/**
+ * Finds the names and terms in the translated lines and adds them to the series glossary (spellings already there
+ * stay). `quiet`: after a translation, only says something when it added names.
+ */
+export async function findGlossaryNames(quiet = false): Promise<number> {
+	const { project, projectPath } = state();
+	if (!projectPath) {
+		if (!quiet) state().showToast("Save the project first: the glossary is shared by the projects in its folder.", "error");
+		return 0;
+	}
+	const settings = await window.kroma.getSettings();
+	if (!settings.hasGeminiKey && !settings.hasAnthropicKey) {
+		if (!quiet) state().showToast("Finding names needs Gemini or Claude: add a key in Settings → Translation.", "error");
+		return 0;
+	}
+	const pairs = project.cues.filter((c) => c.source.trim() && c.text.trim()).map((c) => ({ source: c.source, text: c.text }));
+	if (!pairs.length) {
+		if (!quiet) state().showToast("Translate the lines first: names are found in the translation.", "error");
+		return 0;
+	}
+	// After a translation it runs quietly in the background (a failure only means no names this time).
+	const found = quiet
+		? await window.kroma.findGlossaryTerms(`glossary-${Date.now()}`, pairs, project.language).catch(() => null)
+		: await runTask(`glossary-${Date.now()}`, "Find names for the glossary", (id) => window.kroma.findGlossaryTerms(id, pairs, project.language), { kind: "subtitles", done: false, failed: "Couldn't find names" });
+	if (!found) return 0;
+	const added = await useGlossary.getState().merge(projectPath, found);
+	if (added) notify({ kind: "subtitles", tone: "success", title: `Added ${added} name${added === 1 ? "" : "s"} to the series glossary`, detail: "Every episode in this folder now translates them the same way (Translate → Series glossary)." });
+	else if (!quiet) state().showToast("No new names: the glossary already has them.", "info");
+	return added;
 }
 
 /** One click: site subtitles if any, otherwise cloud speech-to-text, then translation (with the chosen translator). */
@@ -171,7 +208,9 @@ export async function exportVideo(quality: ExportQuality, quiet = false, outPath
 		const overlays: ExportRequest["overlays"] = [];
 		for (let i = 0; i < visible.length; i++) {
 			const cue = visible[i];
-			overlays.push({ start: cue.start, end: cue.end, png: await renderBandPng(cue, project.style, frame, band) });
+			// An animated caption is a few images (coming in) or one per word; a still one is one image.
+			const shares = wordShares(captionWords(cue, project.style, frame));
+			for (const part of motionFrames(project.style.animation, shares, cue.start, cue.end)) overlays.push({ start: part.start, end: part.end, png: await renderBandPng(cue, project.style, frame, band, part.motion) });
 			if (i % 25 === 0) useEditor.getState().setTask({ id, label: "Export", progress: -1, message: `Drawing subtitles ${i}/${visible.length}`, status: "running" });
 		}
 		const mediaById = new Map(project.media.map((m) => [m.id, m]));

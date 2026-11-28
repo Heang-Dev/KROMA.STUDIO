@@ -24,6 +24,7 @@ import { SearchSelect } from "./SearchSelect";
 import { AppSelect, Card, Group, IconButton, Row, Section, Segmented } from "./common";
 import { PageHeader, PageSection } from "./PageHeader";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useMyStyles } from "@/state/myStyles";
 
 // Batch: pick several projects, run every step on them one after another (like the Download Center's queue), then
 // choose per video where it's posted and in which format. Left: what to process and how. Right: the queue.
@@ -84,6 +85,8 @@ function ProcessSetup() {
 		void window.kroma.kvsVoices().then(setClones).catch(() => undefined);
 		void window.kroma.getSettings().then((s) => setHasAi(s.hasGeminiKey || s.hasAnthropicKey));
 	}, []);
+	const myStyles = useMyStyles((s) => s.list);
+	useEffect(() => void useMyStyles.getState().load(), []);
 	const set = (patch: Partial<BatchOptions>) => setBatchOptions(patch);
 	const lang = languageOf(options.language);
 	const steps = planSteps(options);
@@ -145,8 +148,9 @@ function ProcessSetup() {
 							</Field>
 						</StepRow>
 						{options.voice !== "off" && <StepRow label="Remove original voices" hint="Keeps the music and effects under the voice-over (fast)." on={options.removeVoices} onChange={(removeVoices) => set({ removeVoices })} />}
+						<StepRow label="Hide original subtitles" hint="Finds the Chinese subtitles burned into the video and blurs them, so only yours show." on={Boolean(options.hideSubtitles)} onChange={(hideSubtitles) => set({ hideSubtitles })} />
 						<StepRow label="Subtitle style" hint="Off keeps each project's own style." on={options.style !== "keep"} onChange={(on) => set({ style: on ? "classic" : "keep" })}>
-							<AppSelect label="Subtitle style" value={options.style === "keep" ? "classic" : options.style} options={PRESET_OPTIONS} onChange={(style) => set({ style })} />
+							<AppSelect label="Subtitle style" value={options.style === "keep" ? "classic" : options.style} options={[...myStyles.map((m) => ({ value: `my:${m.id}` as const, label: m.name, group: "My styles" })), ...PRESET_OPTIONS]} onChange={(style) => set({ style })} />
 						</StepRow>
 						<StepRow label="Export" hint="Into the export folder: <playlist>/<name> (16x9).mp4" on={options.formats.length > 0} onChange={(on) => set({ formats: on ? [...POST_FORMATS] : [] })}>
 							<div className="flex gap-4">
@@ -159,6 +163,7 @@ function ProcessSetup() {
 							</div>
 							<Segmented label="Export size" equalWidth value={options.quality === "fast" ? "standard" : options.quality} options={QUALITY} onChange={(quality) => set({ quality })} />
 						</StepRow>
+						<StepRow label="Make covers" hint="A thumbnail for each episode with its number (ភាគ ៥) and the series title, next to the exports. The design is each project's Post → Cover." on={Boolean(options.covers)} onChange={(covers) => set({ covers })} />
 						<StepRow label="Write post text" hint={hasAi ? "Titles, text and hashtags for each platform." : "Needs an AI key (Settings → Translation)."} on={options.writePosts} onChange={(writePosts) => set({ writePosts })} />
 					</Card>
 					<p className="text-xs leading-relaxed text-muted-foreground">
@@ -284,7 +289,7 @@ const FILTERS: { value: BatchFilter; label: string }[] = [
 ];
 
 /** The panel a step is fixed by hand in. */
-const STEP_PANEL: Record<BatchStep, Panel> = { subtitles: "ai", translate: "ai", characters: "voice", removeVoices: "voice", voice: "voice", style: "style", "export-16:9": "post", "export-9:16": "post", posts: "post" };
+const STEP_PANEL: Record<BatchStep, Panel> = { subtitles: "ai", translate: "ai", characters: "voice", removeVoices: "voice", voice: "voice", hideSubtitles: "objects", style: "style", covers: "post", "export-16:9": "post", "export-9:16": "post", posts: "post" };
 
 /** Opens the project in the editor, on the panel of the step to look at. */
 async function openAtStep(item: BatchItem, step: BatchStep | null): Promise<void> {
@@ -469,7 +474,9 @@ const ROW_LABEL: Record<BatchStep, string> = {
 	characters: "Cast",
 	removeVoices: "Clean",
 	voice: "Voice",
+	hideSubtitles: "Hide",
 	style: "Style",
+	covers: "Covers",
 	"export-16:9": "16:9",
 	"export-9:16": "9:16",
 	posts: "Text",

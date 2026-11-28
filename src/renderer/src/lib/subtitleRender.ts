@@ -1,3 +1,4 @@
+import { type CaptionMotion, ease } from "@shared/captionMotion";
 import { type Cue, SUBTITLE_FONTS, type SubtitleStyle } from "@shared/types";
 
 // One renderer for both the preview and the export, so what you see is what gets burned in.
@@ -79,32 +80,70 @@ interface Layout {
 }
 
 /**
- * Draws the cue into ctx, whose coordinate space is the full output frame (width x height).
- * Returns nothing; callers translate/scale the context for previews or export bands.
+ * The rows a cue is drawn in, with the main (translated) text split into its words: the same layout drawCue uses,
+ * so the word count for timing always matches what's drawn.
  */
-export function drawCue(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, cue: Pick<Cue, "text" | "source">, style: SubtitleStyle, frame: Layout): void {
+function layoutCue(ctx: Ctx, cue: Pick<Cue, "text" | "source">, style: SubtitleStyle, frame: Layout) {
 	// Sized against the short side, so 9:16 text matches 16:9 text instead of doubling.
 	const px = Math.round(style.size * Math.min(frame.width, frame.height));
 	const maxWidth = frame.width * MAX_WIDTH;
-	const blocks: { lines: string[]; size: number; color: string }[] = [];
-
 	const main = cue.text.trim() || cue.source.trim();
-	if (!main) return;
+	const rows: { line: string; size: number; color: string; weight: number; font: string; main: boolean; pieces: { text: string; word: number }[] }[] = [];
+	if (!main) return { rows, words: [] as string[], px };
 	if (style.showSource && cue.text.trim() && cue.source.trim()) {
 		const size = Math.round(px * 0.72);
 		ctx.font = `500 ${size}px ${SUBTITLE_FONT}`;
-		blocks.push({ lines: wrapText(ctx, cue.source, maxWidth), size, color: "#f5d76e" });
+		for (const line of wrapText(ctx, cue.source, maxWidth)) rows.push({ line, size, color: "#f5d76e", weight: 500, font: SUBTITLE_FONT, main: false, pieces: [] });
 	}
 	const mainFont = fontStack(style);
 	ctx.font = `${weightOf(style)} ${px}px ${mainFont}`;
-	blocks.push({ lines: wrapText(ctx, main, maxWidth), size: px, color: style.color });
+	const words: string[] = [];
+	for (const line of wrapText(ctx, main, maxWidth)) {
+		// Each word-like piece is a word; spaces and punctuation belong to the word before them.
+		const pieces: { text: string; word: number }[] = [];
+		for (const { segment, isWordLike } of segmenter(line).segment(line)) {
+			if (isWordLike || !words.length) words.push(segment);
+			else words[words.length - 1] += segment;
+			pieces.push({ text: segment, word: words.length - 1 });
+		}
+		rows.push({ line, size: px, color: style.color, weight: weightOf(style), font: mainFont, main: true, pieces });
+	}
+	return { rows, words, px };
+}
 
-	const last = blocks[blocks.length - 1];
-	const rows = blocks.flatMap((b) => b.lines.map((line) => ({ line, size: b.size, color: b.color, weight: b === last ? weightOf(style) : 500, font: b === last ? mainFont : SUBTITLE_FONT })));
+/** The words of a cue's main line, as drawn (for the timing of word-by-word captions). */
+export function captionWords(cue: Pick<Cue, "text" | "source">, style: SubtitleStyle, frame: Layout): string[] {
+	const ctx = new OffscreenCanvas(8, 8).getContext("2d")!;
+	return layoutCue(ctx, cue, style, frame).words;
+}
+
+/**
+ * Draws the cue into ctx, whose coordinate space is the full output frame (width x height). `motion` is a moment of an
+ * animated caption (see shared/captionMotion): how far it has come in, or the word being said.
+ */
+export function drawCue(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, cue: Pick<Cue, "text" | "source">, style: SubtitleStyle, frame: Layout, motion?: CaptionMotion): void {
+	const { rows, px } = layoutCue(ctx, cue, style, frame);
+	if (!rows.length) return;
 	const heights = rows.map((r) => r.size * LINE_HEIGHT);
-	let y = style.position * frame.height - heights.reduce((a, b) => a + b, 0);
+	const blockHeight = heights.reduce((a, b) => a + b, 0);
+	let y = style.position * frame.height - blockHeight;
+	const centre = { x: frame.width / 2, y: y + blockHeight / 2 };
 
-	ctx.textAlign = "center";
+	ctx.save();
+	// Coming in: fade, pop (a little past full size, then settle) or slide up.
+	if (motion?.enter !== undefined && motion.enter < 1) {
+		const t = motion.enter;
+		ctx.globalAlpha = ease(Math.min(1, t * (motion.animation === "pop" ? 1.6 : 1)));
+		if (motion.animation === "pop") {
+			const scale = t < 0.7 ? 0.82 + 0.24 * (t / 0.7) : 1.06 - 0.06 * ((t - 0.7) / 0.3);
+			ctx.translate(centre.x, centre.y);
+			ctx.scale(scale, scale);
+			ctx.translate(-centre.x, -centre.y);
+		} else if (motion.animation === "slide") ctx.translate(0, (1 - ease(t)) * px * 0.8);
+	}
+	const spoken = motion?.word;
+	const highlight = style.highlightColor || "#ffe14d";
+
 	ctx.textBaseline = "middle";
 	ctx.lineJoin = "round";
 	ctx.miterLimit = 2;
@@ -112,8 +151,9 @@ export function drawCue(ctx: CanvasRenderingContext2D | OffscreenCanvasRendering
 		const h = heights[i];
 		const cy = y + h / 2;
 		ctx.font = `${row.weight} ${row.size}px ${row.font}`;
+		const lineWidth = ctx.measureText(row.line).width;
 		if (style.box) {
-			const w = ctx.measureText(row.line).width + row.size * 0.7;
+			const w = lineWidth + row.size * 0.7;
 			ctx.fillStyle = style.boxColor;
 			roundRect(ctx, frame.width / 2 - w / 2, y + h * 0.04, w, h * 0.92, row.size * 0.22);
 		}
@@ -127,18 +167,32 @@ export function drawCue(ctx: CanvasRenderingContext2D | OffscreenCanvasRendering
 			ctx.shadowBlur = on ? row.size * shadow : 0;
 			ctx.shadowOffsetY = on && !glow ? row.size * shadow * 0.25 : 0;
 		};
+		// Word by word: the line is drawn piece by piece (each where it sits in the whole line), the spoken word in
+		// its colour, or words not said yet left out. Otherwise the whole line as one piece.
+		const byWord = row.main && spoken !== undefined;
+		const pieces: { text: string; x: number; color: string }[] = [];
+		let x = frame.width / 2 - lineWidth / 2;
+		for (const piece of byWord ? row.pieces : [{ text: row.line, word: -1 }]) {
+			const shown = !byWord || motion?.animation !== "build" || piece.word <= spoken;
+			if (shown) pieces.push({ text: piece.text, x, color: byWord && motion?.animation === "words" && piece.word === spoken ? highlight : row.color });
+			x += byWord ? ctx.measureText(piece.text).width : 0;
+		}
+		ctx.textAlign = "left";
 		if (style.outline > 0) {
 			setShadow(shadow > 0);
 			ctx.strokeStyle = style.outlineColor;
 			ctx.lineWidth = row.size * style.outline * 2;
-			ctx.strokeText(row.line, frame.width / 2, cy);
+			pieces.forEach((piece) => ctx.strokeText(piece.text, piece.x, cy));
 			setShadow(false);
 		} else setShadow(shadow > 0);
-		ctx.fillStyle = row.color;
-		ctx.fillText(row.line, frame.width / 2, cy);
+		pieces.forEach((piece) => {
+			ctx.fillStyle = piece.color;
+			ctx.fillText(piece.text, piece.x, cy);
+		});
 		setShadow(false);
 		y += h;
 	});
+	ctx.restore();
 }
 
 function roundRect(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
@@ -163,11 +217,11 @@ export async function ensureFonts(): Promise<void> {
 }
 
 /** Draws one cue into a transparent PNG covering the subtitle band of the output frame. */
-export async function renderBandPng(cue: Pick<Cue, "text" | "source">, style: SubtitleStyle, frame: Layout, band: { top: number; height: number }): Promise<Uint8Array> {
+export async function renderBandPng(cue: Pick<Cue, "text" | "source">, style: SubtitleStyle, frame: Layout, band: { top: number; height: number }, motion?: CaptionMotion): Promise<Uint8Array> {
 	const canvas = new OffscreenCanvas(frame.width, band.height);
 	const ctx = canvas.getContext("2d")!;
 	ctx.translate(0, -band.top);
-	drawCue(ctx, cue, style, frame);
+	drawCue(ctx, cue, style, frame, motion);
 	const blob = await canvas.convertToBlob({ type: "image/png" });
 	return new Uint8Array(await blob.arrayBuffer());
 }

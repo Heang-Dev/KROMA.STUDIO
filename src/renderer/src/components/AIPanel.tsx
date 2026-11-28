@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TARGET_LANGUAGES, languageOf } from "@shared/languages";
 import { autoKhmer, getSubtitles, setLanguage as setTargetLanguage, mainMedia, preferredSiteSubtitle, translateCues } from "@/lib/actions";
 import { useEditor } from "@/state/store";
+import { GlossarySection } from "./GlossarySection";
 import { AppSelect, ProgressBar, Section, TaskProgress, useBusy } from "./common";
 
 /** What the videos speak, for speech to text. */
@@ -72,6 +73,8 @@ export function AIPanel() {
 					onChange={(e) => update((p) => ({ ...p, context: e.target.value }), false)}
 				/>
 			</Section>
+
+			<GlossarySection />
 
 			<Section title="Step by step" hint="Run one step at a time, or redo just one.">
 				{total > 0 && (

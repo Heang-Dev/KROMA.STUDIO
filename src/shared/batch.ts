@@ -40,8 +40,13 @@ export interface BatchOptions {
 	voiceId: string;
 	/** Remove the original voices (fast separation); only with a voice-over. */
 	removeVoices: boolean;
-	style: StylePreset | "keep";
+	/** A preset, one of my styles ("my:<id>"), or keep each project's own. */
+	style: StylePreset | `my:${string}` | "keep";
+	/** Blur the video's own burned-in subtitles (found in its frames). Missing in older saved options: off. */
+	hideSubtitles?: boolean;
 	formats: PostFormat[];
+	/** Make each episode's cover (with its number) in the export formats. Missing in older saved options: off. */
+	covers?: boolean;
 	quality: ExportQuality;
 	writePosts: boolean;
 }
@@ -56,12 +61,14 @@ export const DEFAULT_BATCH_OPTIONS: BatchOptions = {
 	voiceId: "km-KH-SreymomNeural",
 	removeVoices: true,
 	style: "keep",
+	hideSubtitles: false,
 	formats: ["16:9", "9:16"],
+	covers: false,
 	quality: "standard",
 	writePosts: true,
 };
 
-export type BatchStep = "subtitles" | "translate" | "characters" | "removeVoices" | "voice" | "style" | "export-16:9" | "export-9:16" | "posts";
+export type BatchStep = "subtitles" | "translate" | "characters" | "removeVoices" | "voice" | "hideSubtitles" | "style" | "export-16:9" | "export-9:16" | "covers" | "posts";
 
 export const STEP_LABEL: Record<BatchStep, string> = {
 	subtitles: "Getting subtitles",
@@ -69,9 +76,11 @@ export const STEP_LABEL: Record<BatchStep, string> = {
 	characters: "Finding characters",
 	removeVoices: "Removing the original voices",
 	voice: "Making the voice-over",
+	hideSubtitles: "Hiding the original subtitles",
 	style: "Styling the subtitles",
 	"export-16:9": "Exporting 16:9",
 	"export-9:16": "Exporting 9:16",
+	covers: "Making the covers",
 	posts: "Writing the posts",
 };
 
@@ -82,9 +91,11 @@ export const STEP_NOUN: Record<BatchStep, string> = {
 	characters: "finding characters",
 	removeVoices: "removing voices",
 	voice: "voice-over",
+	hideSubtitles: "hiding the original subtitles",
 	style: "style",
 	"export-16:9": "16:9 export",
 	"export-9:16": "9:16 export",
+	covers: "covers",
 	posts: "writing posts",
 };
 
@@ -100,8 +111,10 @@ export function planSteps(o: BatchOptions): BatchStep[] {
 	if (o.characters) steps.push("characters");
 	if (voice !== "off" && o.removeVoices) steps.push("removeVoices");
 	if (voice !== "off") steps.push("voice");
+	if (o.hideSubtitles) steps.push("hideSubtitles");
 	if (o.style !== "keep") steps.push("style");
 	for (const f of POST_FORMATS) if (o.formats.includes(f)) steps.push(exportStep(f));
+	if (o.covers) steps.push("covers");
 	if (o.writePosts) steps.push("posts");
 	return steps;
 }
@@ -109,7 +122,7 @@ export function planSteps(o: BatchOptions): BatchStep[] {
 export type BatchStatus = "waiting" | "running" | "done" | "failed" | "stopped";
 
 /** Every step a batch can run, in the order it runs them (the checklist on each row). */
-export const ALL_STEPS: BatchStep[] = ["subtitles", "translate", "characters", "removeVoices", "voice", "style", "export-16:9", "export-9:16", "posts"];
+export const ALL_STEPS: BatchStep[] = ["subtitles", "translate", "characters", "removeVoices", "voice", "hideSubtitles", "style", "export-16:9", "export-9:16", "covers", "posts"];
 
 /** Short names for the checklist chips. */
 export const STEP_SHORT: Record<BatchStep, string> = {
@@ -118,9 +131,11 @@ export const STEP_SHORT: Record<BatchStep, string> = {
 	characters: "Characters",
 	removeVoices: "Remove voices",
 	voice: "Voice-over",
+	hideSubtitles: "Hide subtitles",
 	style: "Style",
 	"export-16:9": "Export 16:9",
 	"export-9:16": "Export 9:16",
+	covers: "Covers",
 	posts: "Post text",
 };
 

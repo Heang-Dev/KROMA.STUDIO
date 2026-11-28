@@ -1,4 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { BookmarkPlus, X } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useMyStyles } from "@/state/myStyles";
+import { CAPTION_ANIMATIONS } from "@shared/captionMotion";
 import { type Aspect, type FitMode, SUBTITLE_FONTS, type SubtitleFont, type SubtitleStyle } from "@shared/types";
 import { PRESET_OPTIONS, type Preset, currentPreset, lookOf } from "@/lib/stylePresets";
 import { drawCue, ensureFonts } from "@/lib/subtitleRender";
@@ -36,7 +42,9 @@ export function StylePanel() {
 
 			<Section title="Subtitle style">
 				<Card>
-					<Row stack label="Preset" control={<PresetGrid style={style} onPick={(v) => setStyle(lookOf(v))} />} />
+					<Row stack label="Preset" control={<PresetGrid style={style} onPick={(v) => setStyle(lookOf(v))} onPickMine={(mine) => setStyle({ ...mine, showSource: style.showSource })} />} />
+					<Row stack label="Animation" description="How each line comes in, or follows the voice word by word." control={<AppSelect label="Animation" value={style.animation ?? "none"} options={CAPTION_ANIMATIONS} onChange={(animation) => setStyle({ animation })} />} />
+					{style.animation === "words" && <Row label="Spoken word colour" control={<ColorSwatch label="Spoken word colour" value={style.highlightColor || "#ffe14d"} onChange={(v) => setStyle({ highlightColor: v })} />} />}
 					<Row stack label="Font" control={<AppSelect label="Font" value={style.font ?? "kantumruy"} options={FONT_OPTIONS} onChange={(font) => setStyle({ font })} />} />
 					<SliderField label="Size" value={style.size} min={0.025} max={0.1} step={0.002} format={(v) => `${Math.round(v * 1000) / 10}%`} onStart={begin} onChange={(v) => setStyle({ size: v }, false)} />
 					<SliderField label="Position" value={style.position} min={0.2} max={0.98} step={0.005} format={(v) => `${Math.round(v * 100)}%`} onStart={begin} onChange={(v) => setStyle({ position: v }, false)} />
@@ -54,50 +62,129 @@ export function StylePanel() {
 					<SwitchRow label="Bold" checked={style.bold} onChange={(v) => setStyle({ bold: v })} />
 					<SwitchRow label="Dark box behind the text" checked={style.box} onChange={(v) => setStyle({ box: v })} />
 					<SwitchRow label="Bilingual" description="The original line above the translation." checked={style.showSource} onChange={(v) => setStyle({ showSource: v })} />
+					<SaveMyStyle style={style} />
 				</Card>
 			</Section>
 		</>
 	);
 }
 
-/**
- * Every preset as a small tile, drawn by the same renderer as the preview and the export (so the tile is exactly
- * what gets burned in), on a dark-to-light backdrop so light and dark looks both read. Picking one sets its whole
- * look; size, position and Bilingual stay as they are.
- */
 const FONT_OPTIONS = (Object.keys(SUBTITLE_FONTS) as SubtitleFont[]).map((value) => ({ value, label: SUBTITLE_FONTS[value].label, description: SUBTITLE_FONTS[value].description }));
 
 const GROUPS = [...new Set(PRESET_OPTIONS.map((o) => o.group))];
 
-function PresetGrid({ style, onPick }: { style: SubtitleStyle; onPick: (preset: Preset) => void }) {
+/** A saved style counts as chosen when everything but Bilingual matches. */
+const sameStyle = (a: SubtitleStyle, b: SubtitleStyle) => JSON.stringify({ ...a, showSource: false }) === JSON.stringify({ ...b, showSource: false });
+
+const tileClass = (on: boolean) =>
+	cn(
+		"group flex min-w-0 flex-col overflow-hidden rounded-md border text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+		on ? "border-primary ring-1 ring-primary" : "hover:border-foreground/30",
+	);
+const labelClass = (on: boolean) => cn("truncate px-2 py-1 text-[11px]", on ? "font-medium text-foreground" : "text-muted-foreground group-hover:text-foreground");
+
+/**
+ * My saved styles, then every preset, as small tiles drawn by the same renderer as the preview and the export (so a
+ * tile is exactly what gets burned in), on a dark-to-light backdrop so light and dark looks both read. A preset sets
+ * its whole look (size, position and Bilingual stay); one of my styles sets everything it saved.
+ */
+function PresetGrid({ style, onPick, onPickMine }: { style: SubtitleStyle; onPick: (preset: Preset) => void; onPickMine: (style: SubtitleStyle) => void }) {
 	const current = currentPreset(style);
+	const mine = useMyStyles((s) => s.list);
+	const load = useMyStyles((s) => s.load);
+	useEffect(() => void load(), [load]);
 	return (
 		<div role="radiogroup" aria-label="Preset" className="space-y-3">
+			{mine.length > 0 && (
+				<div className="space-y-1.5">
+					<p className="text-[11px] text-muted-foreground">My styles</p>
+					<div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-1.5">
+						{mine.map((m) => {
+							const on = sameStyle(style, m.style);
+							return (
+								<div key={m.id} className="group/tile relative min-w-0">
+									<button type="button" role="radio" aria-checked={on} title={m.name} onClick={() => onPickMine(m.style)} className={cn(tileClass(on), "w-full")}>
+										<PresetTile look={m.style} />
+										<span className={labelClass(on)}>{m.name}</span>
+									</button>
+									<button
+										type="button"
+										aria-label={`Delete my style ${m.name}`}
+										title="Delete this style"
+										onClick={() => {
+											if (window.confirm(`Delete your style "${m.name}"? Projects that use it keep their look.`)) void useMyStyles.getState().remove(m.id);
+										}}
+										className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-sm bg-black/60 text-white opacity-0 transition-opacity group-hover/tile:opacity-100 hover:bg-black/80 focus-visible:opacity-100"
+									>
+										<X className="size-3" />
+									</button>
+								</div>
+							);
+						})}
+					</div>
+				</div>
+			)}
 			{GROUPS.map((group) => (
 				<div key={group} className="space-y-1.5">
 					<p className="text-[11px] text-muted-foreground">{group}</p>
 					<div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-1.5">
-			{PRESET_OPTIONS.filter((o) => o.group === group).map((o) => (
-				<button
-					key={o.value}
-					type="button"
-					role="radio"
-					aria-checked={current === o.value}
-					title={o.label}
-					onClick={() => onPick(o.value)}
-					className={cn(
-						"group flex min-w-0 flex-col overflow-hidden rounded-md border text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-						current === o.value ? "border-primary ring-1 ring-primary" : "hover:border-foreground/30",
-					)}
-				>
-					<PresetTile look={{ ...style, ...lookOf(o.value) }} />
-					<span className={cn("truncate px-2 py-1 text-[11px]", current === o.value ? "font-medium text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{o.label}</span>
-				</button>
-			))}
+						{PRESET_OPTIONS.filter((o) => o.group === group).map((o) => (
+							<button key={o.value} type="button" role="radio" aria-checked={current === o.value} title={o.label} onClick={() => onPick(o.value)} className={tileClass(current === o.value)}>
+								<PresetTile look={{ ...style, ...lookOf(o.value) }} />
+								<span className={labelClass(current === o.value)}>{o.label}</span>
+							</button>
+						))}
 					</div>
 				</div>
 			))}
 		</div>
+	);
+}
+
+/** "Save as my style": a name, then the whole current style is kept for every project (and Batch). */
+function SaveMyStyle({ style }: { style: SubtitleStyle }) {
+	const [name, setName] = useState<string | null>(null);
+	const mine = useMyStyles((s) => s.list);
+	const saved = mine.find((m) => sameStyle(style, m.style));
+	if (name === null)
+		return (
+			<Row
+				label="My styles"
+				description={saved ? `This look is saved as "${saved.name}".` : "Keep this look (size, position and font too) to use it in every project and in Batch."}
+				control={
+					<Button variant="outline" size="sm" disabled={Boolean(saved)} onClick={() => setName(`My style ${mine.length + 1}`)}>
+						<BookmarkPlus /> Save as my style
+					</Button>
+				}
+			/>
+		);
+	const save = async () => {
+		const entry = await useMyStyles.getState().add(name, style);
+		setName(null);
+		toast.success(`Saved "${entry.name}" in My styles`);
+	};
+	return (
+		<Row
+			stack
+			label="Name your style"
+			control={
+				<form
+					className="flex gap-1.5"
+					onSubmit={(e) => {
+						e.preventDefault();
+						void save();
+					}}
+				>
+					<Input autoFocus aria-label="Style name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} className="min-w-0 flex-1" />
+					<Button type="submit" size="sm" disabled={!name.trim()}>
+						Save
+					</Button>
+					<Button type="button" variant="ghost" size="sm" onClick={() => setName(null)}>
+						Cancel
+					</Button>
+				</form>
+			}
+		/>
 	);
 }
 

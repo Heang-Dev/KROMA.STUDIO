@@ -1,12 +1,17 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { BatchState, PostFormat } from "@shared/batch";
 import type { MainNotice, SystemNotice } from "@shared/notify";
+import type { GlossaryTerm } from "@shared/glossary";
+import type { FoundSubtitles } from "@shared/hardsubs";
 import type { DownloadCenterState, DownloadOptions, FilledTitle, ImportPick, ListedSource, ListedVideo } from "@shared/downloads";
-import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, StoryRecord, StoryRequest, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState } from "@shared/types";
+import type { CaptionRequest, DownloadResult, ExportRequest, MediaItem, PlatformCaption, Project, Settings, SettingsView, SourceCue, TaskProgress, VoiceLine, MediaVisuals, KvsStatus, KvsVoice, StoryRecord, StoryRequest, PostAccount, PostProfile, PublishRequest, PublishResult, UpdateState, MyStyle } from "@shared/types";
 
 const api = {
 	info: (): Promise<{ slot: number; tools: { ffmpeg: boolean; ffprobe: boolean; ytdlp: boolean; uv: boolean }; platform: string; installHints: { ffmpeg: string; ytdlp: string; uv: string }; libraryDir: string; version: string; smoke: boolean; e2e: boolean; firstRun: boolean }> => ipcRenderer.invoke("app:info"),
 	getSettings: (): Promise<SettingsView> => ipcRenderer.invoke("settings:get"),
+	/** My saved subtitle styles (Style → Save as my style). */
+	myStyles: (): Promise<MyStyle[]> => ipcRenderer.invoke("styles:get"),
+	setMyStyles: (list: MyStyle[]): Promise<MyStyle[]> => ipcRenderer.invoke("styles:set", list),
 	saveSettings: (patch: Partial<Record<keyof Settings, string | number | boolean | null>>): Promise<SettingsView> => ipcRenderer.invoke("settings:save", patch),
 
 	geminiModels: (): Promise<{ id: string; label: string }[]> => ipcRenderer.invoke("gemini:models"),
@@ -31,8 +36,22 @@ const api = {
 	download: (taskId: string, url: string): Promise<DownloadResult> => ipcRenderer.invoke("task:download", taskId, url),
 	transcribe: (taskId: string, path: string, duration: number, language: string): Promise<{ cues: SourceCue[]; note?: string }> =>
 		ipcRenderer.invoke("task:transcribe", taskId, path, duration, language),
-	translate: (taskId: string, lines: { id: string; text: string; seconds?: number }[], notes: string, language?: string): Promise<{ translations: Record<string, string>; fallback: number }> =>
-		ipcRenderer.invoke("task:translate", taskId, lines, notes, language),
+	/** `projectPath`: its folder's series glossary is used. */
+	translate: (taskId: string, lines: { id: string; text: string; seconds?: number }[], notes: string, language?: string, projectPath?: string | null): Promise<{ translations: Record<string, string>; fallback: number }> =>
+		ipcRenderer.invoke("task:translate", taskId, lines, notes, language, projectPath),
+	/** A frame of a video as a JPEG, for drawing a cover on. */
+	coverFrame: (path: string, seconds: number): Promise<Uint8Array> => ipcRenderer.invoke("cover:frame", path, seconds),
+	/** A good moment of a video for its cover (sharp, not dark). */
+	pickCoverTime: (path: string, duration: number): Promise<number> => ipcRenderer.invoke("cover:pickTime", path, duration),
+	/** Saves a cover next to the episode's exports; returns the file. */
+	saveCover: (projectPath: string | null, name: string, format: PostFormat, jpg: Uint8Array): Promise<string> => ipcRenderer.invoke("cover:save", projectPath, name, format, jpg),
+	/** Where a video's burned-in subtitles are (fractions of its picture), or null. */
+	findBurnedSubtitles: (taskId: string, path: string, duration: number): Promise<FoundSubtitles | null> => ipcRenderer.invoke("task:findHardsubs", taskId, path, duration),
+	/** The series glossary of a project's folder (empty for an unsaved project). */
+	glossary: (projectPath: string | null): Promise<GlossaryTerm[]> => ipcRenderer.invoke("glossary:get", projectPath),
+	setGlossary: (projectPath: string, terms: GlossaryTerm[]): Promise<GlossaryTerm[]> => ipcRenderer.invoke("glossary:set", projectPath, terms),
+	/** Finds names and terms (with their translation) in translated lines, for the glossary. Needs Gemini or Claude. */
+	findGlossaryTerms: (taskId: string, pairs: { source: string; text: string }[], language?: string): Promise<GlossaryTerm[]> => ipcRenderer.invoke("task:glossaryFind", taskId, pairs, language),
 	setTitleBarColors: (color: string, symbolColor: string): Promise<void> => ipcRenderer.invoke("window:titleBar", color, symbolColor),
 	getUpdateState: (): Promise<UpdateState> => ipcRenderer.invoke("update:get"),
 	checkForUpdates: (): Promise<UpdateState> => ipcRenderer.invoke("update:check"),
