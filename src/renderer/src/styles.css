@@ -7,6 +7,16 @@
 @import 'tw-animate-css';
 @import '@fontsource-variable/geist-mono';
 @import '@fontsource-variable/kantumruy-pro';
+/* Kroma: Khmer display fonts for subtitle styles (all OFL), Khmer and Latin only. */
+@import '@fontsource/koulen/400.css';
+@import '@fontsource/moul/400.css';
+@import '@fontsource/battambang/400.css';
+@import '@fontsource/battambang/700.css';
+@import '@fontsource/bayon/400.css';
+@import '@fontsource/dangrek/400.css';
+@import '@fontsource/fasthand/400.css';
+@import '@fontsource/hanuman/400.css';
+@import '@fontsource/hanuman/700.css';
 
 @import './tokens.css';
 

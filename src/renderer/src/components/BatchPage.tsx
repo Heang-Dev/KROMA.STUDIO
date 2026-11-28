@@ -146,7 +146,7 @@ function ProcessSetup() {
 						</StepRow>
 						{options.voice !== "off" && <StepRow label="Remove original voices" hint="Keeps the music and effects under the voice-over (fast)." on={options.removeVoices} onChange={(removeVoices) => set({ removeVoices })} />}
 						<StepRow label="Subtitle style" hint="Off keeps each project's own style." on={options.style !== "keep"} onChange={(on) => set({ style: on ? "classic" : "keep" })}>
-							<Segmented label="Subtitle style" equalWidth size="sm" value={options.style === "keep" ? "classic" : options.style} options={PRESET_OPTIONS} onChange={(style) => set({ style })} />
+							<AppSelect label="Subtitle style" value={options.style === "keep" ? "classic" : options.style} options={PRESET_OPTIONS} onChange={(style) => set({ style })} />
 						</StepRow>
 						<StepRow label="Export" hint="Into the export folder: <playlist>/<name> (16x9).mp4" on={options.formats.length > 0} onChange={(on) => set({ formats: on ? [...POST_FORMATS] : [] })}>
 							<div className="flex gap-4">

@@ -22,7 +22,7 @@ import { useEditor } from "@/state/store";
 import { batchMode } from "./batchMode";
 import { exportFormat, findCharacters, getSubtitles, mainMedia, makeVoiceOver, preferredSiteSubtitle, publishVideo, removeOriginalVoices, setLanguage, setVoice, short, translateCues, voiceSettings, writePosts, PLATFORM_NAMES } from "./actions";
 import { notify } from "./notify";
-import { PRESETS } from "./stylePresets";
+import { lookOf } from "./stylePresets";
 import { totalDuration } from "./timeline";
 
 // Batch: runs the editor's own steps (lib/actions.ts) on one project after another, without asking anything, saving
@@ -282,7 +282,8 @@ async function runStep(step: BatchStep, item: BatchItem): Promise<boolean> {
 			return makeVoiceOver();
 		}
 		case "style":
-			if (o.style !== "keep") editor.update((p) => ({ ...p, style: { ...p.style, ...PRESETS[o.style as keyof typeof PRESETS] } }));
+			const preset = o.style;
+			if (preset !== "keep") editor.update((p) => ({ ...p, style: { ...p.style, ...lookOf(preset) } }));
 			batchMode.lastNote = `Style: ${o.style}`;
 			return true;
 		case "posts":
