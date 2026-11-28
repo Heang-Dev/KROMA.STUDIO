@@ -89,4 +89,21 @@ describe("checking for updates with automatic downloads off", async () => {
 			globalThis.fetch = realFetch;
 		}
 	});
+
+	it.skipIf(process.platform === "win32")("runs one check at a time: a second one while the first runs shares it", async () => {
+		let calls = 0;
+		const realFetch = globalThis.fetch;
+		globalThis.fetch = (async () => {
+			calls++;
+			await new Promise((r) => setTimeout(r, 30));
+			return new Response(JSON.stringify({ tag_name: "v0.0.1", body: "", html_url: "", assets: [] }), { status: 200 });
+		}) as typeof fetch;
+		try {
+			const [a, b] = await Promise.all([checkForUpdates(false), checkForUpdates(false)]);
+			expect(calls).toBe(1);
+			expect(a).toBe(b);
+		} finally {
+			globalThis.fetch = realFetch;
+		}
+	});
 });
