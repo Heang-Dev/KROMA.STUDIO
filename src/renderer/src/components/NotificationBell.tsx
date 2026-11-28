@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { unreadCount, useNotifications } from "@/state/notifications";
 import { IconButton } from "./common";
 import { EmptyState } from "@/components/empty/EmptyState";
+import { t } from "@shared/i18n";
 
 /** The bell in the title bar: finished and failed work, newest first. Opening it marks everything read. */
 export function NotificationBell() {
@@ -35,7 +36,7 @@ export function NotificationBell() {
 	return (
 		<Popover open={open} onOpenChange={onOpenChange}>
 			<PopoverTrigger asChild>
-				<IconButton label={unread ? `Notifications (${unread} new)` : "Notifications"} className="relative">
+				<IconButton label={unread ? t("Notifications ({n} new)", { n: unread }) : t("Notifications")} className="relative">
 					<Bell />
 					{unread > 0 && (
 						<span
@@ -47,18 +48,18 @@ export function NotificationBell() {
 					)}
 				</IconButton>
 			</PopoverTrigger>
-			<PopoverContent align="end" sideOffset={6} className="flex w-[380px] flex-col p-0" aria-label="Notifications" onOpenAutoFocus={(e) => e.preventDefault()}>
+			<PopoverContent align="end" sideOffset={6} className="flex w-[380px] flex-col p-0" aria-label={t("Notifications")} onOpenAutoFocus={(e) => e.preventDefault()}>
 				<div className="flex h-11 shrink-0 items-center gap-1 border-b pr-2 pl-3.5">
-					<h2 className="flex-1 text-[13px] font-semibold">Notifications</h2>
+					<h2 className="flex-1 text-[13px] font-semibold">{t("Notifications")}</h2>
 					<Button variant="ghost" size="xs" disabled={!entries.some((e) => !e.read)} onClick={() => useNotifications.getState().markAllRead()}>
-						Mark all read
+						{t("Mark all read")}
 					</Button>
 					<Button variant="ghost" size="xs" disabled={!entries.length} onClick={() => useNotifications.getState().clear()}>
-						Clear
+						{t("Clear")}
 					</Button>
 				</div>
 				{entries.length === 0 ? (
-					<EmptyState compact fill={false} scene="notifications" title="You're all caught up" description="Finished and failed work shows here." />
+					<EmptyState compact fill={false} scene="notifications" title={t("You're all caught up")} description={t("Finished and failed work shows here.")} />
 				) : (
 					<ul className="max-h-[min(480px,70vh)] divide-y overflow-y-auto overscroll-contain" data-testid="notification-list">
 						{entries.map((entry) => (
@@ -71,17 +72,18 @@ export function NotificationBell() {
 	);
 }
 
-const TONE_ICON = {
-	success: <CircleCheck className="size-4 text-success" aria-label="Done" />,
-	error: <CircleX className="size-4 text-destructive" aria-label="Failed" />,
-	info: <Info className="size-4 text-muted-foreground" aria-label="Info" />,
-};
+const toneIcon = (tone: NoticeEntry["tone"]) =>
+	({
+		success: <CircleCheck className="size-4 text-success" aria-label={t("Done")} />,
+		error: <CircleX className="size-4 text-destructive" aria-label={t("Failed")} />,
+		info: <Info className="size-4 text-muted-foreground" aria-label={t("Info")} />,
+	})[tone];
 
 function NoticeRow({ entry, fresh, onRun }: { entry: NoticeEntry; fresh: boolean; onRun: () => void }) {
 	const runnable = canRun(entry);
 	return (
 		<li className={cn("flex items-start gap-2.5 px-3.5 py-2.5", fresh && "bg-accent/40")}>
-			<span className="mt-px flex size-4 shrink-0 items-center justify-center">{TONE_ICON[entry.tone]}</span>
+			<span className="mt-px flex size-4 shrink-0 items-center justify-center">{toneIcon(entry.tone)}</span>
 			<div className="min-w-0 flex-1 space-y-0.5">
 				<p className="truncate text-[13px] leading-snug font-medium" title={entry.title}>
 					{entry.title}
@@ -105,7 +107,7 @@ function NoticeRow({ entry, fresh, onRun }: { entry: NoticeEntry; fresh: boolean
 								void runAction(entry);
 							}}
 						>
-							<span className="truncate">{actionLabel(entry.action, platform)}</span>
+							<span className="truncate">{t(actionLabel(entry.action, platform))}</span>
 						</Button>
 					)}
 				</div>

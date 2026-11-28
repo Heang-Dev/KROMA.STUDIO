@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Power } from "lucide-react";
 import type { KvsStatus } from "@shared/types";
+import { t } from "@shared/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
@@ -34,9 +35,9 @@ export async function startEngine(): Promise<void> {
 	notify();
 	try {
 		current = await window.kroma.kvsStart();
-		notifyDone({ kind: "voices", tone: "success", title: "The voice engine is on" });
+		notifyDone({ kind: "voices", tone: "success", title: t("The voice engine is on") });
 	} catch (e) {
-		notifyDone({ kind: "voices", tone: "error", title: "Couldn't start the voice engine", detail: clean(e), action: { kind: "view", view: "settings", section: "voice-engine" } });
+		notifyDone({ kind: "voices", tone: "error", title: t("Couldn't start the voice engine"), detail: clean(e), action: { kind: "view", view: "settings", section: "voice-engine" } });
 	} finally {
 		starting = false;
 		await refresh();
@@ -64,7 +65,7 @@ export function useEngineStatus(): { status: KvsStatus | null; starting: boolean
 	return { status: current, starting, refresh: useCallback(refresh, []) };
 }
 
-/** What the dot and words say. */
+/** What the dot and words say (the words in English: shown through t()). */
 function describe(status: KvsStatus | null, isStarting: boolean): { dot: string; text: string } {
 	if (isStarting) return { dot: "animate-pulse bg-warning", text: "Starting…" };
 	if (!status) return { dot: "animate-pulse bg-muted-foreground", text: "Checking…" };
@@ -84,12 +85,12 @@ export function EngineStatusItem() {
 			type="button"
 			disabled={isStarting}
 			onClick={() => (canStart ? void startEngine() : useEditor.getState().openSettings("voice-engine"))}
-			title={status?.online ? "Voice engine settings" : canStart ? "Start the voice engine" : (status?.cannotStart ?? status?.error ?? "Voice engine settings")}
+			title={status?.online ? t("Voice engine settings") : canStart ? t("Start the voice engine") : (status?.cannotStart ?? status?.error ?? t("Voice engine settings"))}
 			className="flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors outline-none hover:bg-foreground/5 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
 		>
 			<span aria-hidden className={cn("size-1.5 rounded-full", dot)} />
-			Voice engine {text.toLowerCase()}
-			{canStart && <span className="text-foreground/80">· Start</span>}
+			{t("Voice engine {state}", { state: t(text).toLowerCase() })}
+			{canStart && <span className="text-foreground/80">· {t("Start")}</span>}
 		</button>
 	);
 }
@@ -101,15 +102,15 @@ export function EngineChip() {
 	const canStart = status && !status.online && status.local && !status.cannotStart;
 	return (
 		<div className="flex items-center gap-2">
-			<Button variant="outline" size="sm" className="gap-2 font-normal" title="Voice engine settings" onClick={() => useEditor.getState().openSettings("voice-engine")}>
+			<Button variant="outline" size="sm" className="gap-2 font-normal" title={t("Voice engine settings")} onClick={() => useEditor.getState().openSettings("voice-engine")}>
 				<span aria-hidden className={cn("size-2 rounded-full", dot)} />
 				<span className="text-muted-foreground">
-					Voice engine <span className="text-foreground">{text.toLowerCase()}</span>
+					{t("Voice engine")} <span className="text-foreground">{t(text).toLowerCase()}</span>
 				</span>
 			</Button>
 			{(canStart || isStarting) && (
 				<Button variant="outline" size="sm" disabled={isStarting} onClick={() => void startEngine()}>
-					{isStarting ? <Loader2 className="animate-spin" /> : <Power />} Start
+					{isStarting ? <Loader2 className="animate-spin" /> : <Power />} {t("Start")}
 				</Button>
 			)}
 		</div>

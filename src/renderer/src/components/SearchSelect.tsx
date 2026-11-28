@@ -3,6 +3,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { t } from "@shared/i18n";
 
 // Kroma's select (the School Management System's AppSearchSelect, on Radix + cmdk): a field that looks like a text
 // box, opening a list with a search box on top, ✓ beside the current choice (highlighted and scrolled into view when
@@ -44,8 +45,8 @@ export function SearchSelect<T extends string>({
 	options,
 	onChange,
 	label,
-	placeholder = "Choose…",
-	searchPlaceholder = "Search…",
+	placeholder = t("Choose…"),
+	searchPlaceholder = t("Search…"),
 	searchable,
 	icon,
 	className,
@@ -98,7 +99,7 @@ export function SearchSelect<T extends string>({
 				<Command filter={(v, search) => (matchesAllWords(v, search) ? 1 : 0)} defaultValue={selected ? itemValue(selected) : undefined}>
 					{withSearch && <CommandInput placeholder={searchPlaceholder} />}
 					<CommandList className="max-h-72">
-						<CommandEmpty>No results found.</CommandEmpty>
+						<CommandEmpty>{t("No results found.")}</CommandEmpty>
 						{groups.map((g, i) => (
 							<CommandGroup key={`${g.name ?? ""}-${i}`} heading={g.name}>
 								{g.items.map((o) => {

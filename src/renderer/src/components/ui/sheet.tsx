@@ -1,5 +1,6 @@
 import * as React from "react";
 import { XIcon } from "lucide-react";
+import { t } from "@shared/i18n";
 import { Dialog as SheetPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +27,7 @@ function SheetContent({ className, children, ...props }: React.ComponentProps<ty
 				{children}
 				<SheetPrimitive.Close className="absolute top-3 right-3 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
 					<XIcon className="size-4" />
-					<span className="sr-only">Close</span>
+					<span className="sr-only">{t("Close")}</span>
 				</SheetPrimitive.Close>
 			</SheetPrimitive.Content>
 		</SheetPrimitive.Portal>

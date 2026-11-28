@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { SearchSelect } from "./SearchSelect";
 import { type TaskState, useEditor } from "@/state/store";
+import { t } from "@shared/i18n";
 
 // Building blocks in Orca's style (settings rows, cards, segmented controls), on the shadcn new-york primitives.
 
@@ -205,7 +206,7 @@ export function TaskProgress({ prefix }: { prefix: string }) {
 			<div className="mb-2 flex items-center justify-between gap-2 text-xs">
 				<span className={failed ? "text-destructive" : "text-muted-foreground"}>{task.message}</span>
 				{task.status === "running" && (
-					<Button variant="ghost" size="icon-xs" onClick={() => window.kroma.cancel(task.id)} aria-label="Cancel">
+					<Button variant="ghost" size="icon-xs" onClick={() => window.kroma.cancel(task.id)} aria-label={t("Cancel")}>
 						<X />
 					</Button>
 				)}

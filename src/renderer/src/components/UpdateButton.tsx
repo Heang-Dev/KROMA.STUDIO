@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowDownToLine, Loader2, Minimize2, RefreshCw, RotateCw } from "lucide-react";
 import type { UpdateState } from "@shared/types";
+import { t } from "@shared/i18n";
 import { Button } from "@/components/ui/button";
 import { useEditor } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -17,8 +18,8 @@ export function useUpdateState(): UpdateState | null {
 }
 
 const clean = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, "");
-const install = () => window.kroma.installUpdate().catch((e) => useEditor.getState().showToast("Couldn't update", "error", clean(e)));
-const download = () => window.kroma.downloadUpdate().catch((e) => useEditor.getState().showToast("Couldn't download the update", "error", clean(e)));
+const install = () => window.kroma.installUpdate().catch((e) => useEditor.getState().showToast(t("Couldn't update"), "error", clean(e)));
+const download = () => window.kroma.downloadUpdate().catch((e) => useEditor.getState().showToast(t("Couldn't download the update"), "error", clean(e)));
 
 /** "2.4 MB/s · 35 s left" while downloading, once the speed is known. */
 export function transferText(state: Pick<UpdateState, "speed" | "secondsLeft">): string {
@@ -27,7 +28,7 @@ export function transferText(state: Pick<UpdateState, "speed" | "secondsLeft">):
 	const left = state.secondsLeft;
 	if (left === undefined || !Number.isFinite(left)) return speed;
 	const time = left < 60 ? `${Math.max(1, Math.round(left))} s` : left < 3600 ? `${Math.round(left / 60)} min` : `${(left / 3600).toFixed(1)} h`;
-	return `${speed} · ${time} left`;
+	return `${speed} · ${t("{time} left", { time })}`;
 }
 
 // Minimize (or "Later") tucks the card into the status bar for that version; the status bar keeps a small "Restart to update" so it's never lost.
@@ -65,8 +66,12 @@ export function UpdateNotice() {
 	if (!visible) return null;
 
 	const ready = state.status === "ready";
-	const title = ready ? `Kroma ${state.version} is ready` : state.status === "downloading" ? `Downloading Kroma ${state.version ?? ""}` : `Kroma ${state.version} is available`;
-	const detail = ready ? "Restart to finish updating. Your project is saved and opens again." : state.status === "downloading" ? "It downloads in the background and picks up where it stopped if the connection drops. Keep working." : "A new version of Kroma is out.";
+	const title = ready ? t("Kroma {version} is ready", { version: state.version ?? "" }) : state.status === "downloading" ? t("Downloading Kroma {version}", { version: state.version ?? "" }) : t("Kroma {version} is available", { version: state.version ?? "" });
+	const detail = ready
+		? t("Restart to finish updating. Your project is saved and opens again.")
+		: state.status === "downloading"
+			? t("It downloads in the background and picks up where it stopped if the connection drops. Keep working.")
+			: t("A new version of Kroma is out.");
 
 	return (
 		<div
@@ -91,23 +96,23 @@ export function UpdateNotice() {
 					<div className="flex gap-2 pt-2">
 						{ready ? (
 							<Button size="xs" className="gap-1.5" onClick={() => void install()}>
-								<RotateCw /> Restart to update
+								<RotateCw /> {t("Restart to update")}
 							</Button>
 						) : (
 							<Button size="xs" className="gap-1.5" onClick={() => void download()}>
-								<ArrowDownToLine /> Download
+								<ArrowDownToLine /> {t("Download")}
 							</Button>
 						)}
 						<Button size="xs" variant="ghost" className="text-muted-foreground" onClick={hide}>
-							Later
+							{t("Later")}
 						</Button>
 					</div>
 				)}
 			</div>
 			<button
 				type="button"
-				aria-label="Minimize to the status bar"
-				title="Minimize to the status bar"
+				aria-label={t("Minimize to the status bar")}
+				title={t("Minimize to the status bar")}
 				onClick={hide}
 				className="absolute top-2.5 right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground opacity-70 transition-opacity hover:text-foreground hover:opacity-100"
 			>
@@ -132,8 +137,8 @@ export function UpdateStatus() {
 	if (state.status === "downloading") {
 		const left = transferText(state).split(" · ")[1];
 		return (
-			<button type="button" onClick={() => showCard()} title="Show the update" className="flex items-center gap-1 rounded-sm px-1 text-muted-foreground tabular-nums hover:text-foreground">
-				<Loader2 className="size-3 animate-spin" /> Updating{state.progress !== undefined ? ` ${Math.round(state.progress * 100)}%` : "…"}
+			<button type="button" onClick={() => showCard()} title={t("Show the update")} className="flex items-center gap-1 rounded-sm px-1 text-muted-foreground tabular-nums hover:text-foreground">
+				<Loader2 className="size-3 animate-spin" /> {state.progress !== undefined ? t("Updating {percent}%", { percent: Math.round(state.progress * 100) }) : t("Updating…")}
 				{left && <span className="opacity-70">· {left}</span>}
 			</button>
 		);
@@ -142,7 +147,7 @@ export function UpdateStatus() {
 		return (
 			<button type="button" onClick={() => showCard()} className="flex items-center gap-1 rounded-sm px-1 text-success hover:underline">
 				{state.status === "ready" ? <RotateCw className="size-3" /> : <ArrowDownToLine className="size-3" />}
-				{state.status === "ready" ? "Restart to update" : `Update to ${state.version}`}
+				{state.status === "ready" ? t("Restart to update") : t("Update to {version}", { version: state.version ?? "" })}
 			</button>
 		);
 	}
@@ -152,11 +157,11 @@ export function UpdateStatus() {
 		setChecking(true);
 		try {
 			const next = await window.kroma.checkForUpdates();
-			if (next.status === "none") useEditor.getState().showToast(`Kroma is up to date (${next.current})`);
-			else if (next.status === "error") useEditor.getState().showToast("Couldn't check for updates", "error", next.error);
+			if (next.status === "none") useEditor.getState().showToast(t("Kroma is up to date ({version})", { version: next.current }));
+			else if (next.status === "error") useEditor.getState().showToast(t("Couldn't check for updates"), "error", next.error);
 			else showCard();
 		} catch (e) {
-			useEditor.getState().showToast("Couldn't check for updates", "error", clean(e));
+			useEditor.getState().showToast(t("Couldn't check for updates"), "error", clean(e));
 		} finally {
 			setChecking(false);
 		}
@@ -170,7 +175,7 @@ export function UpdateStatus() {
 			className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors outline-none hover:bg-foreground/5 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
 		>
 			<RefreshCw className={cn("size-3", busy && "animate-spin")} />
-			{busy ? "Checking…" : "Check for updates"}
+			{busy ? t("Checking…") : t("Check for updates")}
 		</button>
 	);
 }

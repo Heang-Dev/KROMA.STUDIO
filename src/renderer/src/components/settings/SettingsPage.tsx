@@ -10,6 +10,7 @@ import { useEditor } from "@/state/store";
 import { SETTINGS_SECTIONS, type SettingsPatch } from "./sections";
 import { refreshEngineStatus } from "../EngineStatus";
 import { EmptyState } from "@/components/empty/EmptyState";
+import { t, uiLanguage } from "@shared/i18n";
 
 // Full-page settings in Orca's layout: nav (back, search, grouped pages) on the left, a breadcrumb header and a
 // centred column of cards on the right. Changes save as you make them.
@@ -51,7 +52,7 @@ export function SettingsPage() {
 
 	const visible = useMemo(() => {
 		const q = query.trim().toLowerCase();
-		return q ? SETTINGS_SECTIONS.filter((s) => `${s.title} ${s.group} ${s.keywords}`.toLowerCase().includes(q)) : SETTINGS_SECTIONS;
+		return q ? SETTINGS_SECTIONS.filter((s) => `${s.title} ${s.group} ${s.keywords} ${t(s.title)} ${t(s.group)}`.toLowerCase().includes(q)) : SETTINGS_SECTIONS;
 	}, [query]);
 	const groups = [...new Set(visible.map((s) => s.group))];
 	const section = SETTINGS_SECTIONS.find((s) => s.id === active) ?? SETTINGS_SECTIONS[0];
@@ -63,7 +64,7 @@ export function SettingsPage() {
 			<aside className="flex w-[240px] shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
 				<div className="flex h-12 shrink-0 items-center border-b px-3">
 					<Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-[13px] font-normal text-muted-foreground" onClick={() => useEditor.getState().closeSettings()}>
-						<ArrowLeft /> Back to app
+						<ArrowLeft /> {t("Back to app")}
 					</Button>
 				</div>
 				<div className="border-b px-3 py-3">
@@ -72,8 +73,8 @@ export function SettingsPage() {
 						<Input
 							ref={searchRef}
 							className="bg-background/60 pr-14 pl-8 text-[13px]"
-							placeholder="Search settings"
-							aria-label="Search settings"
+							placeholder={t("Search settings")}
+							aria-label={t("Search settings")}
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
 							onKeyDown={(e) => e.key === "Enter" && visible[0] && open(visible[0].id)}
@@ -84,10 +85,10 @@ export function SettingsPage() {
 						</span>
 					</div>
 				</div>
-				<nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Settings">
+				<nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label={t("Settings")}>
 					{groups.map((group) => (
 						<div key={group} className="space-y-1">
-							<p className="px-2.5 pb-1 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">{group}</p>
+							<p className={cn("px-2.5 pb-1 text-[11px] font-medium text-muted-foreground", uiLanguage() === "en" && "tracking-[0.18em] uppercase")}>{t(group)}</p>
 							{visible
 								.filter((s) => s.group === group)
 								.map((s) => {
@@ -105,13 +106,13 @@ export function SettingsPage() {
 											)}
 										>
 											<Icon className="size-4 shrink-0" />
-											<span className="truncate">{s.title}</span>
+											<span className="truncate">{t(s.title)}</span>
 										</button>
 									);
 								})}
 						</div>
 					))}
-					{visible.length === 0 && <EmptyState compact fill={false} scene="search" title="No settings match" description={`Nothing called "${query}". Try another word.`} />}
+					{visible.length === 0 && <EmptyState compact fill={false} scene="search" title={t("No settings match")} description={t("Nothing called \"{query}\". Try another word.", { query })} />}
 				</nav>
 				{/* The running version, so it's always clear which Kroma this is. */}
 				<div className="flex h-10 shrink-0 items-center gap-2 border-t px-5 text-[11px] text-muted-foreground">
@@ -122,10 +123,10 @@ export function SettingsPage() {
 
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
 				<header className="flex h-12 shrink-0 items-center gap-2 border-b px-5 text-[13px]">
-					<span className="text-muted-foreground">Settings</span>
+					<span className="text-muted-foreground">{t("Settings")}</span>
 					<span className="text-muted-foreground">/</span>
-					<span aria-current="page">{section.title}</span>
-					<Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="Close settings" onClick={() => useEditor.getState().closeSettings()}>
+					<span aria-current="page">{t(section.title)}</span>
+					<Button variant="ghost" size="icon-sm" className="ml-auto" aria-label={t("Close settings")} onClick={() => useEditor.getState().closeSettings()}>
 						<X />
 					</Button>
 				</header>
