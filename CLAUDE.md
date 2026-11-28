@@ -9,6 +9,7 @@ Kroma Studio is an Electron app (this repo) with its website and docs in `websit
   - its Releases hold the installers the app auto-updates from;
   - its `gh-pages` branch is the live site, https://heang-dev.github.io/kroma/.
   - Never edit `gh-pages` by hand: `bash website/scripts/publish.sh` rebuilds it and force-pushes over it.
+  - **Publish only from an up-to-date `main`** (pull first, or use a worktree at `origin/main`). The whole site is replaced, so an older checkout undoes other people's site changes; `publish.sh` refuses a checkout that's behind `origin/main`.
 - **Version numbers on the site are the app's version.** The site has no version of its own. The footer, the Changelog and the Download page read the app's releases from GitHub when the site is built. The download buttons ask GitHub live in the visitor's browser.
 
 ## Releasing a new version
