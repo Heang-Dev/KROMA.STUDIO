@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Ban, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Ellipsis, Minus, CircleCheck, Clock, ExternalLink, FileVideo, FolderOpen, ListChecks, Loader2, Play, RotateCcw, Send, Settings, Square, Trash2, X } from "lucide-react";
 import { type BatchFilter, type BatchItem, type BatchOptions, type BatchStep, DEFAULT_PLATFORM_FORMAT, POST_FORMATS, type PostChoice, type PostFormat, STEP_LABEL, STEP_SHORT, type StepStatus, filterCounts, filterItems, groupByRun, nextStep, planSteps, runText, stepStatus } from "@shared/batch";
 import type { DownloadCenterState } from "@shared/downloads";
+import { t } from "@shared/i18n";
 import { TARGET_LANGUAGES, languageOf, languageOfVoice } from "@shared/languages";
 import type { ExportQuality, KvsVoice, PlatformCaption, Project, PublishPlatform } from "@shared/types";
 import { Button } from "@/components/ui/button";
@@ -45,16 +46,16 @@ export function BatchPage() {
 
 	return (
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
-			<PageHeader icon={<ListChecks />} title="Batch" description="Every step on several videos, one after another — then choose where each one is posted" actions={tab === "ready" ? <ReadyActions items={ready} /> : undefined}>
+			<PageHeader icon={<ListChecks />} title="Batch" description={t("Every step on several videos, one after another — then choose where each one is posted")} actions={tab === "ready" ? <ReadyActions items={ready} /> : undefined}>
 				<Segmented
-					label="Process or ready to post"
+					label={t("Process or ready to post")}
 					size="sm"
 					value={tab}
 					options={[
 						{ value: "process", label: `Process${active ? ` (${active})` : ""}` },
-						{ value: "ready", label: `Ready to post${ready.length ? ` (${ready.length})` : ""}` },
+						{ value: "ready", label: `${t("Ready to post")}${ready.length ? ` (${ready.length})` : ""}` },
 					]}
-					onChange={(t) => useEditor.getState().openBatch(t)}
+					onChange={(next) => useEditor.getState().openBatch(next)}
 				/>
 			</PageHeader>
 			{tab === "process" ? (
@@ -96,7 +97,7 @@ function ProcessSetup() {
 		const paths = await window.kroma.pickBatchProjects();
 		if (!paths.length) return;
 		const added = addToBatch(paths);
-		useEditor.getState().showToast(added ? `Added ${added} video${added === 1 ? "" : "s"}` : "Those are already in the list");
+		useEditor.getState().showToast(added ? (added === 1 ? t("Added {n} video", { n: added }) : t("Added {n} videos", { n: added })) : t("Those are already in the list"));
 	};
 	const setLanguage = (code: string) => {
 		// An instant voice of the old language moves to the new language's first voice.
@@ -107,67 +108,67 @@ function ProcessSetup() {
 	return (
 		<aside className="flex w-[420px] shrink-0 flex-col border-r bg-sidebar">
 			<div className="@container min-h-0 flex-1 divide-y overflow-y-auto">
-				<Section title="Videos to process" hint="Projects from the Download Center, or any project file. They run one at a time, in order.">
+				<Section title={t("Videos to process")} hint={t("Projects from the Download Center, or any project file. They run one at a time, in order.")}>
 					<div className="grid grid-cols-2 gap-2">
 						<Button variant={picking ? "secondary" : "outline"} size="sm" className="min-w-0" onClick={() => setPicking((p) => !p)}>
-							<FileVideo /> Add from downloads
+							<FileVideo /> {t("Add from downloads")}
 						</Button>
 						<Button variant="outline" size="sm" className="min-w-0" onClick={() => void addProjects()}>
-							<FolderOpen /> Add projects…
+							<FolderOpen /> {t("Add projects…")}
 						</Button>
 					</div>
 					{picking && <FromDownloads onClose={() => setPicking(false)} />}
 				</Section>
 
-				<Section title="Steps" hint="The same for every video. Saved with each project after every step, so nothing is lost if one fails.">
+				<Section title={t("Steps")} hint={t("The same for every video. Saved with each project after every step, so nothing is lost if one fails.")}>
 					<Card>
-						<StepRow label="Subtitles" hint="The site's subtitles when the video has them, else speech to text." on={options.subtitles} onChange={(subtitles) => set({ subtitles })}>
-							<Field label="Spoken language">
-								<AppSelect label="Spoken language" className="w-full" value={options.spokenLanguage} options={LANGUAGES} onChange={(spokenLanguage) => set({ spokenLanguage })} />
+						<StepRow label={t("Subtitles")} hint={t("The site's subtitles when the video has them, else speech to text.")} on={options.subtitles} onChange={(subtitles) => set({ subtitles })}>
+							<Field label={t("Spoken language")}>
+								<AppSelect label={t("Spoken language")} className="w-full" value={options.spokenLanguage} options={LANGUAGES.map((l) => ({ ...l, label: t(l.label) }))} onChange={(spokenLanguage) => set({ spokenLanguage })} />
 							</Field>
 						</StepRow>
-						<StepRow label="Translate" hint="Every line, with the translator in Settings → Translation." on={options.translate} onChange={(translate) => set({ translate })}>
-							<Field label="Translate to">
-								<AppSelect label="Translate to" className="w-full" value={options.language} options={TARGET_LANGUAGES.map((l) => ({ value: l.code, label: l.name, description: l.native }))} onChange={setLanguage} />
+						<StepRow label={t("Translate")} hint={t("Every line, with the translator in Settings → Translation.")} on={options.translate} onChange={(translate) => set({ translate })}>
+							<Field label={t("Translate to")}>
+								<AppSelect label={t("Translate to")} className="w-full" value={options.language} options={TARGET_LANGUAGES.map((l) => ({ value: l.code, label: t(l.name), description: l.native }))} onChange={setLanguage} />
 							</Field>
 						</StepRow>
-						<StepRow label="Find characters" hint="Who says each line, so each character can have a voice." on={options.characters} onChange={(characters) => set({ characters, ...(!characters && options.voice === "cast" ? { voice: "one" } : {}) })} />
-						<StepRow label="Voice-over" hint="Reads the translated lines aloud." on={options.voice !== "off"} onChange={(on) => set({ voice: on ? (options.characters ? "cast" : "one") : "off" })}>
+						<StepRow label={t("Find characters")} hint={t("Who says each line, so each character can have a voice.")} on={options.characters} onChange={(characters) => set({ characters, ...(!characters && options.voice === "cast" ? { voice: "one" } : {}) })} />
+						<StepRow label={t("Voice-over")} hint={t("Reads the translated lines aloud.")} on={options.voice !== "off"} onChange={(on) => set({ voice: on ? (options.characters ? "cast" : "one") : "off" })}>
 							<Segmented
-								label="Voices"
+								label={t("Voices")}
 								equalWidth
 								value={options.voice === "off" ? "one" : options.voice}
 								options={[
-									{ value: "one", label: "One voice" },
-									{ value: "cast", label: "Each character" },
+									{ value: "one", label: t("One voice") },
+									{ value: "cast", label: t("Each character") },
 								]}
 								onChange={(voice) => set({ voice, ...(voice === "cast" ? { characters: true } : {}) })}
 							/>
-							<Field label={options.voice === "cast" ? "Voice for lines with no character" : "Voice"}>
-								<SearchSelect label="Voice" value={options.voiceId} onChange={(voiceId) => set({ voiceId })} options={voiceChoices(clones, lang)} searchPlaceholder="Find a voice (king, girl, narrator…)" className="w-full" />
+							<Field label={options.voice === "cast" ? t("Voice for lines with no character") : t("Voice")}>
+								<SearchSelect label={t("Voice")} value={options.voiceId} onChange={(voiceId) => set({ voiceId })} options={voiceChoices(clones, lang)} searchPlaceholder={t("Find a voice (king, girl, narrator…)")} className="w-full" />
 							</Field>
 						</StepRow>
-						{options.voice !== "off" && <StepRow label="Remove original voices" hint="Keeps the music and effects under the voice-over (fast)." on={options.removeVoices} onChange={(removeVoices) => set({ removeVoices })} />}
-						<StepRow label="Hide original subtitles" hint="Finds the Chinese subtitles burned into the video and blurs them, so only yours show." on={Boolean(options.hideSubtitles)} onChange={(hideSubtitles) => set({ hideSubtitles })} />
-						<StepRow label="Subtitle style" hint="Off keeps each project's own style." on={options.style !== "keep"} onChange={(on) => set({ style: on ? "classic" : "keep" })}>
-							<AppSelect label="Subtitle style" value={options.style === "keep" ? "classic" : options.style} options={[...myStyles.map((m) => ({ value: `my:${m.id}` as const, label: m.name, group: "My styles" })), ...PRESET_OPTIONS]} onChange={(style) => set({ style })} />
+						{options.voice !== "off" && <StepRow label={t("Remove original voices")} hint={t("Keeps the music and effects under the voice-over (fast).")} on={options.removeVoices} onChange={(removeVoices) => set({ removeVoices })} />}
+						<StepRow label={t("Hide original subtitles")} hint={t("Finds the Chinese subtitles burned into the video and blurs them, so only yours show.")} on={Boolean(options.hideSubtitles)} onChange={(hideSubtitles) => set({ hideSubtitles })} />
+						<StepRow label={t("Subtitle style")} hint={t("Off keeps each project's own style.")} on={options.style !== "keep"} onChange={(on) => set({ style: on ? "classic" : "keep" })}>
+							<AppSelect label={t("Subtitle style")} value={options.style === "keep" ? "classic" : options.style} options={[...myStyles.map((m) => ({ value: `my:${m.id}` as const, label: m.name, group: t("My styles") })), ...PRESET_OPTIONS.map((o) => ({ ...o, label: t(o.label), group: t(o.group) }))]} onChange={(style) => set({ style })} />
 						</StepRow>
-						<StepRow label="Export" hint="Into the export folder: <playlist>/<name> (16x9).mp4" on={options.formats.length > 0} onChange={(on) => set({ formats: on ? [...POST_FORMATS] : [] })}>
+						<StepRow label={t("Export")} hint={t("Into the export folder: <playlist>/<name> (16x9).mp4")} on={options.formats.length > 0} onChange={(on) => set({ formats: on ? [...POST_FORMATS] : [] })}>
 							<div className="flex gap-4">
 								{POST_FORMATS.map((f) => (
 									<label key={f} className="flex items-center gap-2 text-xs">
-										<Checkbox checked={options.formats.includes(f)} onCheckedChange={(on) => set({ formats: POST_FORMATS.filter((x) => (x === f ? on === true : options.formats.includes(x))) })} aria-label={`Export ${f}`} />
+										<Checkbox checked={options.formats.includes(f)} onCheckedChange={(on) => set({ formats: POST_FORMATS.filter((x) => (x === f ? on === true : options.formats.includes(x))) })} aria-label={t("Export {format}", { format: f })} />
 										{f} <span className="text-muted-foreground">{f === "16:9" ? "YouTube" : "TikTok, Reels"}</span>
 									</label>
 								))}
 							</div>
-							<Segmented label="Export size" equalWidth value={options.quality === "fast" ? "standard" : options.quality} options={QUALITY} onChange={(quality) => set({ quality })} />
+							<Segmented label={t("Export size")} equalWidth value={options.quality === "fast" ? "standard" : options.quality} options={QUALITY.map((q) => ({ ...q, label: t(q.label) }))} onChange={(quality) => set({ quality })} />
 						</StepRow>
-						<StepRow label="Make covers" hint="A thumbnail for each episode with its number (ភាគ ៥) and the series title, next to the exports. The design is each project's Post → Cover." on={Boolean(options.covers)} onChange={(covers) => set({ covers })} />
-						<StepRow label="Write post text" hint={hasAi ? "Titles, text and hashtags for each platform." : "Needs an AI key (Settings → Translation)."} on={options.writePosts} onChange={(writePosts) => set({ writePosts })} />
+						<StepRow label={t("Make covers")} hint={t("A thumbnail for each episode with its number (ភាគ ៥) and the series title, next to the exports. The design is each project's Post → Cover.")} on={Boolean(options.covers)} onChange={(covers) => set({ covers })} />
+						<StepRow label={t("Write post text")} hint={hasAi ? t("Titles, text and hashtags for each platform.") : t("Needs an AI key (Settings → Translation).")} on={options.writePosts} onChange={(writePosts) => set({ writePosts })} />
 					</Card>
 					<p className="text-xs leading-relaxed text-muted-foreground">
-						{steps.length ? `${steps.length} steps: ${steps.map((s) => STEP_LABEL[s].toLowerCase()).join(" → ")}. Then it waits in Ready to post.` : "Choose at least one step."}
+						{steps.length ? t("{n} steps: {steps}. Then it waits in Ready to post.", { n: steps.length, steps: steps.map((s) => t(STEP_LABEL[s]).toLowerCase()).join(" → ") }) : t("Choose at least one step.")}
 					</p>
 				</Section>
 			</div>
@@ -175,11 +176,11 @@ function ProcessSetup() {
 			<div className="shrink-0 space-y-2 border-t p-4">
 				{busy === "process" ? (
 					<Button className="w-full" variant="outline" disabled={stopping} onClick={stopBatch}>
-						{stopping ? <Loader2 className="animate-spin" /> : <Square />} {stopping ? "Stopping…" : "Stop"}
+						{stopping ? <Loader2 className="animate-spin" /> : <Square />} {stopping ? t("Stopping…") : t("Stop")}
 					</Button>
 				) : (
 					<Button className="w-full" disabled={!toRun || !steps.length || busy !== null} onClick={startBatch}>
-						<Play /> {toRun ? `Process ${toRun} video${toRun === 1 ? "" : "s"}` : "Process videos"}
+						<Play /> {toRun ? (toRun === 1 ? t("Process {n} video", { n: toRun }) : t("Process {n} videos", { n: toRun })) : t("Process videos")}
 					</Button>
 				)}
 			</div>
@@ -228,34 +229,34 @@ function FromDownloads({ onClose }: { onClose: () => void }) {
 		});
 	const add = () => {
 		const added = addToBatch([...picked]);
-		useEditor.getState().showToast(`Added ${added} video${added === 1 ? "" : "s"}`);
+		useEditor.getState().showToast(added === 1 ? t("Added {n} video", { n: added }) : t("Added {n} videos", { n: added }));
 		setPicked(new Set());
 		onClose();
 	};
 	return (
 		<PageSection
-			title="From the Download Center"
-			description={center ? `${usable.length} project${usable.length === 1 ? "" : "s"} · ${picked.size} picked` : "Loading…"}
+			title={t("From the Download Center")}
+			description={center ? `${usable.length === 1 ? t("{n} project", { n: 1 }) : t("{n} projects", { n: usable.length })} · ${t("{n} picked", { n: picked.size })}` : t("Loading…")}
 			action={
 				<div className="flex gap-0.5">
 					{fresh.length > 1 && (
 						<>
 							<Button variant="ghost" size="xs" onClick={() => setPicked(new Set(fresh.map((i) => i.projectPath!)))}>
-								All
+								{t("All")}
 							</Button>
 							<Button variant="ghost" size="xs" onClick={() => setPicked(new Set())}>
-								None
+								{t("None")}
 							</Button>
 						</>
 					)}
-					<IconButton label="Close" size="icon-xs" onClick={onClose}>
+					<IconButton label={t("Close")} size="icon-xs" onClick={onClose}>
 						<X />
 					</IconButton>
 				</div>
 			}
 		>
 			{center && !usable.length ? (
-				<EmptyState scene="download" compact fill={false} title="No finished downloads yet" description="Videos you download or import in the Download Center show up here once their project is made." />
+				<EmptyState scene="download" compact fill={false} title={t("No finished downloads yet")} description={t("Videos you download or import in the Download Center show up here once their project is made.")} />
 			) : (
 				<Card className="max-h-72 overflow-y-auto px-0">
 					{usable.map((i) => {
@@ -264,14 +265,14 @@ function FromDownloads({ onClose }: { onClose: () => void }) {
 							<label key={i.id} className={cn("flex h-8 items-center gap-2.5 px-3", added ? "opacity-60" : "cursor-pointer hover:bg-foreground/5")} title={i.projectPath}>
 								<Checkbox checked={added || picked.has(i.projectPath!)} disabled={added} onCheckedChange={(on) => set(i.projectPath!, on === true)} aria-label={i.title} />
 								<span className="min-w-0 flex-1 truncate text-xs">{i.title}</span>
-								{added ? <span className="shrink-0 text-[10px] text-muted-foreground">In the list</span> : <span className="max-w-28 shrink-0 truncate text-[11px] text-muted-foreground">{i.group}</span>}
+								{added ? <span className="shrink-0 text-[10px] text-muted-foreground">{t("In the list")}</span> : <span className="max-w-28 shrink-0 truncate text-[11px] text-muted-foreground">{t(i.group)}</span>}
 							</label>
 						);
 					})}
 				</Card>
 			)}
 			<Button size="sm" className={cn("w-full", center && !usable.length && "hidden")} disabled={!picked.size} onClick={add}>
-				Add {picked.size || ""} to the list
+				{picked.size ? t("Add {n} to the list", { n: picked.size }) : t("Add to the list")}
 			</Button>
 		</PageSection>
 	);
@@ -299,13 +300,13 @@ async function openAtStep(item: BatchItem, step: BatchStep | null): Promise<void
 
 /** "Today 15:20", "Yesterday 09:05", "Nov 20 15:20" */
 function runLabel(at: number): string {
-	if (!at) return "Earlier";
+	if (!at) return t("Earlier");
 	const d = new Date(at);
 	const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 	const day = new Date();
 	day.setHours(0, 0, 0, 0);
-	if (at >= day.getTime()) return `Today ${time}`;
-	if (at >= day.getTime() - 86_400_000) return `Yesterday ${time}`;
+	if (at >= day.getTime()) return t("Today {time}", { time });
+	if (at >= day.getTime() - 86_400_000) return t("Yesterday {time}", { time });
 	return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${time}`;
 }
 
@@ -321,7 +322,7 @@ const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-2.5 px-
 /** What the list shows, with counts: the same tab group as the Style panel's choices (Segmented). */
 function FilterTabs({ value, counts, onChange }: { value: BatchFilter; counts: Record<BatchFilter, number>; onChange: (v: BatchFilter) => void }) {
 	return (
-		<div role="radiogroup" aria-label="Show" className="flex h-control max-w-full min-w-0 items-center overflow-x-auto rounded-md border bg-background/50 p-0.5 [scrollbar-width:none]">
+		<div role="radiogroup" aria-label={t("Show")} className="flex h-control max-w-full min-w-0 items-center overflow-x-auto rounded-md border bg-background/50 p-0.5 [scrollbar-width:none]">
 			{FILTERS.map((f) => {
 				const active = f.value === value;
 				const alert = f.value === "failed" && counts.failed > 0;
@@ -338,7 +339,7 @@ function FilterTabs({ value, counts, onChange }: { value: BatchFilter; counts: R
 							alert && !active && "text-destructive",
 						)}
 					>
-						{f.label}
+						{t(f.label)}
 						<span className={cn("rounded-sm px-1 text-[10px] tabular-nums", active ? "bg-background/70" : "bg-muted", alert && "bg-destructive/10 text-destructive")}>{counts[f.value]}</span>
 					</button>
 				);
@@ -376,8 +377,8 @@ function Queue() {
 		return (
 			<EmptyState
 				scene="queue"
-				title="Nothing to process"
-				description="Add videos on the left, choose the steps, and press Process. Each video goes through its steps, one video after another, and waits in Ready to post. Every run stays here."
+				title={t("Nothing to process")}
+				description={t("Add videos on the left, choose the steps, and press Process. Each video goes through its steps, one video after another, and waits in Ready to post. Every run stays here.")}
 			/>
 		);
 	}
@@ -393,42 +394,42 @@ function Queue() {
 					<FilterTabs value={filter} counts={counts} onChange={setFilter} />
 					{/* Search and actions stay together: when the bar is narrow they move under the tabs as one group. */}
 					<div className="ml-auto flex min-w-0 items-center gap-2">
-					<Input aria-label="Search videos" placeholder="Search videos" className="h-control w-40 min-w-0 text-xs" value={search} onChange={(e) => setSearch(e.target.value)} />
+					<Input aria-label={t("Search videos")} placeholder={t("Search videos")} className="h-control w-40 min-w-0 text-xs" value={search} onChange={(e) => setSearch(e.target.value)} />
 					{stopped && !busy && (
 						<Button variant="outline" size="sm" onClick={startBatch}>
-							<Play /> Resume
+							<Play /> {t("Resume")}
 						</Button>
 					)}
 					{failed.length > 0 && (
 						<Button variant="outline" size="sm" disabled={busy === "post"} onClick={() => failed.forEach((i) => retryBatchItem(i.id))}>
-							<RotateCcw /> Retry failed
+							<RotateCcw /> {t("Retry failed")}
 						</Button>
 					)}
 					{finished && (
-						<Button variant="ghost" size="sm" title="Removes finished and failed videos from the list (the projects and exports stay)" onClick={() => clearFromBatch("finished")}>
-							Clear finished
+						<Button variant="ghost" size="sm" title={t("Removes finished and failed videos from the list (the projects and exports stay)")} onClick={() => clearFromBatch("finished")}>
+							{t("Clear finished")}
 						</Button>
 					)}
 					</div>
 				</div>
-				<div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto" role="list" aria-label="Videos in Batch">
+				<div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto" role="list" aria-label={t("Videos in Batch")}>
 					{/* Column names, only when the columns are side by side. */}
 					<div className={cn(ROW_GRID, "sticky top-0 z-10 hidden h-8 items-center border-b bg-background text-[11px] text-muted-foreground @5xl/queue:grid")} aria-hidden>
-						<span>Video</span>
-						<span>Steps</span>
-						<span>Status</span>
+						<span>{t("Video")}</span>
+						<span>{t("Steps")}</span>
+						<span>{t("Status")}</span>
 						<span />
 					</div>
-					{!shown.length && <EmptyState compact fill={false} scene="search" title="No video matches" description="Try another word, or show All." />}
+					{!shown.length && <EmptyState compact fill={false} scene="search" title={t("No video matches")} description={t("Try another word, or show All.")} />}
 					{groups.map(({ run, items: rows }) => {
 						const key = run?.id ?? "new";
 						const isClosed = headers && closed.has(key);
 						return (
-							<section key={key} aria-label={run ? runLabel(run.at) : "Not started"}>
+							<section key={key} aria-label={run ? runLabel(run.at) : t("Not started")}>
 								{headers && (
 									<button type="button" className="flex h-8 w-full min-w-0 items-center gap-1.5 border-b bg-muted/40 px-3 text-left text-xs" aria-expanded={!isClosed} onClick={() => toggle(key)}>
 										{isClosed ? <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" /> : <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />}
-										<span className="shrink-0 font-medium">{run ? `${runNumber(run.id) ? `Run ${runNumber(run.id)} · ` : ""}${runLabel(run.at)}` : "Not started"}</span>
+										<span className="shrink-0 font-medium">{run ? `${runNumber(run.id) ? `${t("Run {n}", { n: runNumber(run.id) })} · ` : ""}${runLabel(run.at)}` : t("Not started")}</span>
 										<span className="truncate text-muted-foreground tabular-nums">· {runText(rows)}</span>
 									</button>
 								)}
@@ -489,15 +490,15 @@ function trackSteps(item: BatchItem, steps: BatchStep[], describe = false, fullN
 		const entry = item.log?.[step];
 		const time = entry?.end && entry.start ? took(entry.end - entry.start) : "";
 		const why = status === "failed" ? (item.error ?? entry?.message) : entry?.message;
-		const tip = `${STEP_SHORT[step]}: ${STEP_STATUS_TEXT[status]}${time ? ` · ${time}` : ""}${why ? `\n${why.replace(/^\/Users\/[^/]+/, "~")}` : ""}${status === "failed" ? "\nClick to run it again from this step." : ""}`;
+		const tip = `${t(STEP_SHORT[step])}: ${t(STEP_STATUS_TEXT[status])}${time ? ` · ${time}` : ""}${why ? `\n${why.replace(/^\/Users\/[^/]+/, "~")}` : ""}${status === "failed" ? `\n${t("Click to run it again from this step.")}` : ""}`;
 		// A stopped video's next step is where it carries on: ringed like the current one.
 		const shown: Step["status"] = status === "waiting" && item.status === "stopped" && step === next ? "current" : status === "skipped" ? "waiting" : status;
 		return {
 			key: step,
-			label: fullNames ? STEP_SHORT[step] : ROW_LABEL[step],
+			label: fullNames ? t(STEP_SHORT[step]) : t(ROW_LABEL[step]),
 			status: shown,
 			title: tip,
-			description: describe ? (status === "done" ? time || "done" : status === "running" ? "running…" : status === "failed" ? "failed" : "waiting") : undefined,
+			description: describe ? (status === "done" ? time || t("done") : status === "running" ? t("running…") : status === "failed" ? t("failed") : t("waiting")) : undefined,
 			onClick: status === "failed" ? () => retryBatchFrom(item.id, step) : undefined,
 		};
 	});
@@ -524,13 +525,13 @@ function QueueRow({ item, selected, steps }: { item: BatchItem; selected: boolea
 	const at = item.status === "failed" || item.status === "stopped" ? nextStep(item) : null;
 	const pct = task && task.progress >= 0 ? ` ${Math.round(task.progress * 100)}%` : "";
 	const status = {
-		waiting: item.done.length ? "Waiting · resumes" : "Waiting",
-		running: `${item.current ? STEP_LABEL[item.current] : "Running"}${pct}`,
-		failed: `Failed at ${at ? STEP_SHORT[at] : "opening"}`,
-		stopped: `Stopped${at ? ` at ${STEP_SHORT[at]}` : ""}`,
-		done: item.posted ? "Posted" : "Ready to post",
+		waiting: item.done.length ? t("Waiting · resumes") : t("Waiting"),
+		running: `${item.current ? t(STEP_LABEL[item.current]) : t("Running")}${pct}`,
+		failed: at ? t("Failed at {step}", { step: t(STEP_SHORT[at]) }) : t("Failed at opening"),
+		stopped: at ? t("Stopped at {step}", { step: t(STEP_SHORT[at]) }) : t("Stopped"),
+		done: item.posted ? t("Posted") : t("Ready to post"),
 	}[item.status];
-	const t = timing(item);
+	const timed = timing(item);
 	const exports = POST_FORMATS.filter((f) => item.exports?.[f]);
 	return (
 		<div
@@ -556,10 +557,10 @@ function QueueRow({ item, selected, steps }: { item: BatchItem; selected: boolea
 					<span className="truncate">{status}</span>
 				</span>
 				<p className="mt-0.5 flex min-w-0 items-center gap-1.5 pl-5 text-[11px] text-muted-foreground tabular-nums">
-					<span className="truncate">{t ? `${took(t.took)} · ${new Date(t.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}` : "Not started"}</span>
+					<span className="truncate">{timed ? `${took(timed.took)} · ${new Date(timed.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}` : t("Not started")}</span>
 					{item.status === "failed" && (
 						<button type="button" className="shrink-0 text-destructive underline-offset-2 hover:underline" onClick={(e) => { e.stopPropagation(); showBatchItem(item.id); }}>
-							See why
+							{t("See why")}
 						</button>
 					)}
 				</p>
@@ -567,32 +568,32 @@ function QueueRow({ item, selected, steps }: { item: BatchItem; selected: boolea
 			<div onClick={(e) => e.stopPropagation()}>
 					<div className="flex items-center justify-end gap-0.5">
 						{item.status === "failed" && (
-							<IconButton label={at ? `Retry from ${STEP_SHORT[at]}` : "Retry"} size="icon-xs" disabled={busy === "post"} onClick={() => (at ? retryBatchFrom(item.id, at) : retryBatchItem(item.id))}>
+							<IconButton label={at ? t("Retry from {step}", { step: t(STEP_SHORT[at]) }) : t("Retry")} size="icon-xs" disabled={busy === "post"} onClick={() => (at ? retryBatchFrom(item.id, at) : retryBatchItem(item.id))}>
 								<RotateCcw />
 							</IconButton>
 						)}
-						<IconButton label={busy ? "Open project (after the batch)" : at ? `Open project at ${STEP_SHORT[at]}` : "Open project"} size="icon-xs" disabled={Boolean(busy)} onClick={() => void openAtStep(item, at)}>
+						<IconButton label={busy ? t("Open project (after the batch)") : at ? t("Open project at {step}", { step: t(STEP_SHORT[at]) }) : t("Open project")} size="icon-xs" disabled={Boolean(busy)} onClick={() => void openAtStep(item, at)}>
 							<FileVideo />
 						</IconButton>
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
-								<Button variant="ghost" size="icon-xs" aria-label={`More for ${item.title}`}>
+								<Button variant="ghost" size="icon-xs" aria-label={t("More for {name}", { name: item.title })}>
 									<Ellipsis />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" className="w-56">
 								{exports.map((f) => (
 									<DropdownMenuItem key={f} onClick={() => void window.kroma.showInFolder(item.exports![f]!)}>
-										<FolderOpen /> Show {f} export in Finder
+										<FolderOpen /> {t("Show {format} export in Finder", { format: f })}
 									</DropdownMenuItem>
 								))}
-								{!exports.length && <DropdownMenuItem disabled>No exports yet</DropdownMenuItem>}
+								{!exports.length && <DropdownMenuItem disabled>{t("No exports yet")}</DropdownMenuItem>}
 								<DropdownMenuItem onClick={() => showBatchItem(item.id)}>
-									<ListChecks /> Step details
+									<ListChecks /> {t("Step details")}
 								</DropdownMenuItem>
 								<DropdownMenuSeparator />
 								<DropdownMenuItem variant="destructive" disabled={item.status === "running"} onClick={() => removeFromBatch(item.id)}>
-									<Trash2 /> Remove from the list
+									<Trash2 /> {t("Remove from the list")}
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
@@ -632,9 +633,9 @@ function DetailsBody({ item }: { item: BatchItem }) {
 			onClick: undefined,
 			meta: (
 				<>
-					{entry?.start ? `${clock(entry.start)}${entry.end ? ` · ${took(entry.end - entry.start)}` : status === "running" ? ` · ${took(now - entry.start)}` : ""}` : STEP_STATUS_TEXT[status]}
+					{entry?.start ? `${clock(entry.start)}${entry.end ? ` · ${took(entry.end - entry.start)}` : status === "running" ? ` · ${took(now - entry.start)}` : ""}` : t(STEP_STATUS_TEXT[status])}
 					{canRerun && (
-						<IconButton label={`Run again from ${STEP_SHORT[step]}`} size="icon-xs" disabled={Boolean(busy)} onClick={() => retryBatchFrom(item.id, step)}>
+						<IconButton label={t("Run again from {step}", { step: t(STEP_SHORT[step]) })} size="icon-xs" disabled={Boolean(busy)} onClick={() => retryBatchFrom(item.id, step)}>
 							<RotateCcw />
 						</IconButton>
 					)}
@@ -651,10 +652,10 @@ function DetailsBody({ item }: { item: BatchItem }) {
 						{status === "failed" && (
 							<div className="flex flex-wrap gap-1.5">
 								<Button variant="outline" size="xs" disabled={Boolean(busy)} onClick={() => retryBatchFrom(item.id, step)}>
-									<RotateCcw /> Retry from here
+									<RotateCcw /> {t("Retry from here")}
 								</Button>
 								<Button variant="outline" size="xs" disabled={Boolean(busy)} onClick={() => void openAtStep(item, step)}>
-									<FileVideo /> Fix by hand
+									<FileVideo /> {t("Fix by hand")}
 								</Button>
 							</div>
 						)}
@@ -675,16 +676,16 @@ function DetailsBody({ item }: { item: BatchItem }) {
 					{item.projectPath.replace(/^\/Users\/[^/]+/, "~")}
 				</p>
 				<p className="text-[11px] text-muted-foreground">
-					Added {new Date(item.added).toLocaleString()}
+					{t("Added {date}", { date: new Date(item.added).toLocaleString() })}
 					{item.duration ? ` · ${formatTime(item.duration)}` : ""}
 				</p>
 			</SheetHeader>
 			<div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
-				<Group title="Steps">
+				<Group title={t("Steps")}>
 					<Steps variant="vertical" size="sm" steps={steps} />
 				</Group>
 				{item.exports && Object.keys(item.exports).length > 0 && (
-					<Group title="Exports">
+					<Group title={t("Exports")}>
 						<Card className="px-0">
 							{POST_FORMATS.filter((f) => item.exports?.[f]).map((f) => (
 								<div key={f} className="flex items-center gap-2 px-3 py-2">
@@ -692,7 +693,7 @@ function DetailsBody({ item }: { item: BatchItem }) {
 									<span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground" title={item.exports![f]}>
 										{item.exports![f]!.split(/[\\/]/).pop()}
 									</span>
-									<IconButton label="Show in Finder" size="icon-xs" onClick={() => void window.kroma.showInFolder(item.exports![f]!)}>
+									<IconButton label={t("Show in Finder")} size="icon-xs" onClick={() => void window.kroma.showInFolder(item.exports![f]!)}>
 										<FolderOpen />
 									</IconButton>
 								</div>
@@ -701,7 +702,7 @@ function DetailsBody({ item }: { item: BatchItem }) {
 					</Group>
 				)}
 				{item.posted && (
-					<Group title={`Posted · ${new Date(item.posted.at).toLocaleString()}`}>
+					<Group title={`${t("Posted")} · ${new Date(item.posted.at).toLocaleString()}`}>
 						<Card className="px-0">
 							<PostedLine results={item.posted.results} />
 						</Card>
@@ -711,7 +712,7 @@ function DetailsBody({ item }: { item: BatchItem }) {
 			{item.status === "done" && (
 				<div className="shrink-0 border-t px-5 py-3">
 					<Button size="sm" className="w-full" onClick={() => useEditor.getState().openBatch("ready")}>
-						<Send /> Go to Ready to post
+						<Send /> {t("Go to Ready to post")}
 					</Button>
 				</div>
 			)}
@@ -761,7 +762,7 @@ function ReadyActions({ items }: { items: BatchItem[] }) {
 		<>
 			{items.some((i) => i.posted) && (
 				<Button variant="outline" size="sm" onClick={() => clearFromBatch("posted")}>
-					Clear posted
+					{t("Clear posted")}
 				</Button>
 			)}
 			<Button
@@ -769,7 +770,7 @@ function ReadyActions({ items }: { items: BatchItem[] }) {
 				disabled={!postable.length || busy !== null || !profile}
 				onClick={() => void postBatchItems(postable.map((i) => ({ id: i.id, choice: { ...choiceFor(i.id, connected), youtubePrivacy: ready.privacy, tiktokMode: ready.tiktokMode } })))}
 			>
-				{busy === "post" ? <Loader2 className="animate-spin" /> : <Send />} Post selected{postable.length ? ` (${postable.length})` : ""}
+				{busy === "post" ? <Loader2 className="animate-spin" /> : <Send />} {t("Post selected")}{postable.length ? ` (${postable.length})` : ""}
 			</Button>
 		</>
 	);
@@ -783,11 +784,11 @@ function ReadyToPost({ items }: { items: BatchItem[] }) {
 		return (
 			<EmptyState
 				scene="video"
-				title="Nothing ready yet"
-				description="Processed videos wait here. Check each one, choose where it goes and in which format, then post."
+				title={t("Nothing ready yet")}
+				description={t("Processed videos wait here. Check each one, choose where it goes and in which format, then post.")}
 				action={
 					<Button variant="outline" size="sm" onClick={() => useEditor.getState().openBatch("process")}>
-						<ListChecks /> Go to Process
+						<ListChecks /> {t("Go to Process")}
 					</Button>
 				}
 			/>
@@ -799,26 +800,26 @@ function ReadyToPost({ items }: { items: BatchItem[] }) {
 			<div className="mx-auto w-full max-w-[1100px] space-y-4 px-6 py-5">
 				{hasKey === false ? (
 					<div className="flex items-center gap-3 rounded-lg border border-dashed p-3 text-xs">
-						<span className="min-w-0 flex-1">Connect YouTube, Facebook and TikTok once to post from here.</span>
+						<span className="min-w-0 flex-1">{t("Connect YouTube, Facebook and TikTok once to post from here.")}</span>
 						<Button size="sm" onClick={() => useEditor.getState().openSettings("posting")}>
-							<Settings /> Connect in Settings → Posting
+							<Settings /> {t("Connect in Settings → Posting")}
 						</Button>
 					</div>
 				) : (
 					<div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-card/50 px-3.5 py-2.5">
 						<label className="flex items-center gap-2 text-xs">
-							<Checkbox checked={allOn} onCheckedChange={(on) => useReady.set((s) => (s.selected = new Set(on === true ? items.map((i) => i.id) : [])))} aria-label="Select all" /> All {items.length}
+							<Checkbox checked={allOn} onCheckedChange={(on) => useReady.set((s) => (s.selected = new Set(on === true ? items.map((i) => i.id) : [])))} aria-label={t("Select all")} /> {t("All {n}", { n: items.length })}
 						</label>
 						<span className="flex items-center gap-2 text-xs text-muted-foreground">
 							YouTube
 							<Segmented
-								label="YouTube visibility"
+								label={t("YouTube visibility")}
 								size="sm"
 								value={ready.privacy}
 								options={[
-									{ value: "public", label: "Public" },
-									{ value: "unlisted", label: "Unlisted" },
-									{ value: "private", label: "Private" },
+									{ value: "public", label: t("Public") },
+									{ value: "unlisted", label: t("Unlisted") },
+									{ value: "private", label: t("Private") },
 								]}
 								onChange={(v) => useReady.set((s) => (s.privacy = v))}
 							/>
@@ -830,8 +831,8 @@ function ReadyToPost({ items }: { items: BatchItem[] }) {
 								size="sm"
 								value={ready.tiktokMode}
 								options={[
-									{ value: "post", label: "Post now" },
-									{ value: "draft", label: "To drafts" },
+									{ value: "post", label: t("Post now") },
+									{ value: "draft", label: t("To drafts") },
 								]}
 								onChange={(v) => useReady.set((s) => (s.tiktokMode = v))}
 							/>
@@ -859,7 +860,7 @@ function ReadyCard({ item, connected, accounts, hasKey }: { item: BatchItem; con
 	return (
 		<div className="overflow-hidden rounded-lg border bg-card/50">
 			<div className="flex items-center gap-3 px-3.5 py-2.5">
-				<Checkbox checked={ready.selected.has(item.id)} onCheckedChange={(on) => useReady.set((s) => (on === true ? s.selected.add(item.id) : s.selected.delete(item.id)))} aria-label={`Select ${item.title}`} />
+				<Checkbox checked={ready.selected.has(item.id)} onCheckedChange={(on) => useReady.set((s) => (on === true ? s.selected.add(item.id) : s.selected.delete(item.id)))} aria-label={t("Select {name}", { name: item.title })} />
 				<span className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background/50 text-muted-foreground [&_svg]:size-4">
 					<FileVideo />
 				</span>
@@ -870,25 +871,25 @@ function ReadyCard({ item, connected, accounts, hasKey }: { item: BatchItem; con
 					<p className="flex items-center gap-1.5 truncate text-[11px] text-muted-foreground tabular-nums">
 						{item.duration ? formatTime(item.duration) : ""}
 						{exported.map((f) => (
-							<button key={f} type="button" className="rounded-sm border px-1 text-[10px] hover:bg-foreground/5" title={`Show the ${f} export`} onClick={() => void window.kroma.showInFolder(item.exports![f]!)}>
+							<button key={f} type="button" className="rounded-sm border px-1 text-[10px] hover:bg-foreground/5" title={t("Show the {format} export", { format: f })} onClick={() => void window.kroma.showInFolder(item.exports![f]!)}>
 								{f}
 							</button>
 						))}
-						{!exported.length && "Not exported yet"}
-						{item.posted && <span className="text-success">· Posted {new Date(item.posted.at).toLocaleDateString()}</span>}
+						{!exported.length && t("Not exported yet")}
+						{item.posted && <span className="text-success">· {t("Posted {date}", { date: new Date(item.posted.at).toLocaleDateString() })}</span>}
 					</p>
 				</div>
-				<Button variant="ghost" size="xs" title="Every step this video went through" onClick={() => showBatchItem(item.id)}>
-					<ListChecks /> Steps
+				<Button variant="ghost" size="xs" title={t("Every step this video went through")} onClick={() => showBatchItem(item.id)}>
+					<ListChecks /> {t("Steps")}
 				</Button>
-				<IconButton label={busy ? "Open project (after the batch)" : "Open project"} size="icon-xs" disabled={Boolean(busy)} onClick={() => void openProjectAt(item.projectPath)}>
+				<IconButton label={busy ? t("Open project (after the batch)") : t("Open project")} size="icon-xs" disabled={Boolean(busy)} onClick={() => void openProjectAt(item.projectPath)}>
 					<FileVideo />
 				</IconButton>
-				<IconButton label="Remove from the list (the project and exports stay)" size="icon-xs" onClick={() => removeFromBatch(item.id)}>
+				<IconButton label={t("Remove from the list (the project and exports stay)")} size="icon-xs" onClick={() => removeFromBatch(item.id)}>
 					<Trash2 />
 				</IconButton>
 				<Button size="sm" disabled={!choice.platforms.length || busy !== null || hasKey !== true} onClick={post}>
-					<Send /> {item.posted ? "Post again" : "Post"}
+					<Send /> {item.posted ? t("Post again") : t("Post")}
 				</Button>
 			</div>
 			<div className="grid grid-cols-1 border-t md:grid-cols-3 md:divide-x">
@@ -905,17 +906,17 @@ function ReadyCard({ item, connected, accounts, hasKey }: { item: BatchItem; con
 							/>
 							<label htmlFor={`${item.id}-${id}`} className="min-w-0 flex-1">
 								<span className="block truncate text-xs font-medium">{PLATFORM_NAMES[id]}</span>
-								<span className="block truncate text-[11px] text-muted-foreground">{account ? (account.needsReconnect ? "Sign-in expired" : account.name) : hasKey === false ? "Not set up" : accounts ? "Not connected" : "Checking…"}</span>
+								<span className="block truncate text-[11px] text-muted-foreground">{account ? (account.needsReconnect ? t("Sign-in expired") : account.name) : hasKey === false ? t("Not set up") : accounts ? t("Not connected") : t("Checking…")}</span>
 							</label>
 							<FormatPicker platform={id} value={choice.formats[id]} onChange={(f: PostFormat) => setChoice((c) => ({ ...c, formats: { ...c.formats, [id]: f } }))} />
 						</div>
 					);
 				})}
 			</div>
-			{missing.length > 0 && choice.platforms.length > 0 && <p className="border-t px-3.5 py-1.5 text-[11px] text-muted-foreground">{missing.join(" and ")} isn't exported yet: it's exported when you post.</p>}
+			{missing.length > 0 && choice.platforms.length > 0 && <p className="border-t px-3.5 py-1.5 text-[11px] text-muted-foreground">{t("{formats} isn't exported yet: it's exported when you post.", { formats: missing.join(t(" and ")) })}</p>}
 			{item.posted && <PostedLine results={item.posted.results} />}
 			<button type="button" className="flex w-full items-center gap-1.5 border-t px-3.5 py-2 text-left text-xs text-muted-foreground hover:bg-foreground/5" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-				{open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />} Post text
+				{open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />} {t("Post text")}
 			</button>
 			{open && <PostTexts path={item.projectPath} platforms={choice.platforms} />}
 		</div>
@@ -932,7 +933,7 @@ function PostedLine({ results }: { results: NonNullable<BatchItem["posted"]>["re
 					{r.state === "failed" && <span className="max-w-60 truncate text-destructive" title={r.message}>{r.message}</span>}
 					{r.url && (
 						<Button variant="ghost" size="xs" onClick={() => void window.kroma.openExternal(r.url!)}>
-							<ExternalLink /> Open
+							<ExternalLink /> {t("Open")}
 						</Button>
 					)}
 				</span>
@@ -953,10 +954,10 @@ function PostTexts({ path, platforms }: { path: string; platforms: PublishPlatfo
 			.catch(() => setError(true));
 		return () => clearTimeout(timer.current);
 	}, [path]);
-	if (error) return <p className="border-t px-3.5 py-2 text-xs text-destructive">The project file was moved or deleted.</p>;
-	if (!project) return <p className="border-t px-3.5 py-2 text-xs text-muted-foreground">Loading…</p>;
+	if (error) return <p className="border-t px-3.5 py-2 text-xs text-destructive">{t("The project file was moved or deleted.")}</p>;
+	if (!project) return <p className="border-t px-3.5 py-2 text-xs text-muted-foreground">{t("Loading…")}</p>;
 	const posts = project.posts ?? [];
-	if (!posts.length) return <EmptyState scene="chat" compact fill={false} className="border-t" title="No posts written yet" description={'They\'re written when you post, or turn on "Write post text" in the steps.'} />;
+	if (!posts.length) return <EmptyState scene="chat" compact fill={false} className="border-t" title={t("No posts written yet")} description={t("They're written when you post, or turn on \"Write post text\" in the steps.")} />;
 	const shown = ORDER.filter((o) => platforms.includes(o.id)).map((o) => posts.find((p) => p.platform === o.caption)).filter((p): p is PlatformCaption => Boolean(p));
 	const change = (platform: PlatformCaption["platform"], patch: Partial<PlatformCaption>) => {
 		const next = { ...project, posts: posts.map((p) => (p.platform === platform ? { ...p, ...patch } : p)) };
@@ -966,7 +967,7 @@ function PostTexts({ path, platforms }: { path: string; platforms: PublishPlatfo
 	};
 	return (
 		<div className="grid grid-cols-1 gap-2 border-t p-3 md:grid-cols-3">
-			{shown.length ? shown.map((post) => <PostFields key={post.platform} post={post} onChange={(patch) => change(post.platform, patch)} />) : <p className="text-xs text-muted-foreground">Tick a platform to see its post.</p>}
+			{shown.length ? shown.map((post) => <PostFields key={post.platform} post={post} onChange={(patch) => change(post.platform, patch)} />) : <p className="text-xs text-muted-foreground">{t("Tick a platform to see its post.")}</p>}
 		</div>
 	);
 }

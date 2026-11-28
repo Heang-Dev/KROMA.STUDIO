@@ -4,6 +4,7 @@
 
 import { DEFAULT_STYLE, type MediaItem, type Project } from "./types";
 import { extractShareTitle, normalizeLink } from "./links";
+import { t } from "./i18n";
 
 export type DownloadStatus = "waiting" | "downloading" | "done" | "failed" | "skipped" | "cancelled";
 export type DownloadQuality = "1080" | "720" | "480";
@@ -282,15 +283,15 @@ export function buildProject(media: MediaItem, title: string, id: () => string):
 export function queueSummary(items: DownloadItem[]): string {
 	const count = (s: DownloadStatus) => items.filter((i) => i.status === s).length;
 	const parts: [number, string][] = [
-		[count("done") + count("skipped"), "done"],
-		[count("downloading"), "downloading"],
-		[count("waiting"), "waiting"],
-		[count("failed"), "failed"],
-		[count("cancelled"), "cancelled"],
+		[count("done") + count("skipped"), "{n} done"],
+		[count("downloading"), "{n} downloading"],
+		[count("waiting"), "{n} waiting"],
+		[count("failed"), "{n} failed"],
+		[count("cancelled"), "{n} cancelled"],
 	];
 	return parts
 		.filter(([n]) => n > 0)
-		.map(([n, label]) => `${n} ${label}`)
+		.map(([n, label]) => t(label, { n }))
 		.join(" · ");
 }
 

@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { CircleCheck, Library, Loader2, Mic, Power, Search, MoreHorizontal, Plus, Sparkles, Star, Trash2, Wand2 } from "lucide-react";
 import { KVS_TEMPLATES, groupTemplates, type KvsStatus, type KvsVoice } from "@shared/types";
 import { TARGET_LANGUAGES } from "@shared/languages";
+import { t } from "@shared/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -31,49 +32,49 @@ export function VoicesPage() {
 	const [show, setShow] = useState<"all" | "yours" | "presets" | "instant">("all");
 	const [query, setQuery] = useState("");
 	const q = query.trim().toLowerCase();
-	const matches = (...text: (string | undefined)[]) => !q || text.some((t) => t?.toLowerCase().includes(q));
+	const matches = (...text: (string | undefined)[]) => !q || text.some((x) => x?.toLowerCase().includes(q));
 
 	const clones = voices.filter((v) => !v.preset && matches(v.name, v.transcript));
 	const allTemplates = status?.presets.length ? status.presets : KVS_TEMPLATES;
-	const templates = allTemplates.filter((t) => matches(t.name, t.description));
+	const templates = allTemplates.filter((tpl) => matches(tpl.name, tpl.description));
 	const instant = TARGET_LANGUAGES.map((lang) => ({ ...lang, voices: lang.voices.filter((v) => matches(v.label, lang.name, lang.native)) })).filter((lang) => lang.voices.length);
 	const instantCount = instant.reduce((n, l) => n + l.voices.length, 0);
 	const engineReady = Boolean(status?.online);
 	const use = (voice: string, label: string) => {
 		setVoice({ voice, enabled: true });
-		useEditor.getState().showToast(`"${label}" is the voice for this project`);
+		useEditor.getState().showToast(t("\"{name}\" is the voice for this project", { name: label }));
 	};
 
 	return (
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
 			<PageHeader
 				icon={<Library />}
-				title="Voices"
-				description="Every voice Kroma can speak with. Press ▶ to listen; ⋯ → Use in this project."
+				title={t("Voices")}
+				description={t("Every voice Kroma can speak with. Press ▶ to listen; ⋯ → Use in this project.")}
 				actions={
 					<>
 						<EngineChip />
-						<Button size="sm" onClick={() => setCloneOpen(true)} disabled={!engineReady} title={engineReady ? undefined : "Cloning needs the voice engine: start it first"}>
-							<Plus /> Clone voice
+						<Button size="sm" onClick={() => setCloneOpen(true)} disabled={!engineReady} title={engineReady ? undefined : t("Cloning needs the voice engine: start it first")}>
+							<Plus /> {t("Clone voice")}
 						</Button>
 					</>
 				}
 			/>
 			<div className="flex shrink-0 flex-wrap items-center gap-3 border-b px-4 py-2">
 				<Segmented
-					label="Show"
+					label={t("Show")}
 					value={show}
 					onChange={setShow}
 					options={[
-						{ value: "all", label: "All" },
-						{ value: "yours", label: `Yours · ${clones.length}` },
-						{ value: "presets", label: `Presets · ${templates.length}` },
-						{ value: "instant", label: `Instant · ${instantCount}` },
+						{ value: "all", label: t("All") },
+						{ value: "yours", label: `${t("Yours")} · ${clones.length}` },
+						{ value: "presets", label: `${t("Presets")} · ${templates.length}` },
+						{ value: "instant", label: `${t("Instant")} · ${instantCount}` },
 					]}
 				/>
 				<div className="relative w-64 max-w-full">
 					<Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-					<Input aria-label="Find a voice" placeholder="Find a voice" className="pl-8 text-xs" value={query} onChange={(e) => setQuery(e.target.value)} />
+					<Input aria-label={t("Find a voice")} placeholder={t("Find a voice")} className="pl-8 text-xs" value={query} onChange={(e) => setQuery(e.target.value)} />
 				</div>
 			</div>
 			<div className="min-h-0 flex-1 overflow-y-auto">
@@ -81,29 +82,29 @@ export function VoicesPage() {
 					{!engineReady && status !== null && (
 						<div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card/50 px-3.5 py-3 text-xs">
 							<span className="leading-relaxed text-muted-foreground">
-								<span className="font-medium text-foreground">Your voices and the presets need the voice engine.</span> Instant voices work without it.
+								<span className="font-medium text-foreground">{t("Your voices and the presets need the voice engine.")}</span> {t("Instant voices work without it.")}
 							</span>
 							<Button variant="outline" size="sm" onClick={() => useEditor.getState().openSettings("voice-engine")}>
-								<Power /> {status.local && status.installed === "missing" ? "Install the voice engine" : "Voice engine settings"}
+								<Power /> {status.local && status.installed === "missing" ? t("Install the voice engine") : t("Voice engine settings")}
 							</Button>
 						</div>
 					)}
 					{(show === "all" || show === "yours") && (
-					<LibrarySection icon={<Mic className="size-4" />} title="Your voices" description="Voices you cloned. Only use voices you have permission to use.">
+					<LibrarySection icon={<Mic className="size-4" />} title={t("Your voices")} description={t("Voices you cloned. Only use voices you have permission to use.")}>
 						{clones.length === 0 ? (
-							<EmptyState compact fill={false} className="col-span-full rounded-lg border border-dashed" scene={q ? "search" : "voice"} title={q ? "None of your voices match" : "No cloned voices yet"} description={q ? "Try another word, or clear the search." : "Record 5–20 seconds of your own voice, or of someone who agreed, and Kroma can speak in it."} action={q ? undefined : <Button variant="outline" size="sm" onClick={() => setCloneOpen(true)}><Plus /> Clone voice</Button>} />
+							<EmptyState compact fill={false} className="col-span-full rounded-lg border border-dashed" scene={q ? "search" : "voice"} title={q ? t("None of your voices match") : t("No cloned voices yet")} description={q ? t("Try another word, or clear the search.") : t("Record 5–20 seconds of your own voice, or of someone who agreed, and Kroma can speak in it.")} action={q ? undefined : <Button variant="outline" size="sm" onClick={() => setCloneOpen(true)}><Plus /> {t("Clone voice")}</Button>} />
 						) : (
 							clones.map((v) => (
 								<VoiceCard
 									key={v.id}
 									icon={<Mic className="size-3.5" />}
 									title={v.name}
-									meta={`${v.seconds.toFixed(1)} s · cloned`}
+									meta={`${v.seconds.toFixed(1)} s · ${t("cloned")}`}
 									transcript={v.transcript}
 									player={<WaveformPlayer path={v.path} />}
 									onUse={() => use(`kvs-clone:${v.id}`, v.name)}
 									onDelete={() => {
-										if (!window.confirm(`Delete the voice "${v.name}"?`)) return;
+										if (!window.confirm(t("Delete the voice \"{name}\"?", { name: v.name }))) return;
 										void window.kroma.kvsDelete(v.id).then(() => {
 											forgetVoice(`kvs-clone:${v.id}`);
 											refresh();
@@ -116,24 +117,24 @@ export function VoicesPage() {
 					)}
 
 					{(show === "all" || show === "presets") && templates.length > 0 && (
-					<LibrarySection icon={<Star className="size-4" />} title="Preset voices" description="A voice for every kind of character. Each is a saved sample, so it sounds the same in every video.">
+					<LibrarySection icon={<Star className="size-4" />} title={t("Preset voices")} description={t("A voice for every kind of character. Each is a saved sample, so it sounds the same in every video.")}>
 						{groupTemplates(templates).map((g) => (
 							<Fragment key={g.title}>
-								<h3 className="col-span-full mt-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase first:mt-0">{g.title}</h3>
-								{g.items.map((t) => {
-									const saved = voices.find((v) => v.preset === t.name);
+								<h3 className="col-span-full mt-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase first:mt-0">{t(g.title)}</h3>
+								{g.items.map((tpl) => {
+									const saved = voices.find((v) => v.preset === tpl.name);
 									return (
 										<VoiceCard
-											key={t.name}
+											key={tpl.name}
 											icon={<Star className="size-3.5" />}
-											title={t.name}
-											meta={saved ? `${saved.seconds.toFixed(1)} s` : "no sample yet"}
+											title={tpl.name}
+											meta={saved ? `${saved.seconds.toFixed(1)} s` : t("no sample yet")}
 											ready={Boolean(saved)}
-											transcript={saved?.transcript ?? t.description}
-											player={saved ? <WaveformPlayer path={saved.path} /> : <MakeSampleButton name={t.name} offline={!status?.online} onMade={refresh} />}
-											onUse={() => use(`kvs-design:${t.name}`, t.name)}
+											transcript={saved?.transcript ?? tpl.description}
+											player={saved ? <WaveformPlayer path={saved.path} /> : <MakeSampleButton name={tpl.name} offline={!status?.online} onMade={refresh} />}
+											onUse={() => use(`kvs-design:${tpl.name}`, tpl.name)}
 											onDelete={saved ? () => void window.kroma.kvsDelete(saved.id).then(refresh) : undefined}
-											deleteLabel="Delete the sample"
+											deleteLabel={t("Delete the sample")}
 										/>
 									);
 								})}
@@ -143,18 +144,18 @@ export function VoicesPage() {
 					)}
 
 					{(show === "all" || show === "instant") && instant.length > 0 && (
-					<LibrarySection icon={<Sparkles className="size-4" />} title="Instant voices" description="Microsoft's free voices, ready in seconds. Khmer's are good for drafts; for other languages they're the voice-over.">
+					<LibrarySection icon={<Sparkles className="size-4" />} title={t("Instant voices")} description={t("Microsoft's free voices, ready in seconds. Khmer's are good for drafts; for other languages they're the voice-over.")}>
 						{instant.map((lang) => (
 							<Fragment key={lang.code}>
 								<h3 className="col-span-full mt-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase first:mt-0">
-									{lang.name} · {lang.native}
+									{t(lang.name)} · {lang.native}
 								</h3>
 								{lang.voices.map((v) => (
 									<VoiceCard
 										key={v.id}
 										icon={<Sparkles className="size-3.5" />}
 										title={v.label}
-										meta={`instant · ${lang.name}`}
+										meta={`${t("instant")} · ${t(lang.name)}`}
 										ready
 										transcript={lang.sample}
 										player={<WaveformPlayer resolve={() => window.kroma.voiceSample(v.id, 0)} />}
@@ -165,7 +166,7 @@ export function VoicesPage() {
 						))}
 					</LibrarySection>
 					)}
-					{q && !clones.length && !templates.length && !instant.length && <p className="py-10 text-center text-xs text-muted-foreground">No voice matches "{query}".</p>}
+					{q && !clones.length && !templates.length && !instant.length && <p className="py-10 text-center text-xs text-muted-foreground">{t("No voice matches \"{query}\".", { query })}</p>}
 				</div>
 			</div>
 			<CloneDialog open={cloneOpen} onOpenChange={setCloneOpen} onCloned={refresh} />
@@ -190,7 +191,7 @@ function VoiceCard({
 	player,
 	onUse,
 	onDelete,
-	deleteLabel = "Delete",
+	deleteLabel,
 }: {
 	icon: React.ReactNode;
 	title: string;
@@ -214,20 +215,20 @@ function VoiceCard({
 				<div className="flex shrink-0 items-center gap-1">
 					{ready && (
 						<Badge variant="outline" className="gap-1 border-success/40 text-[10px] text-success">
-							<CircleCheck className="size-3" /> Ready
+							<CircleCheck className="size-3" /> {t("Ready")}
 						</Badge>
 					)}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" size="icon-xs" aria-label={`More for ${title}`}>
+							<Button variant="ghost" size="icon-xs" aria-label={t("More for {name}", { name: title })}>
 								<MoreHorizontal />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
-							<DropdownMenuItem onClick={onUse}>Use in this project</DropdownMenuItem>
+							<DropdownMenuItem onClick={onUse}>{t("Use in this project")}</DropdownMenuItem>
 							{onDelete && (
 								<DropdownMenuItem variant="destructive" onClick={onDelete}>
-									<Trash2 /> {deleteLabel}
+									<Trash2 /> {deleteLabel ?? t("Delete")}
 								</DropdownMenuItem>
 							)}
 						</DropdownMenuContent>
@@ -252,19 +253,19 @@ function MakeSampleButton({ name, offline, onMade }: { name: string; offline: bo
 			size="sm"
 			className="w-full"
 			disabled={busy || offline}
-			title={offline ? "Start the voice engine to make samples" : undefined}
+			title={offline ? t("Start the voice engine to make samples") : undefined}
 			onClick={async () => {
 				setBusy(true);
-				const made = await runTask(`preset-${Date.now()}`, `Make "${name}" sample`, (id) => window.kroma.makePresetVoice(id, name), {
+				const made = await runTask(`preset-${Date.now()}`, t("Make \"{name}\" sample", { name }), (id) => window.kroma.makePresetVoice(id, name), {
 					kind: "voices",
-					done: () => ({ tone: "success", title: `"${name}" sample is ready`, action: { kind: "view", view: "voices" } }),
-					failed: `Couldn't make the "${name}" sample`,
+					done: () => ({ tone: "success", title: t("\"{name}\" sample is ready", { name }), action: { kind: "view", view: "voices" } }),
+					failed: t("Couldn't make the \"{name}\" sample", { name }),
 				});
 				setBusy(false);
 				if (made) onMade();
 			}}
 		>
-			{busy ? <Loader2 className="animate-spin" /> : <Wand2 />} {busy ? "Making the sample…" : offline ? "Start the engine to make a sample" : "Make a sample (once)"}
+			{busy ? <Loader2 className="animate-spin" /> : <Wand2 />} {busy ? t("Making the sample…") : offline ? t("Start the engine to make a sample") : t("Make a sample (once)")}
 		</Button>
 	);
 }

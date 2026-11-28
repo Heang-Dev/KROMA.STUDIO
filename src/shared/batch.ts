@@ -3,6 +3,7 @@
 // comes next, file names, the per-platform formats); the renderer runs the steps (src/renderer/src/lib/batch.ts) and
 // the main process keeps the list in <library>/batch.json (src/main/batch.ts).
 
+import { t } from "./i18n";
 import type { Aspect, ExportQuality, PlatformCaption, Project, PublishPlatform, PublishRequest } from "./types";
 
 /** The formats a batch exports and a platform can be posted in. */
@@ -253,7 +254,16 @@ export function groupByRun(items: BatchItem[], runs: BatchRun[] = []): { run: Ba
 /** "5 videos · 4 ready · 1 failed" */
 export function runText(items: BatchItem[]): string {
 	const c = filterCounts(items);
-	return [`${items.length} video${items.length === 1 ? "" : "s"}`, c.running ? `${c.running} running` : "", c.waiting ? `${c.waiting} waiting` : "", c.ready + c.posted ? `${c.ready + c.posted} ready` : "", c.posted ? `${c.posted} posted` : "", c.failed ? `${c.failed} failed` : ""].filter(Boolean).join(" · ");
+	return [
+		items.length === 1 ? t("{n} video", { n: 1 }) : t("{n} videos", { n: items.length }),
+		c.running ? t("{n} running", { n: c.running }) : "",
+		c.waiting ? t("{n} waiting", { n: c.waiting }) : "",
+		c.ready + c.posted ? t("{n} ready", { n: c.ready + c.posted }) : "",
+		c.posted ? t("{n} posted", { n: c.posted }) : "",
+		c.failed ? t("{n} failed", { n: c.failed }) : "",
+	]
+		.filter(Boolean)
+		.join(" · ");
 }
 
 /** History kept: the last 20 runs and 500 projects. Finished projects of older runs go first; unfinished ones stay. */
@@ -277,7 +287,7 @@ export function nextStep(item: Pick<BatchItem, "steps" | "done">): BatchStep | n
 export function stepText(item: BatchItem): string {
 	const step = item.current ?? nextStep(item);
 	if (!step) return `${item.steps.length}/${item.steps.length}`;
-	return `${item.steps.indexOf(step) + 1}/${item.steps.length} · ${STEP_LABEL[step]}`;
+	return `${item.steps.indexOf(step) + 1}/${item.steps.length} · ${t(STEP_LABEL[step])}`;
 }
 
 /** One project at a time: the next one to run is the first waiting one, and none while another is running. */
@@ -344,7 +354,7 @@ export function currentExport(project: Project, format: Aspect, fingerprint: str
 
 /** "5 processed · 1 failed" */
 export function runSummary(processed: number, failed: number, stopped = 0): string {
-	return [`${processed} processed`, failed ? `${failed} failed` : "", stopped ? `${stopped} stopped` : ""].filter(Boolean).join(" · ");
+	return [t("{n} processed", { n: processed }), failed ? t("{n} failed", { n: failed }) : "", stopped ? t("{n} stopped", { n: stopped }) : ""].filter(Boolean).join(" · ");
 }
 
 export interface PostChoice {
