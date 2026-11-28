@@ -51,7 +51,7 @@ import time
 import traceback
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from fastapi import Depends, FastAPI, Form, Header, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -77,6 +77,13 @@ def _auth(authorization: str = Header(default="")) -> None:
 
 
 # ------------------------------------------------------------------ jobs
+class JobCancelled(Exception):
+    """Stops a running job whose cancel was asked for (DELETE /jobs/<id>): raised at its next progress report."""
+
+    def __init__(self) -> None:
+        super().__init__("Cancelled")
+
+
 class Progress:
     """The `progress(fraction, desc=...)` callable the studio functions expect, for one job's whole bar.
 
@@ -93,12 +100,30 @@ class Progress:
     (0.7, 'Transcribing')
     >>> step(0.25, "Transcribing 2/8"); bar(2); job["progress"]
     1.0
+
+    Once a cancel was asked for (DELETE on the running job), the next report stops the job:
+
+    >>> job["cancel"] = True
+    >>> bar(0.5, "Line 3/9")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    JobCancelled: Cancelled
+
+    Only the job's own thread stops; a helper thread (the ticker that moves the bar while a line is spoken) just
+    stops reporting, and the job stops when the line is done:
+
+    >>> job["runner"] = -1  # the job runs on another thread
+    >>> bar(0.6, "about 4 s left"); job["progress"]
+    1.0
     """
 
     def __init__(self, job: dict[str, Any]):
         self.job = job
 
     def __call__(self, fraction: float, desc: str = "") -> None:
+        if self.job.get("cancel"):
+            if self.job.get("runner") in (None, threading.get_ident()):
+                raise JobCancelled()
+            return  # a helper thread: the job stops on its own thread
         from studio.progress import clamp
         value = round(clamp(fraction), 3)
         if value > self.job["progress"]:
@@ -342,6 +367,30 @@ def _run(job: dict[str, Any]) -> dict[str, Any]:
     raise ValueError(f"Unknown job kind: {kind}")
 
 
+def _execute(job: dict[str, Any], run: Callable[[dict[str, Any]], dict[str, Any]] | None = None) -> None:
+    """Runs one job to its end: done, failed, or cancelled (its files are removed then).
+
+    >>> import tempfile
+    >>> job = {"status": "running", "progress": 0.0, "message": "", "dir": tempfile.mkdtemp()}
+    >>> def lines(job): Progress(job)(0.2, "Line 1/9"); job["cancel"] = True; Progress(job)(0.3, "Line 2/9")
+    >>> _execute(job, lines); (job["status"], job["message"], Path(job["dir"]).exists())
+    ('cancelled', 'Cancelled', False)
+    >>> job = {"status": "running", "progress": 0.0, "message": "", "dir": tempfile.mkdtemp()}
+    >>> _execute(job, lambda job: {"wav": "a.wav"}); (job["status"], job["result"], job["progress"])
+    ('done', {'wav': 'a.wav'}, 1.0)
+    """
+    job["runner"] = threading.get_ident()
+    try:
+        job["result"] = (run or _run)(job)
+        job.update(status="done", progress=1.0, message="Done")
+    except JobCancelled:
+        job.update(status="cancelled", message="Cancelled")
+        shutil.rmtree(job["dir"], ignore_errors=True)
+    except Exception as e:  # reported to the dashboard as the job's error
+        traceback.print_exc()
+        job.update(status="failed", error=str(e) or e.__class__.__name__)
+
+
 def _worker() -> None:
     """One job at a time: the models share one GPU."""
     while True:
@@ -351,11 +400,7 @@ def _worker() -> None:
             continue
         job.update(status="running", message="Starting", started=time.time())
         try:
-            job["result"] = _run(job)
-            job.update(status="done", progress=1.0, message="Done")
-        except Exception as e:  # reported to the dashboard as the job's error
-            traceback.print_exc()
-            job.update(status="failed", error=str(e) or e.__class__.__name__)
+            _execute(job)
         finally:
             job["finished"] = time.time()
             _prune()
@@ -452,9 +497,18 @@ def get_file(job_id: str, name: str) -> FileResponse:
 
 @app.delete("/jobs/{job_id}", dependencies=[Depends(_auth)])
 def delete_job(job_id: str) -> dict[str, bool]:
+    """Cancels a job. A running one stops at its next progress report (within a line or so), then frees the engine
+    for the next job; a queued or finished one goes at once.
+
+    >>> _jobs["t-running"] = {"status": "running", "message": "Line 4/90", "dir": "/nonexistent"}
+    >>> delete_job("t-running"), _jobs["t-running"]["cancel"], _jobs["t-running"]["message"]
+    ({'ok': True}, True, 'Cancelling')
+    >>> del _jobs["t-running"]
+    """
     job = _job(job_id)
     if job["status"] == "running":
-        raise HTTPException(status_code=409, detail="The job is still running.")
+        job.update(cancel=True, message="Cancelling")
+        return {"ok": True}
     job["status"] = "cancelled"
     shutil.rmtree(job["dir"], ignore_errors=True)
     with _lock:
