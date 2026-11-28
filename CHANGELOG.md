@@ -4,6 +4,13 @@ Every Kroma Studio release, newest first, written for the people who use Kroma.
 
 Each version's section is that release's notes: it's written here first, before the release, and the GitHub release on [Heang-Dev/kroma](https://github.com/Heang-Dev/kroma/releases) uses it word for word. The same notes appear on the website's [Changelog](https://heang-dev.github.io/kroma/changelog/). In Khmer: [CHANGELOG.km.md](CHANGELOG.km.md).
 
+## 0.3.0 — 2026-11-28
+
+Kroma in Khmer.
+
+- **Use Kroma in Khmer.** Choose the language in **Settings → Appearance → Language**: **ខ្មែរ**, **English**, or **Automatic** (Khmer when your computer is set to Khmer). Every panel, page, setting, button, notification, error and the Mac menu bar switch at once, without restarting, and your project stays open. Brand names, the page names **Batch**, **Story**, **Download Center** and **Ready to post**, and the designed voice names stay in English.
+- **The left menu fits short windows.** On a window less than 800 px tall, the items sit a little closer and the menu scrolls, so **Batch** and **Settings** are never cut off.
+
 ## 0.2.3 — 2026-11-28
 
 Notification banners on the Mac.

@@ -123,6 +123,7 @@ export const en = {
 		title: "Questions",
 		items: [
 			["Is Kroma Studio free?", "Yes, free and open source (MIT). It uses AI services with your own keys: Gemini and Groq have free tiers, Google Translate and the instant voices need no key. One-click posting uses Upload-Post: free for YouTube and Facebook (10 posts a month); TikTok needs their paid plan."],
+			["Is Kroma in Khmer?", "Yes. Choose ខ្មែរ in Settings → Appearance → Language and the whole app switches: every panel, page, setting, button, notification and the Mac menu bar. Automatic uses Khmer when your computer is set to Khmer."],
 			["Do I need a powerful computer?", "No. Speech-to-text, translation and the instant voices run in the cloud. Removing the original voices runs on your computer and takes about 40 seconds per 5 minutes on a recent machine. The designed and cloned Khmer voices use Kroma's own voice engine, installed in one click, on your computer or a free Google Colab GPU."],
 			["Can it do a whole series?", "Yes. Paste the series' link in Downloads: every episode becomes its own numbered project. Then Batch runs the steps you choose (subtitles, translation, voice-over, hiding the original subtitles, style, export, covers) on each one, and stops before posting so you can check them."],
 			["How do updates work?", "Kroma checks for new versions on start and every few hours, downloads them in the background, and shows a “Restart to update” card in the bottom-right corner. One click and you're on the new version."],

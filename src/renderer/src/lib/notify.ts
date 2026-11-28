@@ -5,6 +5,7 @@ import { unreadCount, useNotifications } from "@/state/notifications";
 import { useEditor } from "@/state/store";
 import { batchMode, noteBatchMessage } from "./batchMode";
 import { isMac, platform } from "./platform";
+import { t } from "@shared/i18n";
 
 // The one way to say long work finished or failed: it goes into the history (the bell in the title bar), shows the
 // usual toast, and shows a system notification when Kroma is in the background (always for a failure), as the
@@ -156,10 +157,10 @@ function onBlocked(blocked: boolean): void {
 	useEditor
 		.getState()
 		.showToast(
-			"Your Mac isn't showing Kroma's notifications",
+			t("Your Mac isn't showing Kroma's notifications"),
 			"error",
-			isMac ? "Allow Kroma Studio in System Settings → Notifications, with the alert style Banners. Until then you'll hear them, and see them in the bell." : "Allow Kroma Studio in your system's notification settings.",
-			{ label: "Open settings", onClick: () => void window.kroma.openNotificationSettings() },
+			isMac ? t("Allow Kroma Studio in System Settings → Notifications, with the alert style Banners. Until then you'll hear them, and see them in the bell.") : t("Allow Kroma Studio in your system's notification settings."),
+			{ label: t("Open settings"), onClick: () => void window.kroma.openNotificationSettings() },
 		);
 }
 

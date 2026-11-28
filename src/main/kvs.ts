@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { KvsStatus, KvsVoice, Settings, VoiceLine } from "@shared/types";
 import { LIBRARY_DIR } from "./download";
 import { requireTool, run } from "./tools";
+import { t } from "@shared/i18n";
 
 // Client for Kroma's voice engine (engine/, installed and started by src/main/engine.ts): VoxCPM2 cloned and designed
 // Khmer voices. It runs on this computer or on a free Colab GPU (engine/colab prints a URL + token). The engine keeps no
@@ -28,17 +29,17 @@ const base = (settings: Settings) => settings.kvsUrl.replace(/\/$/, "");
 const headers = (settings: Settings): Record<string, string> => (settings.kvsToken ? { Authorization: `Bearer ${settings.kvsToken}` } : {});
 
 export async function call<T>(settings: Settings, path: string, init: RequestInit = {}, timeoutMs = 20_000): Promise<T> {
-	if (!/^https?:\/\/[^/\s]+/i.test(settings.kvsUrl.trim())) throw new Error("Paste the address your Colab notebook printed in Settings → Voice Engine (step 3).");
+	if (!/^https?:\/\/[^/\s]+/i.test(settings.kvsUrl.trim())) throw new Error(t("Paste the address your Colab notebook printed in Settings → Voice Engine (step 3)."));
 	let response: Response;
 	try {
 		response = await fetch(`${base(settings)}${path}`, { ...init, headers: { ...headers(settings), ...(init.headers as Record<string, string>) }, signal: init.signal ?? AbortSignal.timeout(timeoutMs) });
 	} catch {
-		throw new Error(`Can't reach the voice engine at ${settings.kvsUrl}. Start it in Settings → Voice Engine (or keep its Colab notebook running).`);
+		throw new Error(t("Can't reach the voice engine at {address}. Start it in Settings → Voice Engine (or keep its Colab notebook running).", { address: settings.kvsUrl }));
 	}
-	if (response.status === 401 || response.status === 403) throw new Error("The voice engine refused the token. Copy the token from the engine (Colab prints it) into Settings → Voice Engine.");
+	if (response.status === 401 || response.status === 403) throw new Error(t("The voice engine refused the token. Copy the token from the engine (Colab prints it) into Settings → Voice Engine."));
 	if (!response.ok) {
 		const body = await response.text();
-		throw new Error(`Voice engine error ${response.status}: ${body.match(/"detail":\s*"([^"]+)"/)?.[1] ?? body.slice(0, 200)}`);
+		throw new Error(t("Voice engine error {status}: {message}", { status: response.status, message: body.match(/"detail":\s*"([^"]+)"/)?.[1] ?? body.slice(0, 200) }));
 	}
 	return (await response.json()) as T;
 }
@@ -70,16 +71,16 @@ export async function follow(settings: Settings, id: string, onProgress: (p: num
 		}
 		const job = await call<EngineJob>(settings, `/jobs/${id}`);
 		if (job.status === "done") return job;
-		if (job.status === "failed" || job.status === "cancelled") throw new Error(job.error || "The voice engine stopped this job.");
-		const eta = job.eta_seconds ? ` · about ${job.eta_seconds > 90 ? `${Math.round(job.eta_seconds / 60)} min` : `${job.eta_seconds} s`} left` : "";
-		onProgress(job.status === "queued" ? -1 : job.progress, `Voice engine: ${job.message}${eta}`);
+		if (job.status === "failed" || job.status === "cancelled") throw new Error(job.error || t("The voice engine stopped this job."));
+		const eta = job.eta_seconds ? ` · ${job.eta_seconds > 90 ? t("about {n} min left", { n: Math.round(job.eta_seconds / 60) }) : t("about {n} s left", { n: job.eta_seconds })}` : "";
+		onProgress(job.status === "queued" ? -1 : job.progress, `${t("Voice engine: {message}", { message: job.message })}${eta}`);
 		await new Promise((r) => setTimeout(r, 1500));
 	}
 }
 
 export async function download(settings: Settings, id: string, name: string, to: string): Promise<void> {
 	const response = await fetch(`${base(settings)}/jobs/${id}/files/${encodeURIComponent(name)}`, { headers: headers(settings) });
-	if (!response.ok) throw new Error(`Couldn't fetch ${name} from the voice engine.`);
+	if (!response.ok) throw new Error(t("Couldn't fetch {name} from the voice engine.", { name }));
 	writeFileSync(to, Buffer.from(await response.arrayBuffer()));
 }
 
@@ -179,7 +180,7 @@ export async function makePresetVoice(settings: Settings, presetName: string, on
 	const status = await kvsStatus(settings);
 	if (!status.online) throw new Error(status.error);
 	const description = status.presets.find((p) => p.name === presetName)?.description;
-	if (!description) throw new Error(`The voice engine has no template called "${presetName}".`);
+	if (!description) throw new Error(t("The voice engine has no template called \"{name}\".", { name: presetName }));
 	const sample = sampleFor(presetName);
 	const pitch = PRESET_PITCH[presetName];
 	const job = await submit(settings, "design", { description, sample_text: sample, ...(pitch ? { pitch, attempts: 5 } : {}) }, {}, signal);
@@ -240,7 +241,7 @@ export async function cloneVoice(
 	const dir = join(VOICES_DIR, id);
 	mkdirSync(dir, { recursive: true });
 	await download(settings, done.id, "ref.wav", join(dir, "ref.wav"));
-	const voice = { name: name.trim() || "My voice", transcript: knownTranscript?.trim() || done.result?.transcript || "", seconds: done.result?.seconds ?? 0, created: Date.now() };
+	const voice = { name: name.trim() || t("My voice"), transcript: knownTranscript?.trim() || done.result?.transcript || "", seconds: done.result?.seconds ?? 0, created: Date.now() };
 	writeFileSync(join(dir, "voice.json"), JSON.stringify(voice, null, "\t"));
 	await call(settings, `/jobs/${done.id}`, { method: "DELETE" }).catch(() => undefined);
 	return { id, ...voice };
@@ -263,7 +264,7 @@ export function voiceSpec(voice: string, presets: { name: string; description: s
 		return { spec: { name, ref: "preset", transcript: saved.transcript }, files: { voice_preset: join(VOICES_DIR, saved.id, "ref.wav") }, key: `kvs-preset:${saved.id}` };
 	}
 	const description = presets.find((p) => p.name === name)?.description;
-	if (!description) throw new Error(`The voice engine has no designed voice called "${name}".`);
+	if (!description) throw new Error(t("The voice engine has no designed voice called \"{name}\".", { name }));
 	return { spec: { name, design: description }, files: {}, key: voice };
 }
 
@@ -295,11 +296,11 @@ export async function speakWithKvs(
 
 	// Speaker names can't contain colons and each line must stay on one line of the script.
 	const script = todo.map((l) => `V: ${l.text.replace(/[\r\n]+/g, " ")}`).join("\n");
-	onProgress(-1, `Sending ${todo.length} lines to the voice engine`);
+	onProgress(-1, t("Sending {n} lines to the voice engine", { n: todo.length }));
 	const job = await submit(settings, "story", { script, speakers: { V: { voice: spec, style: "" } } }, files, signal);
 	const done = await follow(settings, job.id, onProgress, signal);
 	const cues = done.result?.cues ?? [];
-	if (cues.length !== todo.length) throw new Error(`The voice engine returned ${cues.length} lines for ${todo.length}.`);
+	if (cues.length !== todo.length) throw new Error(t("The voice engine returned {got} lines for {sent}.", { got: cues.length, sent: todo.length }));
 
 	const story = join(CACHE_DIR, `story-${done.id}.wav`);
 	await download(settings, done.id, "story.wav", story);
@@ -310,7 +311,7 @@ export async function speakWithKvs(
 			// Plain 44-byte WAV header (no metadata chunks), so wavSeconds can read the length later.
 			await run(ffmpeg, ["-y", "-v", "error", "-i", story, "-ss", start.toFixed(3), "-to", end.toFixed(3), "-map_metadata", "-1", "-fflags", "+bitexact", "-c:a", "pcm_s16le", out]);
 			result[todo[i].id] = { path: out, duration: end - start, text: todo[i].text };
-			onProgress(0.99, `Cutting the voice into lines ${i + 1}/${todo.length}`);
+			onProgress(0.99, t("Cutting the voice into lines {done}/{total}", { done: i + 1, total: todo.length }));
 		}
 	} finally {
 		rmSync(story, { force: true });

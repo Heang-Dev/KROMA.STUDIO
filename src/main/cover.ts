@@ -6,6 +6,7 @@ import { LIBRARY_DIR } from "./download";
 import { batchExportPath } from "./batch";
 import { loadSettings } from "./settings";
 import { mapLimit, requireTool } from "./tools";
+import { t } from "@shared/i18n";
 
 // Episode covers: a full-size frame for the cover, a good moment picked automatically, and where a cover is saved
 // (next to the episode's exports: "05 - Title (16x9) cover.jpg").
@@ -28,7 +29,7 @@ function ffmpegOut(args: string[], signal?: AbortSignal): Promise<Buffer> {
 /** One frame at `seconds` as a JPEG (up to 1920 px wide), for drawing the cover on. */
 export async function coverFrame(path: string, seconds: number): Promise<Uint8Array> {
 	const jpg = await ffmpegOut(["-v", "error", "-ss", Math.max(0, seconds).toFixed(2), "-i", path, "-frames:v", "1", "-vf", "scale='min(1920,iw)':-2", "-q:v", "2", "-f", "image2", "-c:v", "mjpeg", "-"]);
-	if (!jpg.length) throw new Error("Couldn't read a frame of the video there.");
+	if (!jpg.length) throw new Error(t("Couldn't read a frame of the video there."));
 	return new Uint8Array(jpg);
 }
 

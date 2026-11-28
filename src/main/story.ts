@@ -4,6 +4,7 @@ import type { Settings, StoryRecord, StoryRequest } from "@shared/types";
 import { parseStory } from "@shared/story";
 import { LIBRARY_DIR } from "./download";
 import { call, download, follow, kvsStatus, submit, voiceSpec } from "./kvs";
+import { t } from "@shared/i18n";
 
 // Story studio: a whole script read by the voice engine in one "story" job, a voice (and style) per speaker, pauses
 // and one-line styles written in the script. Each story is kept in the library (story.mp3 / .wav / .srt + story.json).
@@ -13,7 +14,7 @@ const STORIES_DIR = join(LIBRARY_DIR, "stories");
 const FILES = ["story.mp3", "story.wav", "story.srt"] as const;
 
 const dirOf = (id: string) => {
-	if (!/^[\w-]+$/.test(id)) throw new Error("Unknown story.");
+	if (!/^[\w-]+$/.test(id)) throw new Error(t("Unknown story."));
 	return join(STORIES_DIR, id);
 };
 
@@ -47,7 +48,7 @@ export async function tellStory(
 	signal?: AbortSignal,
 	redo?: { from: string; line: number },
 ): Promise<StoryRecord> {
-	if (!parseStory(request.script).some((i) => i.type === "line")) throw new Error("Write a script first, like  Narrator: …  /  Sokha: …");
+	if (!parseStory(request.script).some((i) => i.type === "line")) throw new Error(t("Write a script first, like  Narrator: …  /  Sokha: …"));
 	const status = await kvsStatus(settings);
 	if (!status.online) throw new Error(status.error);
 	const { speakers, files } = engineSpeakers(request, status.presets);
@@ -55,15 +56,15 @@ export async function tellStory(
 	let title = request.title.trim() || request.script.replace(/\s+/g, " ").trim().slice(0, 60);
 	if (redo) {
 		const old = readStory(redo.from);
-		if (!old) throw new Error("That story is gone.");
-		if (redo.line < 0 || redo.line >= old.cues.length) throw new Error(`This story has no line ${redo.line + 1}.`);
+		if (!old) throw new Error(t("That story is gone."));
+		if (redo.line < 0 || redo.line >= old.cues.length) throw new Error(t("This story has no line {n}.", { n: redo.line + 1 }));
 		params.redo = { line: redo.line };
 		params.cues = old.cues;
 		files.base = join(dirOf(old.id), "story.wav");
 		title = `${old.title.replace(/ · line \d+$/, "")} · line ${redo.line + 1}`;
 	}
 
-	onProgress(-1, redo ? `Speaking line ${redo.line + 1} again` : "Sending the story to the voice engine");
+	onProgress(-1, redo ? t("Speaking line {n} again", { n: redo.line + 1 }) : t("Sending the story to the voice engine"));
 	const job = await submit(settings, "story", params, files, signal);
 	const done = await follow(settings, job.id, onProgress, signal);
 	const id = `${Date.now()}`;

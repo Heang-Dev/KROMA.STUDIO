@@ -3,6 +3,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import type { Settings } from "@shared/types";
 import { geminiWithFallback as gemini } from "./gemini";
+import { t } from "@shared/i18n";
 
 // Finds who says each subtitle line (from the dialogue, read in order) and suggests a voice for each character.
 // It reads the words only, not the sound, so it's a guess the creator can fix line by line.
@@ -70,7 +71,7 @@ export async function findCharacters(
 ): Promise<CharactersResult> {
 	// Claude when it's the chosen translator (and has a key), otherwise Gemini; Google Translate can't do this.
 	const useClaude = settings.translateProvider === "claude" ? Boolean(settings.anthropicKey) : !settings.geminiKey && Boolean(settings.anthropicKey);
-	if (!useClaude && !settings.geminiKey) throw new Error("Finding characters needs your free Gemini key (Settings → Translation) or a Claude key.");
+	if (!useClaude && !settings.geminiKey) throw new Error(t("Finding characters needs your free Gemini key (Settings → Translation) or a Claude key."));
 	const name = useClaude ? "Claude" : "Gemini";
 	const anthropic = useClaude ? new Anthropic({ apiKey: settings.anthropicKey, maxRetries: 4 }) : null;
 
@@ -80,7 +81,7 @@ export async function findCharacters(
 	const voiceList = voices.map((v) => `- ${v.id}: ${v.label}, ${v.description}`).join("\n");
 
 	for (let b = 0; b < batches; b++) {
-		onProgress(b / batches, `Finding characters with ${name}${batches > 1 ? ` · part ${b + 1}/${batches}` : ""}`);
+		onProgress(b / batches, batches > 1 ? t("Finding characters with {name} · part {part}/{parts}", { name, part: b + 1, parts: batches }) : t("Finding characters with {name}", { name }));
 		const items = lines.slice(b * BATCH, (b + 1) * BATCH);
 		const known = [...characters.values()];
 		const prompt = [
@@ -107,8 +108,8 @@ export async function findCharacters(
 				},
 				{ signal },
 			);
-			if (response.stop_reason === "refusal") throw new Error("Claude declined to read these subtitles.");
-			if (!response.parsed_output) throw new Error("Claude's answer was cut off. Try again.");
+			if (response.stop_reason === "refusal") throw new Error(t("Claude declined to read these subtitles."));
+			if (!response.parsed_output) throw new Error(t("Claude's answer was cut off. Try again."));
 			answer = response.parsed_output;
 		} else {
 			answer = await gemini<z.infer<typeof ResultSchema>>(settings, { system: SYSTEM, prompt, schema: GEMINI_SCHEMA, signal, onRetry: (reason) => onProgress(b / batches, reason) });

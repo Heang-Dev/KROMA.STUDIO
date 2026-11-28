@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { GLOSSARY_FILE, type GlossaryTerm, cleanGlossary } from "@shared/glossary";
+import { t } from "@shared/i18n";
 
 // The series glossary lives next to the projects: every .kroma project in the same folder shares it.
 
@@ -23,7 +24,7 @@ export function loadGlossary(projectPath: string | null | undefined): GlossaryTe
 
 export function saveGlossary(projectPath: string, terms: GlossaryTerm[]): GlossaryTerm[] {
 	const file = fileFor(projectPath);
-	if (!file) throw new Error("Save the project first: the glossary is shared by the projects in its folder.");
+	if (!file) throw new Error(t("Save the project first: the glossary is shared by the projects in its folder."));
 	const clean = cleanGlossary(terms);
 	writeFileSync(file, JSON.stringify({ series: basename(dirname(projectPath)), terms: clean }, null, "\t"));
 	return clean;

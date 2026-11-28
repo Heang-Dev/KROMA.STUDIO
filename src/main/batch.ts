@@ -4,6 +4,7 @@ import { type BrowserWindow, dialog } from "electron";
 import { type BatchState, EMPTY_BATCH, type PostFormat, afterRestart, exportPathFor } from "@shared/batch";
 import { LIBRARY_DIR } from "./download";
 import { loadSettings } from "./settings";
+import { t } from "@shared/i18n";
 
 // The batch list (src/shared/batch.ts) is kept in <library>/batch.json, so a restart shows where it stopped. The
 // editor runs the steps; this file only stores the list and answers where things go.
@@ -31,7 +32,7 @@ export function writeBatch(state: BatchState): void {
 
 /** Asks for project files (several at once). */
 export async function pickProjects(window: BrowserWindow): Promise<string[]> {
-	const res = await dialog.showOpenDialog(window, { properties: ["openFile", "multiSelections"], defaultPath: join(LIBRARY_DIR, "projects"), filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
+	const res = await dialog.showOpenDialog(window, { properties: ["openFile", "multiSelections"], defaultPath: join(LIBRARY_DIR, "projects"), filters: [{ name: t("Kroma project"), extensions: ["kroma"] }] });
 	return res.canceled ? [] : res.filePaths;
 }
 

@@ -12,6 +12,8 @@ import { runTask, useEditor } from "@/state/store";
 import { notify, playSound, setNotifyPrefs, useNotificationsBlocked } from "@/lib/notify";
 import { MAC_SOUNDS } from "@shared/notify";
 import { useNotifications } from "@/state/notifications";
+import { t, UI_LANGUAGES, type UiLanguageSetting } from "@shared/i18n";
+import { switchUiLanguage } from "@/lib/i18n";
 import { useUpdateState } from "../UpdateButton";
 import { refreshEngineStatus } from "../EngineStatus";
 import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented, SwitchRow, TaskProgress, useBusy } from "../common";
@@ -27,6 +29,7 @@ export interface SectionProps {
 
 export interface SettingsSectionDef {
 	id: string;
+	/** The group and title are English; they're shown through t(). */
 	group: string;
 	title: string;
 	icon: LucideIcon;
@@ -48,6 +51,9 @@ export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
 	{ id: "about", group: "Kroma", title: "About", icon: Info, keywords: "version ffmpeg yt-dlp tools", component: AboutSection },
 ];
 
+/** A list of choices in the interface language (their English text is the key; the Khmer is in i18n/km/app.ts). */
+const translated = <T extends { label: string; description?: string }>(list: T[]): T[] => list.map((o) => ({ ...o, label: t(o.label), description: o.description && t(o.description) }));
+
 // ── Sections ──
 
 const MODELS = [
@@ -66,42 +72,42 @@ function TranslationSection({ settings, save }: SectionProps) {
 	const provider = settings.translateProvider;
 	return (
 		<>
-			<Group title="Translator" description="Who turns the subtitles into Khmer. Gemini and Claude also write the social posts.">
-				<ChoiceTiles label="Translator" columns={3} value={provider} options={PROVIDERS} onChange={(v) => void save({ translateProvider: v })} />
+			<Group title={t("Translator")} description={t("Who turns the subtitles into Khmer. Gemini and Claude also write the social posts.")}>
+				<ChoiceTiles label={t("Translator")} columns={3} value={provider} options={translated(PROVIDERS)} onChange={(v) => void save({ translateProvider: v })} />
 			</Group>
 
 			{provider === "gemini" && (
-				<Group title="Gemini" description="Free from Google AI Studio, no card needed. The free tier limits requests per minute (Kroma waits when it has to) and Google may use free-tier requests to improve its models.">
+				<Group title="Gemini" description={t("Free from Google AI Studio, no card needed. The free tier limits requests per minute (Kroma waits when it has to) and Google may use free-tier requests to improve its models.")}>
 					<Card>
-						<KeyRow locked={settings.lockedKeys?.includes("geminiKey")} label="API key" saved={settings.hasGeminiKey} placeholder="AIza…" keyUrl="https://aistudio.google.com/apikey" onSave={(v) => save({ geminiKey: v })} />
-						<Row label="Model" description="Flash models are fast and free; Pro is better but has a smaller free limit." control={<GeminiModelSelect settings={settings} save={save} />} />
+						<KeyRow locked={settings.lockedKeys?.includes("geminiKey")} label={t("API key")} saved={settings.hasGeminiKey} placeholder="AIza…" keyUrl="https://aistudio.google.com/apikey" onSave={(v) => save({ geminiKey: v })} />
+						<Row label={t("Model")} description={t("Flash models are fast and free; Pro is better but has a smaller free limit.")} control={<GeminiModelSelect settings={settings} save={save} />} />
 					</Card>
 				</Group>
 			)}
 
 			{provider === "google" && (
-				<Group title="Google Translate" description="Works straight away with no key. Translations are literal and don't use your notes or the earlier lines, so names and politeness may be off. Social posts need Gemini or Claude.">
+				<Group title="Google Translate" description={t("Works straight away with no key. Translations are literal and don't use your notes or the earlier lines, so names and politeness may be off. Social posts need Gemini or Claude.")}>
 					<Card>
-						<Row label="Ready to use" description="Nothing to set up." control={<CircleCheck className="size-4 text-success" />} />
+						<Row label={t("Ready to use")} description={t("Nothing to set up.")} control={<CircleCheck className="size-4 text-success" />} />
 					</Card>
 				</Group>
 			)}
 
 			{provider === "claude" && (
-				<Group title="Claude" description="Paid by use (Anthropic API). The most natural Khmer, best with names and tone.">
+				<Group title="Claude" description={t("Paid by use (Anthropic API). The most natural Khmer, best with names and tone.")}>
 					<Card>
-						<KeyRow locked={settings.lockedKeys?.includes("anthropicKey")} label="API key" saved={settings.hasAnthropicKey} placeholder="sk-ant-…" keyUrl="https://platform.claude.com/settings/keys" onSave={(v) => save({ anthropicKey: v })} />
-						<Row label="Model" control={<AppSelect label="Model" className="w-56" value={settings.translateModel} options={MODELS} onChange={(v) => void save({ translateModel: v })} />} />
+						<KeyRow locked={settings.lockedKeys?.includes("anthropicKey")} label={t("API key")} saved={settings.hasAnthropicKey} placeholder="sk-ant-…" keyUrl="https://platform.claude.com/settings/keys" onSave={(v) => save({ anthropicKey: v })} />
+						<Row label={t("Model")} control={<AppSelect label={t("Model")} className="w-56" value={settings.translateModel} options={translated(MODELS)} onChange={(v) => void save({ translateModel: v })} />} />
 					</Card>
 				</Group>
 			)}
 
-			<Group title="Speed">
+			<Group title={t("Speed")}>
 				<Card>
 					<Row
-						label="Parallel requests"
-						description="How many batches run at once, for translation and speech to text. Lower it if a service says you're sending too much."
-						control={<Segmented label="Parallel requests" size="sm" value={String(settings.concurrency)} options={["2", "4", "6", "8"].map((v) => ({ value: v, label: v }))} onChange={(v) => void save({ concurrency: Number(v) })} />}
+						label={t("Parallel requests")}
+						description={t("How many batches run at once, for translation and speech to text. Lower it if a service says you're sending too much.")}
+						control={<Segmented label={t("Parallel requests")} size="sm" value={String(settings.concurrency)} options={["2", "4", "6", "8"].map((v) => ({ value: v, label: v }))} onChange={(v) => void save({ concurrency: Number(v) })} />}
 					/>
 				</Card>
 			</Group>
@@ -120,7 +126,7 @@ function GeminiModelSelect({ settings, save }: SectionProps) {
 			.catch(() => setModels([]));
 	}, [settings.hasGeminiKey]);
 	const options = models.some((m) => m.value === settings.geminiModel) ? models : [{ value: settings.geminiModel, label: settings.geminiModel }, ...models];
-	return <AppSelect label="Gemini model" className="w-56" value={settings.geminiModel} options={options} onChange={(v) => void save({ geminiModel: v })} />;
+	return <AppSelect label={t("Gemini model")} className="w-56" value={settings.geminiModel} options={options} onChange={(v) => void save({ geminiModel: v })} />;
 }
 
 const ASR_PRESETS = [
@@ -139,28 +145,28 @@ function SpeechSection({ settings, save }: SectionProps) {
 	const preset = ASR_PRESETS.find((p) => p.value === settings.asrBaseUrl);
 	return (
 		<>
-			<Group title="Service" description="Turns the video's speech into timed lines when the site has no subtitles. Runs in the cloud, several parts at once.">
+			<Group title={t("Service")} description={t("Turns the video's speech into timed lines when the site has no subtitles. Runs in the cloud, several parts at once.")}>
 				<ChoiceTiles
-					label="Speech-to-text service"
+					label={t("Speech-to-text service")}
 					columns={3}
 					value={choice}
-					options={SPEECH_SERVICES}
+					options={translated(SPEECH_SERVICES)}
 					onChange={(v) => void (v === "gemini" ? save({ asrProvider: "gemini" }) : save({ asrProvider: "whisper", asrBaseUrl: v, asrModel: ASR_PRESETS.find((p) => p.value === v)?.model ?? settings.asrModel }))}
 				/>
 			</Group>
 
 			{settings.asrProvider === "gemini" ? (
-				<Group title="Gemini" description="Uses the Gemini key from Settings → Translation, so there's nothing else to set up. Very accurate, with punctuation; about a minute per 2 minutes of speech, so for long movies Groq is faster.">
+				<Group title="Gemini" description={t("Uses the Gemini key from Settings → Translation, so there's nothing else to set up. Very accurate, with punctuation; about a minute per 2 minutes of speech, so for long movies Groq is faster.")}>
 					<Card>
 						<Row
-							label="Gemini key"
-							description={settings.hasGeminiKey ? "Ready." : "Add it in Settings → Translation."}
+							label={t("Gemini key")}
+							description={settings.hasGeminiKey ? t("Ready.") : t("Add it in Settings → Translation.")}
 							control={
 								settings.hasGeminiKey ? (
 									<CircleCheck className="size-4 text-success" />
 								) : (
 									<Button variant="outline" size="sm" onClick={() => useEditor.getState().openSettings("translation")}>
-										Add key
+										{t("Add key")}
 									</Button>
 								)
 							}
@@ -169,15 +175,15 @@ function SpeechSection({ settings, save }: SectionProps) {
 				</Group>
 			) : (
 				<>
-					<Group title={preset?.label ?? "Whisper service"} description={preset?.label === "Groq" ? "Whisper large-v3 on Groq's servers: a whole movie in about a minute. Free key." : "Any OpenAI-compatible transcription endpoint."}>
+					<Group title={preset?.label ?? t("Whisper service")} description={preset?.label === "Groq" ? t("Whisper large-v3 on Groq's servers: a whole movie in about a minute. Free key.") : t("Any OpenAI-compatible transcription endpoint.")}>
 						<Card>
-							<KeyRow locked={settings.lockedKeys?.includes("asrKey")} label="API key" saved={settings.hasAsrKey} placeholder={preset?.label === "OpenAI" ? "sk-…" : "gsk_…"} keyUrl={preset?.keyUrl} onSave={(v) => save({ asrKey: v })} />
+							<KeyRow locked={settings.lockedKeys?.includes("asrKey")} label={t("API key")} saved={settings.hasAsrKey} placeholder={preset?.label === "OpenAI" ? "sk-…" : "gsk_…"} keyUrl={preset?.keyUrl} onSave={(v) => save({ asrKey: v })} />
 						</Card>
 					</Group>
-					<Group title="Advanced">
+					<Group title={t("Advanced")}>
 						<Card>
-							<Row label="Endpoint" control={<DraftInput className="w-72" value={settings.asrBaseUrl} onCommit={(v) => void save({ asrBaseUrl: v })} />} />
-							<Row label="Model" control={<DraftInput className="w-72" value={settings.asrModel} onCommit={(v) => void save({ asrModel: v })} />} />
+							<Row label={t("Endpoint")} control={<DraftInput className="w-72" value={settings.asrBaseUrl} onCommit={(v) => void save({ asrBaseUrl: v })} />} />
+							<Row label={t("Model")} control={<DraftInput className="w-72" value={settings.asrModel} onCommit={(v) => void save({ asrModel: v })} />} />
 						</Card>
 					</Group>
 				</>
@@ -191,7 +197,7 @@ const COLAB_URL = "https://colab.research.google.com/github/Heang-Dev/KROMA.STUD
 const isLocal = (url: string) => /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?\/?$/i.test(url.trim());
 /** Colab chosen but no address pasted yet. */
 const noAddress = (url: string) => !/^https?:\/\/[^/\s]+/i.test(url.trim());
-const deviceName = (device?: string) => (device === "cuda" ? "a GPU" : device === "mps" ? "this Mac's Apple GPU" : device === "cpu" ? "this computer's processor (slow)" : (device ?? "unknown"));
+const deviceName = (device?: string) => (device === "cuda" ? t("a GPU") : device === "mps" ? t("this Mac's Apple GPU") : device === "cpu" ? t("this computer's processor (slow)") : (device ?? t("unknown")));
 const cleanError = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, "");
 
 /** A numbered step in a how-to list. */
@@ -230,10 +236,10 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 
 	const install = async () => {
 		setStartError(null);
-		await runTask(`engine-install-${Date.now()}`, "Install the voice engine", (id) => window.kroma.installEngine(id), {
+		await runTask(`engine-install-${Date.now()}`, t("Install the voice engine"), (id) => window.kroma.installEngine(id), {
 			kind: "voices",
-			done: () => ({ tone: "success", title: "The voice engine is installed", detail: "Press Start to turn it on. The first start downloads the voice model (about 5 GB).", action: { kind: "view", view: "settings", section: "voice-engine" } }),
-			failed: "Couldn't install the voice engine",
+			done: () => ({ tone: "success", title: t("The voice engine is installed"), detail: t("Press Start to turn it on. The first start downloads the voice model (about 5 GB)."), action: { kind: "view", view: "settings", section: "voice-engine" } }),
+			failed: t("Couldn't install the voice engine"),
 			retry: () => install(),
 		});
 		check();
@@ -243,10 +249,10 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 		setStartError(null);
 		try {
 			await window.kroma.kvsStart();
-			notify({ kind: "voices", tone: "success", title: "The voice engine is on" });
+			notify({ kind: "voices", tone: "success", title: t("The voice engine is on") });
 		} catch (e) {
 			setStartError(cleanError(e));
-			notify({ kind: "voices", tone: "error", title: "Couldn't start the voice engine", detail: cleanError(e), action: { kind: "view", view: "settings", section: "voice-engine" } });
+			notify({ kind: "voices", tone: "error", title: t("Couldn't start the voice engine"), detail: cleanError(e), action: { kind: "view", view: "settings", section: "voice-engine" } });
 		} finally {
 			setStarting(false);
 			check();
@@ -257,12 +263,12 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 		setTimeout(check, 800);
 	};
 	const remove = async () => {
-		if (!window.confirm("Remove the voice engine from this computer? It frees about 2 GB. You can install it again any time.")) return;
+		if (!window.confirm(t("Remove the voice engine from this computer? It frees about 2 GB. You can install it again any time."))) return;
 		try {
 			await window.kroma.removeEngine();
-			useEditor.getState().showToast("The voice engine was removed");
+			useEditor.getState().showToast(t("The voice engine was removed"));
 		} catch (e) {
-			useEditor.getState().showToast("Couldn't remove the voice engine", "error", cleanError(e));
+			useEditor.getState().showToast(t("Couldn't remove the voice engine"), "error", cleanError(e));
 		}
 		check();
 	};
@@ -270,23 +276,30 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 	const online = status?.online ?? false;
 	const installed = status?.installed ?? "missing";
 	const state = status === null ? "checking" : installing ? "installing" : starting ? "starting" : online ? "on" : local && installed === "missing" ? "missing" : "off";
-	const headline = { checking: "Checking…", installing: "Installing…", starting: "Starting…", on: "On", missing: "Not installed", off: "Off" }[state];
+	const headline = t({ checking: "Checking…", installing: "Installing…", starting: "Starting…", on: "On", missing: "Not installed", off: "Off" }[state]);
 	const detail = {
 		checking: "",
-		installing: "Setting up Python and the engine's packages (about 2 GB). Keep Kroma open; it takes a few minutes.",
-		starting: "Loading the voice model. The first start downloads it (about 5 GB) and can take a while.",
-		on: `Running on ${deviceName(status?.device)} · ${status?.presets.length ?? 0} preset voices${status?.busy ? ` · ${status.busy} job(s) running` : ""}${status?.startedByKroma ? " · stops when Kroma quits" : ""}`,
-		missing: "Install it once (about 2 GB, a few minutes) to make cloned voices, preset voices and stories on this computer.",
+		installing: t("Setting up Python and the engine's packages (about 2 GB). Keep Kroma open; it takes a few minutes."),
+		starting: t("Loading the voice model. The first start downloads it (about 5 GB) and can take a while."),
+		on: [
+			t("Running on {device}", { device: deviceName(status?.device) }),
+			t("{n} preset voices", { n: status?.presets.length ?? 0 }),
+			status?.busy ? t("{n} job(s) running", { n: status.busy }) : "",
+			status?.startedByKroma ? t("stops when Kroma quits") : "",
+		]
+			.filter(Boolean)
+			.join(" · "),
+		missing: t("Install it once (about 2 GB, a few minutes) to make cloned voices, preset voices and stories on this computer."),
 		off: local
-			? "Installed. Press Start to turn it on."
+			? t("Installed. Press Start to turn it on.")
 			: noAddress(settings.kvsUrl)
-				? "Paste the address your Colab notebook printed (step 3 below)."
-				: "Kroma can't reach your Colab engine. Check that the notebook is still running, and its address and token below.",
+				? t("Paste the address your Colab notebook printed (step 3 below).")
+				: t("Kroma can't reach your Colab engine. Check that the notebook is still running, and its address and token below."),
 	}[state];
 
 	return (
 		<>
-			<Group title="Voice engine" description="Makes Kroma's Khmer voices: your cloned voices, the preset voices (storyteller, news anchor, children…) and Story studio. It runs on this computer, or on a free Google Colab GPU when you want more speed.">
+			<Group title={t("Voice engine")} description={t("Makes Kroma's Khmer voices: your cloned voices, the preset voices (storyteller, news anchor, children…) and Story studio. It runs on this computer, or on a free Google Colab GPU when you want more speed.")}>
 				<Card>
 					<div className="flex flex-wrap items-center gap-3 py-3.5">
 						<span
@@ -300,22 +313,22 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 						<span className="flex shrink-0 gap-2">
 							{local && state === "missing" && (
 								<Button size="sm" onClick={() => void install()}>
-									<Download /> Install voice engine
+									<Download /> {t("Install voice engine")}
 								</Button>
 							)}
 							{local && state === "off" && (
 								<Button variant="outline" size="sm" disabled={Boolean(status?.cannotStart)} onClick={() => void start()} title={status?.cannotStart ?? undefined}>
-									<Power /> Start engine
+									<Power /> {t("Start engine")}
 								</Button>
 							)}
 							{state === "on" && status?.startedByKroma && (
 								<Button variant="outline" size="sm" onClick={() => void stop()}>
-									<Power /> Stop
+									<Power /> {t("Stop")}
 								</Button>
 							)}
 							{state !== "missing" && state !== "installing" && (
 								<Button variant="outline" size="sm" disabled={checking || starting} onClick={check}>
-									<RefreshCw className={checking ? "animate-spin" : ""} /> Check
+									<RefreshCw className={checking ? "animate-spin" : ""} /> {t("Check")}
 								</Button>
 							)}
 						</span>
@@ -327,9 +340,9 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 					)}
 					{local && installed === "outdated" && !installing && (
 						<div className="flex flex-wrap items-center justify-between gap-2 py-3 text-xs">
-							<span className="text-muted-foreground">This version of Kroma has a newer engine. Update it to get the latest voices and fixes.</span>
+							<span className="text-muted-foreground">{t("This version of Kroma has a newer engine. Update it to get the latest voices and fixes.")}</span>
 							<Button variant="outline" size="sm" onClick={() => void install()}>
-								<Download /> Update
+								<Download /> {t("Update")}
 							</Button>
 						</div>
 					)}
@@ -337,21 +350,21 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 						<p className="flex flex-wrap items-center gap-2 py-3 text-xs text-destructive">
 							{startError}
 							<Button variant="outline" size="xs" onClick={() => void window.kroma.kvsShowLog()}>
-								Show the log
+								{t("Show the log")}
 							</Button>
 						</p>
 					)}
 				</Card>
 			</Group>
 
-			<Group title="Where it runs">
+			<Group title={t("Where it runs")}>
 				<Segmented
-					label="Where the engine runs"
+					label={t("Where the engine runs")}
 					equalWidth
 					value={local ? "here" : "colab"}
 					options={[
-						{ value: "here", label: "This computer" },
-						{ value: "colab", label: "Google Colab (free GPU)" },
+						{ value: "here", label: t("This computer") },
+						{ value: "colab", label: t("Google Colab (free GPU)") },
 					]}
 					onChange={(where) => {
 						if (where === "here" && !local) void save({ kvsUrl: LOCAL_ENGINE });
@@ -360,18 +373,18 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 				/>
 				{local ? (
 					<Card>
-						<SwitchRow label="Start the engine with Kroma" description="Turns the engine on each time you open Kroma, so voices are ready when you need them." checked={settings.kvsAutoStart} onChange={(v) => void save({ kvsAutoStart: v })} />
+						<SwitchRow label={t("Start the engine with Kroma")} description={t("Turns the engine on each time you open Kroma, so voices are ready when you need them.")} checked={settings.kvsAutoStart} onChange={(v) => void save({ kvsAutoStart: v })} />
 						<Row
-							label="Good to know"
-							description="On a Mac the engine uses the Apple GPU: fine for short lines, slower for long stories (Colab is several times faster). The first start downloads the voice model, about 5 GB. An engine Kroma starts stops when Kroma quits."
+							label={t("Good to know")}
+							description={t("On a Mac the engine uses the Apple GPU: fine for short lines, slower for long stories (Colab is several times faster). The first start downloads the voice model, about 5 GB. An engine Kroma starts stops when Kroma quits.")}
 						/>
 						{installed !== "missing" && !installing && (
 							<Row
-								label="Installed engine"
-								description="Python and the engine's packages, in Kroma's own folder (about 2 GB)."
+								label={t("Installed engine")}
+								description={t("Python and the engine's packages, in Kroma's own folder (about 2 GB).")}
 								control={
 									<Button variant="outline" size="sm" onClick={() => void remove()}>
-										<Trash2 /> Remove
+										<Trash2 /> {t("Remove")}
 									</Button>
 								}
 							/>
@@ -379,18 +392,20 @@ function VoiceEngineSection({ settings, save }: SectionProps) {
 					</Card>
 				) : (
 					<Card>
-						<Step n={1} title="Open Kroma's engine in Google Colab">
+						<Step n={1} title={t("Open Kroma's engine in Google Colab")}>
 							<Button variant="outline" size="sm" className="mt-0.5" onClick={() => void window.kroma.openExternal(COLAB_URL)}>
-								<ExternalLink /> Open in Colab
+								<ExternalLink /> {t("Open in Colab")}
 							</Button>
 						</Step>
-						<Step n={2} title="Choose a GPU and run it">Runtime → Change runtime type → T4 GPU, then Runtime → Run all. The last cell prints an address and a token (the first run takes about 5 minutes).</Step>
-						<Step n={3} title="Paste the address here">
+						<Step n={2} title={t("Choose a GPU and run it")}>
+							{t("Runtime → Change runtime type → T4 GPU, then Runtime → Run all. The last cell prints an address and a token (the first run takes about 5 minutes).")}
+						</Step>
+						<Step n={3} title={t("Paste the address here")}>
 							<div className="pt-1">
 								<DraftInput className="w-full" placeholder="https://….trycloudflare.com" value={settings.kvsUrl} onCommit={(v) => void save({ kvsUrl: v })} />
 							</div>
 						</Step>
-						<KeyRow locked={settings.lockedKeys?.includes("kvsToken")} label="Token" saved={settings.hasKvsToken} placeholder="The token Colab printed" onSave={(v) => save({ kvsToken: v })} />
+						<KeyRow locked={settings.lockedKeys?.includes("kvsToken")} label={t("Token")} saved={settings.hasKvsToken} placeholder={t("The token Colab printed")} onSave={(v) => save({ kvsToken: v })} />
 					</Card>
 				)}
 			</Group>
@@ -439,19 +454,19 @@ function PostingSection({ settings, save }: SectionProps) {
 		<>
 			<Group
 				title="Upload-Post"
-				description="Kroma posts through Upload-Post (upload-post.com), which is already approved by YouTube, Facebook and TikTok, so your posts go out publicly. Connect your accounts once; after that the Post panel posts in one click."
+				description={t("Kroma posts through Upload-Post (upload-post.com), which is already approved by YouTube, Facebook and TikTok, so your posts go out publicly. Connect your accounts once; after that the Post panel posts in one click.")}
 			>
 				<Card>
-					<KeyRow locked={settings.lockedKeys?.includes("postKey")} label="API key" saved={settings.hasPostKey} placeholder="From app.upload-post.com → API Keys" keyUrl="https://app.upload-post.com/api-keys" onSave={(v) => save({ postKey: v })} />
+					<KeyRow locked={settings.lockedKeys?.includes("postKey")} label={t("API key")} saved={settings.hasPostKey} placeholder={t("From app.upload-post.com → API Keys")} keyUrl="https://app.upload-post.com/api-keys" onSave={(v) => save({ postKey: v })} />
 					{settings.hasPostKey && (
 						<Row
-							label="Account"
-							description={error ?? (account ? `${account.email}${account.plan ? ` · ${account.plan} plan` : ""}` : busy ? "Checking…" : "")}
+							label={t("Account")}
+							description={error ?? (account ? `${account.email}${account.plan ? ` · ${t("{plan} plan", { plan: account.plan })}` : ""}` : busy ? t("Checking…") : "")}
 							control={
 								<span className="flex items-center gap-2">
 									{account && !error ? <CircleCheck className="size-4 text-success" /> : error ? <CircleX className="size-4 text-destructive" /> : null}
 									<Button variant="outline" size="sm" disabled={busy} onClick={refresh}>
-										<RefreshCw className={busy ? "animate-spin" : ""} /> Check
+										<RefreshCw className={busy ? "animate-spin" : ""} /> {t("Check")}
 									</Button>
 								</span>
 							}
@@ -461,13 +476,13 @@ function PostingSection({ settings, save }: SectionProps) {
 			</Group>
 
 			{settings.hasPostKey && !error && (
-				<Group title="Your accounts" description="Press Connect, sign in to each platform in your browser and allow access, then come back here.">
+				<Group title={t("Your accounts")} description={t("Press Connect, sign in to each platform in your browser and allow access, then come back here.")}>
 					<Card>
 						{profiles.length > 1 && (
 							<Row
-								label="Profile"
-								description="Each Upload-Post profile has its own set of accounts."
-								control={<AppSelect label="Profile" value={profile?.username ?? ""} options={profiles.map((p) => ({ value: p.username, label: p.displayName }))} onChange={(v) => void save({ postProfile: v })} />}
+								label={t("Profile")}
+								description={t("Each Upload-Post profile has its own set of accounts.")}
+								control={<AppSelect label={t("Profile")} value={profile?.username ?? ""} options={profiles.map((p) => ({ value: p.username, label: p.displayName }))} onChange={(v) => void save({ postProfile: v })} />}
 							/>
 						)}
 						{PLATFORMS.map((pl) => {
@@ -476,27 +491,27 @@ function PostingSection({ settings, save }: SectionProps) {
 								<Row
 									key={pl.id}
 									label={pl.name}
-									description={a ? `${a.name}${a.handle && a.handle !== a.name ? ` (@${a.handle.replace(/^@/, "")})` : ""}${a.needsReconnect ? " · sign-in expired: press Connect" : ""}` : "Not connected"}
+									description={a ? `${a.name}${a.handle && a.handle !== a.name ? ` (@${a.handle.replace(/^@/, "")})` : ""}${a.needsReconnect ? ` · ${t("sign-in expired: press Connect")}` : ""}` : t("Not connected")}
 									control={a && !a.needsReconnect ? <CircleCheck className="size-4 text-success" /> : <CircleX className="size-4 text-muted-foreground" />}
 								/>
 							);
 						})}
 						{profile?.accounts.facebook && (
 							<Row
-								label="Facebook Page"
-								description="Videos are posted to this Page (Facebook doesn't allow apps to post to personal profiles)."
+								label={t("Facebook Page")}
+								description={t("Videos are posted to this Page (Facebook doesn't allow apps to post to personal profiles).")}
 								control={
 									pages.length ? (
-										<AppSelect label="Facebook Page" value={settings.facebookPageId || pages[0].id} options={pages.map((p) => ({ value: p.id, label: p.name }))} onChange={(v) => void save({ facebookPageId: v })} />
+										<AppSelect label={t("Facebook Page")} value={settings.facebookPageId || pages[0].id} options={pages.map((p) => ({ value: p.id, label: p.name }))} onChange={(v) => void save({ facebookPageId: v })} />
 									) : (
-										<span className="text-xs text-muted-foreground">No Pages found</span>
+										<span className="text-xs text-muted-foreground">{t("No Pages found")}</span>
 									)
 								}
 							/>
 						)}
 						<Row
-							label="Connect accounts"
-							description="Opens a secure Upload-Post page in your browser. TikTok needs Upload-Post's Basic plan; YouTube and Facebook work on the free plan (10 posts a month)."
+							label={t("Connect accounts")}
+							description={t("Opens a secure Upload-Post page in your browser. TikTok needs Upload-Post's Basic plan; YouTube and Facebook work on the free plan (10 posts a month).")}
 							control={
 								<Button
 									size="sm"
@@ -510,7 +525,7 @@ function PostingSection({ settings, save }: SectionProps) {
 											.catch((e) => setError(clean(e)))
 									}
 								>
-									<ExternalLink /> Connect
+									<ExternalLink /> {t("Connect")}
 								</Button>
 							}
 						/>
@@ -519,11 +534,11 @@ function PostingSection({ settings, save }: SectionProps) {
 			)}
 
 			{!settings.hasPostKey && (
-				<Group title="Getting started">
+				<Group title={t("Getting started")}>
 					<Card>
-						<Row label="1. Make a free account" description="Sign up at upload-post.com." control={<Button variant="outline" size="sm" onClick={() => void window.kroma.openExternal("https://app.upload-post.com/")}><ExternalLink /> Open</Button>} />
-						<Row label="2. Copy your API key" description="In Upload-Post: API Keys → create a key, then paste it above." />
-						<Row label="3. Connect your accounts" description="Press Connect here, and sign in to YouTube, Facebook and TikTok." />
+						<Row label={t("1. Make a free account")} description={t("Sign up at upload-post.com.")} control={<Button variant="outline" size="sm" onClick={() => void window.kroma.openExternal("https://app.upload-post.com/")}><ExternalLink /> {t("Open")}</Button>} />
+						<Row label={t("2. Copy your API key")} description={t("In Upload-Post: API Keys → create a key, then paste it above.")} />
+						<Row label={t("3. Connect your accounts")} description={t("Press Connect here, and sign in to YouTube, Facebook and TikTok.")} />
 					</Card>
 				</Group>
 			)}
@@ -542,12 +557,12 @@ const BROWSERS = [
 
 function DownloadsSection({ settings, save }: SectionProps) {
 	return (
-		<Group title="Logins" description="Sites like Bilibili only give 1080p, and some videos only play, when you're signed in.">
+		<Group title={t("Logins")} description={t("Sites like Bilibili only give 1080p, and some videos only play, when you're signed in.")}>
 			<Card>
 				<Row
-					label="Use my logins from"
-					description="Sign in to the site in that browser first. Your system may ask to allow access; Safari also needs Full Disk Access."
-					control={<AppSelect label="Browser logins" className="w-64" value={settings.cookiesBrowser} options={BROWSERS} onChange={(v) => void save({ cookiesBrowser: v })} />}
+					label={t("Use my logins from")}
+					description={t("Sign in to the site in that browser first. Your system may ask to allow access; Safari also needs Full Disk Access.")}
+					control={<AppSelect label={t("Browser logins")} className="w-64" value={settings.cookiesBrowser} options={translated(BROWSERS)} onChange={(v) => void save({ cookiesBrowser: v })} />}
 				/>
 			</Card>
 		</Group>
@@ -569,20 +584,20 @@ function FoldersSection({ settings, save }: SectionProps) {
 
 	return (
 		<>
-			<Group title="Exports" description="Finished videos and subtitle files.">
+			<Group title={t("Exports")} description={t("Finished videos and subtitle files.")}>
 				<Card>
-					<FolderRow label="Export folder" path={exportDir} isDefault={!settings.exportDir} onChoose={() => void choose("exportDir", exportDir)} onReset={() => void save({ exportDir: "" })} />
-					<SwitchRow label="Ask where to save each time" description="Off: Export saves straight into the folder (a new name, never overwriting) and shows the file." checked={settings.askExportPath} onChange={(v) => void save({ askExportPath: v })} />
+					<FolderRow label={t("Export folder")} path={exportDir} isDefault={!settings.exportDir} onChoose={() => void choose("exportDir", exportDir)} onReset={() => void save({ exportDir: "" })} />
+					<SwitchRow label={t("Ask where to save each time")} description={t("Off: Export saves straight into the folder (a new name, never overwriting) and shows the file.")} checked={settings.askExportPath} onChange={(v) => void save({ askExportPath: v })} />
 				</Card>
 			</Group>
-			<Group title="Downloads" description="Videos downloaded from links, each in its own folder with the site's subtitles.">
+			<Group title={t("Downloads")} description={t("Videos downloaded from links, each in its own folder with the site's subtitles.")}>
 				<Card>
-					<FolderRow label="Download folder" path={downloadDir} isDefault={!settings.downloadDir} onChoose={() => void choose("downloadDir", downloadDir)} onReset={() => void save({ downloadDir: "" })} />
+					<FolderRow label={t("Download folder")} path={downloadDir} isDefault={!settings.downloadDir} onChoose={() => void choose("downloadDir", downloadDir)} onReset={() => void save({ downloadDir: "" })} />
 				</Card>
 			</Group>
-			<Group title="Library" description="Voice clips, cloned voices, timeline pictures and saved projects.">
+			<Group title={t("Library")} description={t("Voice clips, cloned voices, timeline pictures and saved projects.")}>
 				<Card>
-					<FolderRow label="Library folder" path={defaults.libraryDir} isDefault />
+					<FolderRow label={t("Library folder")} path={defaults.libraryDir} isDefault />
 				</Card>
 			</Group>
 		</>
@@ -596,22 +611,22 @@ function FolderRow({ label, path, isDefault, onChoose, onReset }: { label: strin
 			description={
 				<span className="block font-mono break-all">
 					{path.replace(/^\/Users\/[^/]+/, "~")}
-					{isDefault && onChoose && <span className="font-sans text-muted-foreground"> · default</span>}
+					{isDefault && onChoose && <span className="font-sans text-muted-foreground"> · {t("default")}</span>}
 				</span>
 			}
 			control={
 				<span className="flex gap-1.5">
 					<Button variant="outline" size="sm" onClick={() => void window.kroma.openFolder(path)}>
-						<FolderOpen /> Open
+						<FolderOpen /> {t("Open")}
 					</Button>
 					{onChoose && (
 						<Button variant="outline" size="sm" onClick={onChoose}>
-							Change…
+							{t("Change…")}
 						</Button>
 					)}
 					{onReset && !isDefault && (
 						<Button variant="ghost" size="sm" onClick={onReset}>
-							Reset
+							{t("Reset")}
 						</Button>
 					)}
 				</span>
@@ -642,7 +657,7 @@ function SoundRow({ label, tone, value, onChange }: { label: string; tone: "succ
 	return (
 		<Row
 			label={label}
-			description={isMac ? undefined : "Your system's notification sound outside Kroma; a short chime in Kroma."}
+			description={isMac ? undefined : t("Your system's notification sound outside Kroma; a short chime in Kroma.")}
 			control={
 				<div className="flex items-center gap-1.5">
 					{isMac && (
@@ -657,8 +672,8 @@ function SoundRow({ label, tone, value, onChange }: { label: string; tone: "succ
 							}}
 						/>
 					)}
-					<Button variant="outline" size="sm" aria-label={`Play the sound for ${label.toLowerCase()}`} onClick={() => preview(value)}>
-						<Play /> Play
+					<Button variant="outline" size="sm" aria-label={t("Play the sound for {what}", { what: label.toLowerCase() })} onClick={() => preview(value)}>
+						<Play /> {t("Play")}
 					</Button>
 				</div>
 			}
@@ -674,8 +689,8 @@ function NotificationsSection({ settings, save }: SectionProps) {
 	const test = () =>
 		notify({
 			tone: "success",
-			title: "Notifications work",
-			detail: settings.notifySystem ? "This is how Kroma tells you work is done." : "System notifications are off, so this only shows in Kroma.",
+			title: t("Notifications work"),
+			detail: settings.notifySystem ? t("This is how Kroma tells you work is done.") : t("System notifications are off, so this only shows in Kroma."),
 			force: true,
 		});
 	return (
@@ -684,84 +699,84 @@ function NotificationsSection({ settings, save }: SectionProps) {
 				<div role="alert" className="flex items-start gap-2.5 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
 					<CircleX className="mt-0.5 size-4 shrink-0 text-destructive" />
 					<div className="min-w-0 flex-1 space-y-1">
-						<p className="text-[13px] font-medium">Your {isMac ? "Mac" : "computer"} isn't showing Kroma's notifications</p>
+						<p className="text-[13px] font-medium">{isMac ? t("Your Mac isn't showing Kroma's notifications") : t("Your computer isn't showing Kroma's notifications")}</p>
 						<p className="text-xs leading-relaxed text-muted-foreground">
 							{isMac
-								? "macOS said Kroma Studio isn't allowed to. In System Settings → Notifications → Kroma Studio, turn on Allow notifications and choose Banners. Then press Send test."
-								: "Your system said Kroma Studio isn't allowed to. Allow it in your notification settings, then press Send test."}
+								? t("macOS said Kroma Studio isn't allowed to. In System Settings → Notifications → Kroma Studio, turn on Allow notifications and choose Banners. Then press Send test.")
+								: t("Your system said Kroma Studio isn't allowed to. Allow it in your notification settings, then press Send test.")}
 						</p>
 					</div>
 					<Button variant="outline" size="sm" className="shrink-0" onClick={() => void window.kroma.openNotificationSettings()}>
-						<ExternalLink /> Open settings
+						<ExternalLink /> {t("Open settings")}
 					</Button>
 				</div>
 			)}
-			<Group title="Notifications" description="When long work finishes or fails: a notice in Kroma, and a system notification while you're in another app. Everything also goes into the bell in the title bar.">
+			<Group title={t("Notifications")} description={t("When long work finishes or fails: a notice in Kroma, and a system notification while you're in another app. Everything also goes into the bell in the title bar.")}>
 				<Card>
-					<SwitchRow label="Notify me when Kroma is in the background" description="System notifications. Failures show one even while you're in Kroma." checked={settings.notifySystem} onChange={(v) => void save({ notifySystem: v })} />
-					<SwitchRow label="Play a sound" description="When work finishes or fails, in Kroma and in system notifications." checked={settings.notifySound} onChange={(v) => void save({ notifySound: v })} />
-					{settings.notifySound && <SoundRow label="When work is done" tone="success" value={settings.notifySoundDone} onChange={(v) => void save({ notifySoundDone: v })} />}
-					{settings.notifySound && <SoundRow label="When something fails" tone="error" value={settings.notifySoundFailed} onChange={(v) => void save({ notifySoundFailed: v })} />}
-					<SwitchRow label="Only when something fails" description="Finished work then shows in the bell only, without a system notification." checked={settings.notifyOnlyErrors} onChange={(v) => void save({ notifyOnlyErrors: v })} />
+					<SwitchRow label={t("Notify me when Kroma is in the background")} description={t("System notifications. Failures show one even while you're in Kroma.")} checked={settings.notifySystem} onChange={(v) => void save({ notifySystem: v })} />
+					<SwitchRow label={t("Play a sound")} description={t("When work finishes or fails, in Kroma and in system notifications.")} checked={settings.notifySound} onChange={(v) => void save({ notifySound: v })} />
+					{settings.notifySound && <SoundRow label={t("When work is done")} tone="success" value={settings.notifySoundDone} onChange={(v) => void save({ notifySoundDone: v })} />}
+					{settings.notifySound && <SoundRow label={t("When something fails")} tone="error" value={settings.notifySoundFailed} onChange={(v) => void save({ notifySoundFailed: v })} />}
+					<SwitchRow label={t("Only when something fails")} description={t("Finished work then shows in the bell only, without a system notification.")} checked={settings.notifyOnlyErrors} onChange={(v) => void save({ notifyOnlyErrors: v })} />
 					<Row
-						label="Send a test notification"
-						description="Shows a system notification now, and adds it to the bell."
+						label={t("Send a test notification")}
+						description={t("Shows a system notification now, and adds it to the bell.")}
 						control={
 							<Button variant="outline" size="sm" onClick={test}>
-								<Bell /> Send test
+								<Bell /> {t("Send test")}
 							</Button>
 						}
 					/>
 				</Card>
 			</Group>
 			<Group
-				title="Not seeing them?"
-				description="Your computer decides whether a notification pops up, or only plays its sound and waits in Notification Center. Kroma also shows the number of unread notifications on its Dock icon, and bounces it once when something fails while you're in another app."
+				title={t("Not seeing them?")}
+				description={t("Your computer decides whether a notification pops up, or only plays its sound and waits in Notification Center. Kroma also shows the number of unread notifications on its Dock icon, and bounces it once when something fails while you're in another app.")}
 			>
 				<Card>
 					<Row
-						label={isMac ? "System Settings → Notifications → Kroma Studio" : "Your system's notification settings"}
+						label={isMac ? t("System Settings → Notifications → Kroma Studio") : t("Your system's notification settings")}
 						description={
 							isMac
-								? "Turn on Allow notifications, set the alert style to Banners (they go away by themselves) or Alerts (they stay until you close them), and turn on Play sound for notifications. A sound with no banner means the style is None, or a Focus is on."
-								: "Allow notifications from Kroma Studio."
+								? t("Turn on Allow notifications, set the alert style to Banners (they go away by themselves) or Alerts (they stay until you close them), and turn on Play sound for notifications. A sound with no banner means the style is None, or a Focus is on.")
+								: t("Allow notifications from Kroma Studio.")
 						}
 						control={
 							<Button variant="outline" size="sm" onClick={() => void window.kroma.openNotificationSettings()}>
-								<ExternalLink /> Open
+								<ExternalLink /> {t("Open")}
 							</Button>
 						}
 					/>
 				</Card>
 			</Group>
-			<Group title="Notification log" description="When a notification didn't show: the last notifications Kroma sent and whether your computer showed them.">
+			<Group title={t("Notification log")} description={t("When a notification didn't show: the last notifications Kroma sent and whether your computer showed them.")}>
 				<Card>
 					<Row
 						label="notify.log"
-						description="In Kroma's settings folder. Send it along if notifications still don't show."
+						description={t("In Kroma's settings folder. Send it along if notifications still don't show.")}
 						control={
 							<Button variant="outline" size="sm" onClick={() => void window.kroma.showNotifyLog()}>
-								<FolderOpen /> Show
+								<FolderOpen /> {t("Show")}
 							</Button>
 						}
 					/>
 				</Card>
 			</Group>
-			<Group title="What to notify about" description="Switched off: no system notification, and no notice in Kroma when it worked (failures still show). It's still kept in the bell.">
+			<Group title={t("What to notify about")} description={t("Switched off: no system notification, and no notice in Kroma when it worked (failures still show). It's still kept in the bell.")}>
 				<Card>
 					{NOTIFY_KINDS.map((k) => (
-						<SwitchRow key={k.key} label={k.label} description={k.description} checked={settings[k.key] !== false} onChange={(v) => void save({ [k.key]: v })} />
+						<SwitchRow key={k.key} label={t(k.label)} description={t(k.description)} checked={settings[k.key] !== false} onChange={(v) => void save({ [k.key]: v })} />
 					))}
 				</Card>
 			</Group>
-			<Group title="History">
+			<Group title={t("History")}>
 				<Card>
 					<Row
-						label="Notification history"
-						description={history ? `${history} notification${history === 1 ? "" : "s"} in the bell (the last 100 are kept).` : "Nothing in the bell yet."}
+						label={t("Notification history")}
+						description={history ? (history === 1 ? t("1 notification in the bell (the last 100 are kept).") : t("{n} notifications in the bell (the last 100 are kept).", { n: history })) : t("Nothing in the bell yet.")}
 						control={
 							<Button variant="outline" size="sm" disabled={!history} onClick={() => useNotifications.getState().clear()}>
-								<Trash2 /> Clear history
+								<Trash2 /> {t("Clear history")}
 							</Button>
 						}
 					/>
@@ -774,18 +789,38 @@ function NotificationsSection({ settings, save }: SectionProps) {
 function AppearanceSection({ settings, save }: SectionProps) {
 	return (
 		<>
-		<Group title="Size">
+		<Group title={t("Language")}>
 			<Card>
 				<Row
-					label="Interface size"
+					stack
+					label={t("Interface language")}
+					description={t("The language of Kroma's menus, buttons and messages. Your subtitles and voices don't change.")}
+					control={
+						<AppSelect<UiLanguageSetting>
+							label={t("Interface language")}
+							value={settings.uiLanguage ?? "auto"}
+							options={UI_LANGUAGES.map((o) => ({ value: o.value, label: o.value === "auto" ? t("Automatic") : o.label, description: o.value === "auto" ? t("Like your computer: ខ្មែរ if it's set to Khmer, otherwise English") : o.description }))}
+							onChange={async (uiLanguage) => {
+								await save({ uiLanguage });
+								switchUiLanguage(await window.kroma.uiLanguage());
+							}}
+						/>
+					}
+				/>
+			</Card>
+		</Group>
+		<Group title={t("Size")}>
+			<Card>
+				<Row
+					label={t("Interface size")}
 					description={
 						<>
-							Like zooming a web page. Also <Kbd>⌘</Kbd> <Kbd>+</Kbd> / <Kbd>⌘</Kbd> <Kbd>−</Kbd>, and <Kbd>⌘</Kbd> <Kbd>0</Kbd> for 100%.
+							{t("Like zooming a web page. Also")} <Kbd>⌘</Kbd> <Kbd>+</Kbd> / <Kbd>⌘</Kbd> <Kbd>−</Kbd>, {t("and")} <Kbd>⌘</Kbd> <Kbd>0</Kbd> {t("for 100%.")}
 						</>
 					}
 					control={
 						<Segmented
-							label="Interface size"
+							label={t("Interface size")}
 							size="sm"
 							value={String(settings.uiZoom)}
 							options={UI_ZOOM_STEPS.map((z) => ({ value: String(z), label: `${Math.round(z * 100)}%` }))}
@@ -795,16 +830,16 @@ function AppearanceSection({ settings, save }: SectionProps) {
 				/>
 			</Card>
 		</Group>
-		<Group title="Theme">
+		<Group title={t("Theme")}>
 			<Card>
 				<Row
-					label="Theme"
-					description="System follows your computer's setting."
+					label={t("Theme")}
+					description={t("System follows your computer's setting.")}
 					control={
 						<Segmented
-							label="Theme"
+							label={t("Theme")}
 							value={settings.theme}
-							options={APPEARANCES}
+							options={translated(APPEARANCES)}
 							onChange={(v) => {
 								applyAppearance(v);
 								void save({ theme: v });
@@ -840,15 +875,15 @@ const SHORTCUTS: [string, string[]][] = [
 
 function ShortcutsSection() {
 	return (
-		<Group title="Editor">
+		<Group title={t("Editor")}>
 			<Card>
 				{SHORTCUTS.map(([label, keys]) => (
 					<Row
 						key={label}
-						label={label}
+						label={t(label)}
 						control={
 							<span className="flex gap-1">
-								{keyCaps(keys).map((k) => (
+								{keyCaps(keys.map((k) => (k === "scroll" ? t("scroll") : k))).map((k) => (
 									<Kbd key={k}>{k}</Kbd>
 								))}
 							</span>
@@ -870,34 +905,34 @@ function UpdatesGroup() {
 	const status = !state
 		? ""
 		: state.status === "checking"
-			? "Checking…"
+			? t("Checking…")
 			: state.status === "none"
-				? `You have the latest version (${state.current}).`
+				? t("You have the latest version ({version}).", { version: state.current })
 				: state.status === "available"
-					? `Kroma ${state.version} is available.`
+					? t("Kroma {version} is available.", { version: state.version ?? "" })
 					: state.status === "downloading"
-						? `Downloading Kroma ${state.version}${state.progress !== undefined ? ` · ${Math.round(state.progress * 100)}%` : ""}`
+						? `${t("Downloading Kroma {version}", { version: state.version ?? "" })}${state.progress !== undefined ? ` · ${Math.round(state.progress * 100)}%` : ""}`
 						: state.status === "ready"
-							? `Kroma ${state.version} is ready: press “Restart to update” on the card in the bottom-right corner (or in the status bar at the bottom).`
+							? t("Kroma {version} is ready: press “Restart to update” on the card in the bottom-right corner (or in the status bar at the bottom).", { version: state.version ?? "" })
 							: state.status === "error"
-								? (state.error ?? "Couldn't check for updates.")
-								: `Version ${state.current}. Kroma checks for updates on start and every few hours.`;
+								? (state.error ?? t("Couldn't check for updates."))
+								: t("Version {version}. Kroma checks for updates on start and every few hours.", { version: state.current });
 	return (
-		<Group title="Updates" description="New versions come from GitHub Releases. Kroma downloads them in the background; you choose when to restart.">
+		<Group title={t("Updates")} description={t("New versions come from GitHub Releases. Kroma downloads them in the background; you choose when to restart.")}>
 			<Card>
 				<Row
-					label="Check for updates"
+					label={t("Check for updates")}
 					description={status}
 					control={
 						<Button variant="outline" size="sm" disabled={state?.status === "checking" || state?.status === "downloading"} onClick={() => void window.kroma.checkForUpdates()}>
-							<RefreshCw className={state?.status === "checking" ? "animate-spin" : ""} /> Check now
+							<RefreshCw className={state?.status === "checking" ? "animate-spin" : ""} /> {t("Check now")}
 						</Button>
 					}
 				/>
 				{auto !== null && (
 					<SwitchRow
-						label="Update automatically"
-						description="Download new versions in the background. Off: Kroma only tells you a new version is out."
+						label={t("Update automatically")}
+						description={t("Download new versions in the background. Off: Kroma only tells you a new version is out.")}
 						checked={auto}
 						onChange={(v) => {
 							setAuto(v);
@@ -905,7 +940,7 @@ function UpdatesGroup() {
 						}}
 					/>
 				)}
-				<Row label="What's new" control={<Button variant="ghost" size="sm" onClick={() => void window.kroma.openExternal("https://heang-dev.github.io/kroma/changelog/")}><ExternalLink /> Changelog</Button>} />
+				<Row label={t("What's new")} control={<Button variant="ghost" size="sm" onClick={() => void window.kroma.openExternal("https://heang-dev.github.io/kroma/changelog/")}><ExternalLink /> {t("Changelog")}</Button>} />
 			</Card>
 		</Group>
 	);
@@ -920,17 +955,17 @@ function AboutSection() {
 	const tools: [string, boolean, string][] = [
 		["FFmpeg", info.tools.ffmpeg && info.tools.ffprobe, info.installHints.ffmpeg],
 		["yt-dlp", info.tools.ytdlp, info.installHints.ytdlp],
-		["uv (for removing voices)", info.tools.uv, info.installHints.uv],
+		[t("uv (for removing voices)"), info.tools.uv, info.installHints.uv],
 	];
 	return (
 		<>
-			<Group title="About">
+			<Group title={t("About")}>
 				<Card>
-					<Row label={`Kroma Studio ${info.version}`} description="Turns online videos into Khmer (and Thai, Vietnamese, Lao…) videos with subtitles and voices, posted to YouTube, Facebook and TikTok." />
+					<Row label={`Kroma Studio ${info.version}`} description={t("Turns online videos into Khmer (and Thai, Vietnamese, Lao…) videos with subtitles and voices, posted to YouTube, Facebook and TikTok.")} />
 				</Card>
 			</Group>
 			<UpdatesGroup />
-			<Group title="Tools" description={info.platform === "darwin" ? "Installed with Homebrew; Kroma finds them on its own." : "FFmpeg and yt-dlp come with Kroma. uv is only needed for removing the original voices."}>
+			<Group title={t("Tools")} description={info.platform === "darwin" ? t("Installed with Homebrew; Kroma finds them on its own.") : t("FFmpeg and yt-dlp come with Kroma. uv is only needed for removing the original voices.")}>
 				<Card>
 					{tools.map(([name, ok, install]) => (
 						<Row
@@ -940,11 +975,11 @@ function AboutSection() {
 							control={
 								ok ? (
 									<Badge variant="secondary" className="gap-1">
-										<CircleCheck className="text-success" /> Installed
+										<CircleCheck className="text-success" /> {t("Installed")}
 									</Badge>
 								) : (
 									<Badge variant="destructive" className="gap-1">
-										<CircleX /> Missing
+										<CircleX /> {t("Missing")}
 									</Badge>
 								)
 							}
@@ -970,7 +1005,7 @@ function KeyRow({ label, saved, locked, placeholder, keyUrl, onSave }: { label: 
 					{label}
 					{saved && (
 						<Badge variant="secondary" className="gap-1 text-[10px]">
-							<CircleCheck className="text-success" /> Saved
+							<CircleCheck className="text-success" /> {t("Saved")}
 						</Badge>
 					)}
 				</span>
@@ -979,12 +1014,12 @@ function KeyRow({ label, saved, locked, placeholder, keyUrl, onSave }: { label: 
 				<>
 					{locked && !saved && (
 						<span className="block text-warning">
-							A key is saved, but this version of Kroma can't read it from the keychain. Paste it again (or reopen Kroma and choose Always Allow when the Mac asks).
+							{t("A key is saved, but this version of Kroma can't read it from the keychain. Paste it again (or reopen Kroma and choose Always Allow when the Mac asks).")}
 						</span>
 					)}
 					{keyUrl && (
 						<button type="button" className="inline-flex items-center gap-1 underline-offset-2 hover:text-foreground hover:underline" onClick={() => void window.kroma.openExternal(keyUrl)}>
-							Get a key <ExternalLink className="size-3" />
+							{t("Get a key")} <ExternalLink className="size-3" />
 						</button>
 					)}
 				</>
@@ -1001,21 +1036,21 @@ function KeyRow({ label, saved, locked, placeholder, keyUrl, onSave }: { label: 
 					>
 						<Input type="password" className="w-56 text-xs" placeholder={placeholder} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={label} autoComplete="off" />
 						<Button type="submit" size="sm" disabled={!draft.trim()}>
-							Save
+							{t("Save")}
 						</Button>
 						{saved && (
 							<Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
-								Cancel
+								{t("Cancel")}
 							</Button>
 						)}
 					</form>
 				) : (
 					<span className="flex gap-1.5">
 						<Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-							Replace
+							{t("Replace")}
 						</Button>
 						<Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => void onSave(null)}>
-							Remove
+							{t("Remove")}
 						</Button>
 					</span>
 				)

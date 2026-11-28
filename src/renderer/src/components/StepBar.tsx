@@ -14,6 +14,7 @@ import { UpdateStatus } from "./UpdateButton";
 import { EngineStatusItem } from "./EngineStatus";
 import { useBatch } from "@/lib/batch";
 import { STEP_LABEL } from "@shared/batch";
+import { t, uiLanguage } from "@shared/i18n";
 import { ListChecks, Loader2 } from "lucide-react";
 
 // The whole job, start to end: Video → Subtitles → Khmer → Voices → Style → Export, in a slim status bar along the
@@ -37,15 +38,17 @@ export function stepsOf(project: Project, exported: boolean): Step[] {
 	const voice = voiceSettings(project);
 	const voiced = voice.enabled && translated && linesNeedingVoice(project).length === 0;
 	const styled = JSON.stringify(project.style) !== JSON.stringify(DEFAULT_STYLE);
+	// The language's English name in English, its own name (ខ្មែរ, ไทย…) in any other interface language.
+	const language = uiLanguage() === "en" ? languageOf(project.language).name : languageOf(project.language).native;
 	return [
-		{ id: "video", label: "Video", panel: "media", status: project.clips.length ? "done" : "todo", next: "Add a video" },
-		{ id: "subtitles", label: "Subtitles", panel: "ai", status: project.cues.length ? "done" : "todo", next: "Get the subtitles" },
-		{ id: "khmer", label: languageOf(project.language).name, panel: "ai", status: translated ? "done" : "todo", next: `Translate to ${languageOf(project.language).name}` },
-		{ id: "characters", label: "Characters", panel: "voice", status: voice.cast?.length ? "done" : "optional", next: "Choose the characters' voices" },
+		{ id: "video", label: t("Video"), panel: "media", status: project.clips.length ? "done" : "todo", next: t("Add a video") },
+		{ id: "subtitles", label: t("Subtitles"), panel: "ai", status: project.cues.length ? "done" : "todo", next: t("Get the subtitles") },
+		{ id: "khmer", label: language, panel: "ai", status: translated ? "done" : "todo", next: t("Translate to {language}", { language }) },
+		{ id: "characters", label: t("Characters"), panel: "voice", status: voice.cast?.length ? "done" : "optional", next: t("Choose the characters' voices") },
 		// A voice-over is a choice: subtitles alone are a finished video too.
-		{ id: "voices", label: "Voices", panel: "voice", status: voiced ? "done" : voice.enabled ? "todo" : "optional", next: "Finish the voice-over" },
-		{ id: "style", label: "Style", panel: "style", status: styled ? "done" : "optional", next: "Style the subtitles" },
-		{ id: "export", label: "Export", panel: "post", status: exported ? "done" : "todo", next: "Export the video" },
+		{ id: "voices", label: t("Voices"), panel: "voice", status: voiced ? "done" : voice.enabled ? "todo" : "optional", next: t("Finish the voice-over") },
+		{ id: "style", label: t("Style"), panel: "style", status: styled ? "done" : "optional", next: t("Style the subtitles") },
+		{ id: "export", label: t("Export"), panel: "post", status: exported ? "done" : "todo", next: t("Export the video") },
 	];
 }
 
@@ -68,9 +71,9 @@ export function StepBar() {
 	};
 
 	return (
-		<nav aria-label="Steps" className="flex h-7 shrink-0 items-center gap-0.5 overflow-x-auto border-t bg-sidebar px-2 text-[11px] [scrollbar-width:none]">
+		<nav aria-label={t("Steps")} className="flex h-7 shrink-0 items-center gap-0.5 overflow-x-auto border-t bg-sidebar px-2 text-[11px] [scrollbar-width:none]">
 			{/* While a batch borrows the editor its project isn't yours to work on: no steps for it. */}
-			{locked && <span className="px-1.5 text-muted-foreground">The steps are back when the batch is done.</span>}
+			{locked && <span className="px-1.5 text-muted-foreground">{t("The steps are back when the batch is done.")}</span>}
 			{!locked && steps.map((step, i) => {
 				const current = step.id === currentId;
 				const content = (
@@ -84,7 +87,7 @@ export function StepBar() {
 							{step.status === "done" ? <Check className="size-2.5" strokeWidth={3.5} /> : i + 1}
 						</span>
 						<span className={cn(current ? "font-medium text-foreground" : "text-muted-foreground")}>{step.label}</span>
-						{step.status === "optional" && <span className="text-[10px] text-muted-foreground/60">optional</span>}
+						{step.status === "optional" && <span className="text-[10px] text-muted-foreground/60">{t("optional")}</span>}
 					</>
 				);
 				return (
@@ -109,17 +112,17 @@ export function StepBar() {
 					next.id === "export" ? (
 						<ExportMenu>
 							<Button size="xs" className="h-5 shrink-0 rounded-sm px-1.5 text-[11px]">
-								Next: {next.next} <ArrowRight />
+								{t("Next: {step}", { step: next.next })} <ArrowRight />
 							</Button>
 						</ExportMenu>
 					) : (
 						<Button size="xs" variant="outline" className="h-5 shrink-0 rounded-sm px-1.5 text-[11px]" onClick={() => open(next.panel)}>
-							Next: {next.next} <ArrowRight />
+							{t("Next: {step}", { step: next.next })} <ArrowRight />
 						</Button>
 					)
 				) : (
 					<span className="flex shrink-0 items-center gap-1 px-1 text-success">
-						<Check className="size-3" /> All done
+						<Check className="size-3" /> {t("All done")}
 					</span>
 				)}
 			</span>
@@ -135,6 +138,7 @@ export function StepBar() {
 }
 
 const EXPORT_SIZES: { quality: ExportQuality; label: string; hint: string; icon: ReactNode }[] = [
+	// Shown through t() (ExportMenu); their Khmer is in i18n/km/app.ts.
 	{ quality: "small", label: "Small", hint: "For TikTok and Facebook: they shrink videos anyway.", icon: <Minimize2 className="mt-0.5" /> },
 	{ quality: "standard", label: "Standard", hint: isMac ? "Fastest: uses the Mac's video chip. Good for YouTube." : "Quick to export. Good for YouTube.", icon: <Zap className="mt-0.5" /> },
 	{ quality: "high", label: "High", hint: "Best quality, about 3× slower to export.", icon: <Sparkles className="mt-0.5" /> },
@@ -153,10 +157,10 @@ export function ExportMenu({ children }: { children: ReactNode }) {
 						{o.icon}
 						<span className="min-w-0 flex-1">
 							<span className="flex justify-between gap-2">
-								<span>{o.label}</span>
+								<span>{t(o.label)}</span>
 								<span className="text-xs text-muted-foreground tabular-nums">{estimateSize(o.quality, ASPECT_SIZE[aspect].height, duration)}</span>
 							</span>
-							<span className="block text-xs text-muted-foreground">{o.hint}</span>
+							<span className="block text-xs text-muted-foreground">{t(o.hint)}</span>
 						</span>
 					</DropdownMenuItem>
 				))}
@@ -178,11 +182,11 @@ function BatchStatusItem() {
 	const position = inRun.filter((i) => i.status !== "waiting").length;
 	return (
 		<>
-			<button type="button" className="flex h-5 max-w-96 items-center gap-1.5 rounded-sm px-1.5 hover:bg-accent" onClick={() => useEditor.getState().openBatch(busy === "post" ? "ready" : "process")} title="Open Batch">
+			<button type="button" className="flex h-5 max-w-96 items-center gap-1.5 rounded-sm px-1.5 hover:bg-accent" onClick={() => useEditor.getState().openBatch(busy === "post" ? "ready" : "process")} title={t("Open Batch")}>
 				{running ? <Loader2 className="size-3 animate-spin text-primary" /> : <ListChecks className="size-3" />}
 				<span className="truncate">
-					{busy === "post" ? "Posting" : `Batch · ${Math.max(1, position)}/${Math.max(total, 1)}`}
-					{running ? ` · ${running.title} · ${running.current ? STEP_LABEL[running.current] : ""}` : ""}
+					{busy === "post" ? t("Posting") : `${t("Batch")} · ${Math.max(1, position)}/${Math.max(total, 1)}`}
+					{running ? ` · ${running.title} · ${running.current ? t(STEP_LABEL[running.current]) : ""}` : ""}
 				</span>
 			</button>
 			<span className="h-3 w-px bg-border" aria-hidden />

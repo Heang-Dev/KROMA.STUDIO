@@ -2,6 +2,8 @@
 // Lines are sent in batches joined by newlines and split back; a batch that doesn't split back cleanly is redone
 // line by line so every line keeps its own translation.
 
+import { t } from "@shared/i18n";
+
 const ENDPOINT = "https://translate.googleapis.com/translate_a/single";
 const MAX_QUERY_BYTES = 6000; // URL-encoded size of one request's text
 
@@ -41,7 +43,7 @@ async function request(text: string, signal: AbortSignal | undefined, target: st
 		const response = await fetch(url, { signal, headers: { "User-Agent": "Mozilla/5.0" } });
 		if (response.ok) return parseResponse(await response.json());
 		if ((response.status !== 429 && response.status < 500) || attempt >= 4)
-			throw new Error(response.status === 429 ? "Google Translate is busy (too many requests). Try again in a few minutes, or use Gemini." : `Google Translate error ${response.status}`);
+			throw new Error(response.status === 429 ? t("Google Translate is busy (too many requests). Try again in a few minutes, or use Gemini.") : t("Google Translate error {status}", { status: response.status }));
 		await new Promise((r) => setTimeout(r, 2 ** attempt * 3000));
 	}
 }

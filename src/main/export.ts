@@ -5,6 +5,7 @@ import { app, nativeImage } from "electron";
 import type { ExportRequest, FitMode } from "@shared/types";
 import { requireTool, run } from "./tools";
 import { buildVoiceTrack } from "./voice";
+import { t } from "@shared/i18n";
 
 // Renders the timeline with ffmpeg. Subtitles arrive as PNG images drawn by the editor (Chromium shapes Khmer
 // correctly, so the export looks exactly like the preview and doesn't depend on ffmpeg having libass).
@@ -16,7 +17,7 @@ export async function exportVideo(
 	onProgress: (progress: number, message: string) => void,
 	signal?: AbortSignal,
 ): Promise<string> {
-	if (!req.clips.length) throw new Error("The timeline is empty.");
+	if (!req.clips.length) throw new Error(t("The timeline is empty."));
 	const ffmpeg = requireTool("ffmpeg");
 	const dir = mkdtempSync(join(tmpdir(), "kroma-export-"));
 	const total = req.clips.reduce((n, c) => n + (c.out - c.in), 0);
@@ -115,7 +116,7 @@ export async function exportVideo(
 			req.outPath,
 		);
 
-		onProgress(0, "Exporting…");
+		onProgress(0, t("Exporting…"));
 		const lines: string[] = [];
 		await run(ffmpeg, args, {
 			signal,
@@ -124,7 +125,7 @@ export async function exportVideo(
 				const m = line.match(/^out_time_us=(\d+)/);
 				if (m) {
 					const seconds = Number(m[1]) / 1e6;
-					onProgress(Math.min(0.999, seconds / total), `Exporting · ${formatClock(seconds)} / ${formatClock(total)}`);
+					onProgress(Math.min(0.999, seconds / total), t("Exporting · {done} / {total}", { done: formatClock(seconds), total: formatClock(total) }));
 				}
 			},
 		}).catch((err: Error) => {

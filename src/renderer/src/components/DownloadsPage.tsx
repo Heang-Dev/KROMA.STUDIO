@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Ban, Check, ExternalLink, CircleAlert, CircleCheck, Clock, Download, FileInput, FileVideo, FolderInput, FolderOpen, Loader2, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { DEFAULT_DOWNLOAD_OPTIONS, type DownloadCenterState, type DownloadItem, type DownloadQuality, type ImportPick, type ListedSource, type ListedVideo, PLATFORMS, queueSummary } from "@shared/downloads";
+import { t } from "@shared/i18n";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,9 @@ const QUALITY: { value: DownloadQuality; label: string }[] = [
 	{ value: "480", label: "480p" },
 ];
 
+/** The status icons' hover text. */
+const STATUS_TEXT: Record<DownloadItem["status"], string> = { waiting: "Waiting", downloading: "Downloading", done: "Done", skipped: "Already downloaded", failed: "Failed", cancelled: "Cancelled" };
+
 const key = (source: ListedSource, video: ListedVideo) => `${source.url}\n${video.url}`;
 
 export function DownloadsPage() {
@@ -45,17 +49,17 @@ export function DownloadsPage() {
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
 			<PageHeader
 				icon={<Download />}
-				title="Downloads"
-				description="Whole series, playlists and channels — each video becomes its own project"
+				title={t("Downloads")}
+				description={t("Whole series, playlists and channels — each video becomes its own project")}
 				actions={tab === "queue" ? <QueueActions center={center} picked={picked} onSent={() => setPicked(new Set())} /> : undefined}
 			>
 				<Segmented
-						label="Queue or supported sites"
+						label={t("Queue or supported sites")}
 						size="sm"
 						value={tab}
 						options={[
-							{ value: "queue", label: `Queue${center.items.length ? ` (${center.items.length})` : ""}` },
-							{ value: "sites", label: "Supported sites" },
+							{ value: "queue", label: `${t("Queue")}${center.items.length ? ` (${center.items.length})` : ""}` },
+							{ value: "sites", label: t("Supported sites") },
 						]}
 					onChange={setTab}
 				/>
@@ -122,7 +126,7 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 			setSelected(new Set(found.flatMap((s) => s.items.filter((v) => !queued.has(v.url)).map((v) => key(s, v)))));
 			void fillTitles(found, run).finally(() => search.current === run && setTitles(null));
 		} catch (err) {
-			useEditor.getState().showToast("Couldn't read the links", "error", cleanError(err));
+			useEditor.getState().showToast(t("Couldn't read the links"), "error", cleanError(err));
 		} finally {
 			if (search.current === run) setFinding(false);
 		}
@@ -133,7 +137,7 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 		const start = (source.items[source.items.length - 1]?.index ?? 0) + 1;
 		const more = await window.kroma.listMoreDownloads(source.url, start);
 		setLoadingMore(null);
-		if (more.error) return useEditor.getState().showToast("Couldn't list more videos", "error", more.error);
+		if (more.error) return useEditor.getState().showToast(t("Couldn't list more videos"), "error", more.error);
 		setSources((current) => current.map((s) => (s.url === source.url ? { ...s, items: [...s.items, ...more.items], hasMore: more.hasMore } : s)));
 		setSelected((current) => new Set([...current, ...more.items.filter((v) => !queued.has(v.url)).map((v) => key(source, v))]));
 		void fillTitles([more], search.current);
@@ -164,7 +168,7 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 		}
 		setSelected(new Set());
 		const skipped = picked.length - added;
-		useEditor.getState().showToast(added ? `Added ${added} video${added === 1 ? "" : "s"} to the queue` : "Those videos are already in the queue", "info", skipped && added ? `${skipped} were already in the queue.` : undefined);
+		useEditor.getState().showToast(added ? (added === 1 ? t("Added {n} video to the queue", { n: added }) : t("Added {n} videos to the queue", { n: added })) : t("Those videos are already in the queue"), "info", skipped && added ? t("{n} were already in the queue.", { n: skipped }) : undefined);
 		onAdded();
 	};
 
@@ -173,11 +177,11 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 		try {
 			const pick = await window.kroma.pickImport(kind);
 			if (!pick) return;
-			if (!pick.files.length) return useEditor.getState().showToast("No video files in that folder", "error", "Kroma looks for mp4, mov, mkv, webm, m4v, avi and flv files directly in the folder (not in folders inside it).");
+			if (!pick.files.length) return useEditor.getState().showToast(t("No video files in that folder"), "error", t("Kroma looks for mp4, mov, mkv, webm, m4v, avi and flv files directly in the folder (not in folders inside it)."));
 			setImports(pick);
 			setImportSel(new Set(pick.files.filter((f) => f.media).map((f) => f.path)));
 		} catch (err) {
-			useEditor.getState().showToast("Couldn't read the files", "error", cleanError(err));
+			useEditor.getState().showToast(t("Couldn't read the files"), "error", cleanError(err));
 		} finally {
 			setImporting(false);
 		}
@@ -189,7 +193,7 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 		const made = await window.kroma.importProjects(files, imports.group, imports.files.length);
 		setImports(null);
 		setImportSel(new Set());
-		useEditor.getState().showToast(`Made ${made} project${made === 1 ? "" : "s"}`, "info", "They're in the queue on the right: press Open project to start one.");
+		useEditor.getState().showToast(made === 1 ? t("Made {n} project", { n: made }) : t("Made {n} projects", { n: made }), "info", t("They're in the queue on the right: press Open project to start one."));
 		onAdded();
 	};
 
@@ -198,7 +202,7 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 	return (
 		<aside className="flex w-[420px] shrink-0 flex-col border-r bg-sidebar">
 			<div className="@container min-h-0 flex-1 divide-y overflow-y-auto">
-			<Section title="Add videos" hint="A video, a series, a collection or a channel — paste links, one per line.">
+			<Section title={t("Add videos")} hint={t("A video, a series, a collection or a channel — paste links, one per line.")}>
 			<form
 				className="space-y-2"
 				onSubmit={(e) => {
@@ -207,7 +211,7 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 				}}
 			>
 				<textarea
-					aria-label="Links"
+					aria-label={t("Links")}
 					value={text}
 					onChange={(e) => setText(e.target.value)}
 					onKeyDown={(e) => {
@@ -217,29 +221,29 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 						}
 					}}
 					rows={4}
-					placeholder={"Paste links — a Bilibili / Douyin / YouTube video, a series, a collection or a channel (one per line)\n\nShare messages work too: 【第1集】 https://b23.tv/…"}
+					placeholder={t("Paste links — a Bilibili / Douyin / YouTube video, a series, a collection or a channel (one per line)\n\nShare messages work too: 【第1集】 https://b23.tv/…")}
 					className="w-full resize-none rounded-md border border-input bg-background/50 px-3 py-2 text-xs leading-relaxed outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
 				/>
 				<div className="flex items-center gap-2">
 					<Button type="submit" size="sm" className="w-full" disabled={finding || !text.trim()}>
-						{finding ? <Loader2 className="animate-spin" /> : <Search />} {finding ? "Finding…" : "Find videos"}
+						{finding ? <Loader2 className="animate-spin" /> : <Search />} {finding ? t("Finding…") : t("Find videos")}
 					</Button>
 				</div>
 				{titles && (
 					<p className="flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums">
-						<Loader2 className="size-3 animate-spin" /> Getting titles {titles.done}/{titles.total}
+						<Loader2 className="size-3 animate-spin" /> {t("Getting titles {done}/{total}", { done: titles.done, total: titles.total })}
 					</p>
 				)}
 			</form>
 			</Section>
 
-			<Section title="Your own files" hint="Episodes you already have: each becomes its own project, in order (EP1, EP2, … EP10).">
+			<Section title={t("Your own files")} hint={t("Episodes you already have: each becomes its own project, in order (EP1, EP2, … EP10).")}>
 				<div className="grid grid-cols-2 gap-2">
-					<Button type="button" variant="outline" size="sm" className="min-w-0" disabled={importing} title="Make projects from video files you already have" onClick={() => void pickFiles("files")}>
-						<FileInput /> Import files…
+					<Button type="button" variant="outline" size="sm" className="min-w-0" disabled={importing} title={t("Make projects from video files you already have")} onClick={() => void pickFiles("files")}>
+						<FileInput /> {t("Import files…")}
 					</Button>
-					<Button type="button" variant="outline" size="sm" className="min-w-0" disabled={importing} title="Make projects from the videos in a folder (EP1, EP2, … in order)" onClick={() => void pickFiles("folder")}>
-						<FolderInput /> Import a folder…
+					<Button type="button" variant="outline" size="sm" className="min-w-0" disabled={importing} title={t("Make projects from the videos in a folder (EP1, EP2, … in order)")} onClick={() => void pickFiles("folder")}>
+						<FolderInput /> {t("Import a folder…")}
 					</Button>
 				</div>
 			</Section>
@@ -247,18 +251,18 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 				{/* What was found */}
 				{imports && <ImportGroup pick={imports} selected={importSel} onChange={setImportSel} onClose={() => setImports(null)} />}
 				{sources.length === 0 && !imports ? (
-					<Section title="How it works" hint="Paste links and press Find videos, then tick the videos you want before anything starts. A whole series downloads as one folder, and each episode becomes its own project, ready to translate and voice.">
+					<Section title={t("How it works")} hint={t("Paste links and press Find videos, then tick the videos you want before anything starts. A whole series downloads as one folder, and each episode becomes its own project, ready to translate and voice.")}>
 						<span />
 					</Section>
 				) : (
 					sources.map((source) => <SourceGroup key={source.url} source={source} selected={selected} queued={queued} loadingMore={loadingMore === source.url} onToggle={toggle} onSelectAll={selectAll} onLoadMore={() => void loadMore(source)} />)
 				)}
 
-				<Section title="Options" hint="For the videos you download next.">
+				<Section title={t("Options")} hint={t("For the videos you download next.")}>
 				<Card>
-					<Row stack label="Quality" control={<Segmented label="Quality" equalWidth value={options.quality} options={QUALITY} onChange={(quality) => setOption({ quality })} />} />
-					<Row label="Site subtitles" control={<Switch checked={options.subtitles} onCheckedChange={(subtitles) => setOption({ subtitles })} aria-label="Site subtitles" />} />
-					<Row label="Make a project for each video" control={<Switch checked={options.makeProjects} onCheckedChange={(makeProjects) => setOption({ makeProjects })} aria-label="Make a project for each video" />} />
+					<Row stack label={t("Quality")} control={<Segmented label={t("Quality")} equalWidth value={options.quality} options={QUALITY} onChange={(quality) => setOption({ quality })} />} />
+					<Row label={t("Site subtitles")} control={<Switch checked={options.subtitles} onCheckedChange={(subtitles) => setOption({ subtitles })} aria-label={t("Site subtitles")} />} />
+					<Row label={t("Make a project for each video")} control={<Switch checked={options.makeProjects} onCheckedChange={(makeProjects) => setOption({ makeProjects })} aria-label={t("Make a project for each video")} />} />
 				</Card>
 				</Section>
 			</div>
@@ -267,11 +271,11 @@ function AddVideos({ center, onAdded }: { center: DownloadCenterState; onAdded: 
 			<div className="shrink-0 space-y-2 border-t p-4">
 				{imports && (
 					<Button className="w-full" variant={picked.length ? "outline" : "default"} disabled={!importPicked.length} onClick={() => void makeProjects()}>
-						<FileVideo /> {importPicked.length ? `Make ${importPicked.length} project${importPicked.length === 1 ? "" : "s"}` : "Make projects"}
+						<FileVideo /> {importPicked.length ? (importPicked.length === 1 ? t("Make {n} project", { n: 1 }) : t("Make {n} projects", { n: importPicked.length })) : t("Make projects")}
 					</Button>
 				)}
 				<Button className={cn("w-full", imports && !sources.length && "hidden")} disabled={!picked.length} onClick={() => void add()}>
-					<Download /> {picked.length ? `Download ${picked.length} video${picked.length === 1 ? "" : "s"}` : "Download"}
+					<Download /> {picked.length ? (picked.length === 1 ? t("Download {n} video", { n: 1 }) : t("Download {n} videos", { n: picked.length })) : t("Download")}
 				</Button>
 			</div>
 		</aside>
@@ -290,21 +294,21 @@ function ImportGroup({ pick, selected, onChange, onClose }: { pick: ImportPick; 
 	return (
 		<div className="px-4 py-4">
 		<PageSection
-			title={<span className="min-w-0 truncate" title={pick.group}>{pick.group}</span>}
-			description={`Your files · ${pick.files.length} video${pick.files.length === 1 ? "" : "s"} · ${selected.size} picked. Kroma uses the files where they are — don't move or delete them. Subtitle files with the same name (EP1.srt, EP1.zh.srt) come along.`}
+			title={<span className="min-w-0 truncate" title={t(pick.group)}>{t(pick.group)}</span>}
+			description={`${t("Your files")} · ${pick.files.length === 1 ? t("{n} video", { n: 1 }) : t("{n} videos", { n: pick.files.length })} · ${t("{n} picked", { n: selected.size })}. ${t("Kroma uses the files where they are — don't move or delete them. Subtitle files with the same name (EP1.srt, EP1.zh.srt) come along.")}`}
 			action={
 				<div className="flex gap-0.5">
 					{usable.length > 1 && (
 						<>
 							<Button variant="ghost" size="xs" onClick={() => onChange(new Set(usable.map((f) => f.path)))}>
-								All
+								{t("All")}
 							</Button>
 							<Button variant="ghost" size="xs" onClick={() => onChange(new Set())}>
-								None
+								{t("None")}
 							</Button>
 						</>
 					)}
-					<IconButton label="Close" size="icon-xs" onClick={onClose}>
+					<IconButton label={t("Close")} size="icon-xs" onClick={onClose}>
 						<X />
 					</IconButton>
 				</div>
@@ -358,15 +362,15 @@ function SourceGroup({
 		<div className="px-4 py-4">
 		<PageSection
 			title={<span className="min-w-0 truncate" title={source.title}>{source.title}</span>}
-			description={source.error ? "Couldn't read this link" : `${KIND_LABEL[source.kind]} · ${count} video${count === 1 ? "" : "s"}${source.items.length < count ? ` · ${source.items.length} listed` : ""} · ${picked} picked`}
+			description={source.error ? t("Couldn't read this link") : `${t(KIND_LABEL[source.kind])} · ${count === 1 ? t("{n} video", { n: 1 }) : t("{n} videos", { n: count })}${source.items.length < count ? ` · ${t("{n} listed", { n: source.items.length })}` : ""} · ${t("{n} picked", { n: picked })}`}
 			action={
 				source.items.length > 1 && (
 					<div className="flex gap-0.5">
 						<Button variant="ghost" size="xs" onClick={() => onSelectAll(source, true)}>
-							All
+							{t("All")}
 						</Button>
 						<Button variant="ghost" size="xs" onClick={() => onSelectAll(source, false)}>
-							None
+							{t("None")}
 						</Button>
 					</div>
 				)
@@ -386,7 +390,7 @@ function SourceGroup({
 								<span className={cn("min-w-0 flex-1 truncate text-xs", v.untitled && "text-muted-foreground")} title={v.title}>
 									{v.title}
 								</span>
-								{inQueue && <span className="shrink-0 text-[10px] text-muted-foreground">In queue</span>}
+								{inQueue && <span className="shrink-0 text-[10px] text-muted-foreground">{t("In queue")}</span>}
 								{v.duration !== undefined && <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">{formatTime(v.duration)}</span>}
 							</label>
 						);
@@ -395,7 +399,7 @@ function SourceGroup({
 			)}
 			{source.hasMore && (
 				<Button variant="outline" size="xs" disabled={loadingMore} onClick={onLoadMore}>
-					{loadingMore ? <Loader2 className="animate-spin" /> : null} Load more
+					{loadingMore ? <Loader2 className="animate-spin" /> : null} {t("Load more")}
 				</Button>
 			)}
 		</PageSection>
@@ -414,7 +418,7 @@ function QueueActions({ center, picked, onSent }: { center: DownloadCenterState;
 		const added = addToBatch(toBatch.map((i) => i.projectPath!));
 		onSent();
 		useEditor.getState().openBatch("process");
-		useEditor.getState().showToast(added ? `${added} video${added === 1 ? "" : "s"} ready to process` : "Those are already in Batch", "info", added ? "Choose the steps, then press Process." : undefined);
+		useEditor.getState().showToast(added ? (added === 1 ? t("{n} video ready to process", { n: added }) : t("{n} videos ready to process", { n: added })) : t("Those are already in Batch"), "info", added ? t("Choose the steps, then press Process.") : undefined);
 	};
 	const failed = center.items.some((i) => i.status === "failed" || i.status === "cancelled");
 	const finished = center.items.some((i) => i.status === "done" || i.status === "skipped");
@@ -424,32 +428,32 @@ function QueueActions({ center, picked, onSent }: { center: DownloadCenterState;
 			<span className="hidden truncate text-xs text-muted-foreground tabular-nums xl:block">{queueSummary(center.items)}</span>
 			{(active || center.paused) && (
 				<Button variant="outline" size="sm" onClick={() => void window.kroma.pauseDownloads(!center.paused)}>
-					{center.paused ? <Play /> : <Pause />} {center.paused ? "Resume" : "Pause"}
+					{center.paused ? <Play /> : <Pause />} {center.paused ? t("Resume") : t("Pause")}
 				</Button>
 			)}
 			{failed && (
 				<Button variant="outline" size="sm" onClick={() => void window.kroma.retryFailedDownloads()}>
-					<RotateCcw /> Retry failed
+					<RotateCcw /> {t("Retry failed")}
 				</Button>
 			)}
 			{finished && (
 				<Button variant="outline" size="sm" onClick={() => void window.kroma.clearFinishedDownloads()}>
-					Clear finished
+					{t("Clear finished")}
 				</Button>
 			)}
 			{toBatch.length > 0 && (
-				<Button size="sm" onClick={process} title="Run every step on them in Batch (subtitles, translation, voice-over, export…)">
-					Process {toBatch.length} selected <ArrowRight />
+				<Button size="sm" onClick={process} title={t("Run every step on them in Batch (subtitles, translation, voice-over, export…)")}>
+					{t("Process {n} selected", { n: toBatch.length })} <ArrowRight />
 				</Button>
 			)}
 			<AppSelect
-				label="Downloads at the same time"
+				label={t("Downloads at the same time")}
 				className="w-36 shrink-0"
 				value={String(center.options.concurrency) as "1" | "2" | "3"}
 				options={[
-					{ value: "1", label: "1 at a time" },
-					{ value: "2", label: "2 at a time" },
-					{ value: "3", label: "3 at a time" },
+					{ value: "1", label: t("{n} at a time", { n: 1 }) },
+					{ value: "2", label: t("{n} at a time", { n: 2 }) },
+					{ value: "3", label: t("{n} at a time", { n: 3 }) },
 				]}
 				onChange={(v) => void window.kroma.setDownloadOptions({ concurrency: Number(v) as 1 | 2 | 3 })}
 			/>
@@ -474,11 +478,11 @@ function Queue({ center, picked, onPick, onShowSites }: { center: DownloadCenter
 		return (
 			<EmptyState
 				scene="download"
-				title="Nothing downloading yet"
-				description="Paste links on the left and press Find videos. Videos download here one after another, and keep going while you work on other pages."
+				title={t("Nothing downloading yet")}
+				description={t("Paste links on the left and press Find videos. Videos download here one after another, and keep going while you work on other pages.")}
 				action={
 					<Button variant="outline" size="sm" onClick={onShowSites}>
-						Which sites work?
+						{t("Which sites work?")}
 					</Button>
 				}
 			/>
@@ -489,7 +493,7 @@ function Queue({ center, picked, onPick, onShowSites }: { center: DownloadCenter
 			{center.paused && (
 				<div role="status" className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3.5 py-2.5 text-xs">
 					<Pause className="mt-0.5 size-3.5 shrink-0" />
-					<span className="min-w-0 flex-1">{center.pauseReason ?? "Paused. Downloads that were running finish; press Resume to start the rest."}</span>
+					<span className="min-w-0 flex-1">{center.pauseReason ?? t("Paused. Downloads that were running finish; press Resume to start the rest.")}</span>
 				</div>
 			)}
 			{groups.map(([group, items]) => {
@@ -498,12 +502,12 @@ function Queue({ center, picked, onPick, onShowSites }: { center: DownloadCenter
 				return (
 				<PageSection
 					key={group}
-					title={<span className="min-w-0 truncate" title={group}>{group}</span>}
+					title={<span className="min-w-0 truncate" title={t(group)}>{t(group)}</span>}
 					description={queueSummary(items)}
 					action={
 						ready.length > 1 && (
 							<Button variant="ghost" size="xs" onClick={() => onPick(new Set([...[...picked].filter((id) => !ready.some((i) => i.id === id)), ...(all ? [] : ready.map((i) => i.id))]))}>
-								{all ? "Select none" : "Select finished"}
+								{all ? t("Select none") : t("Select finished")}
 							</Button>
 						)
 					}
@@ -530,7 +534,7 @@ function StatusIcon({ status }: { status: DownloadItem["status"] }) {
 		cancelled: <Ban className="text-muted-foreground" />,
 	}[status];
 	return (
-		<span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4" title={status}>
+		<span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4" title={t(STATUS_TEXT[status])}>
 			{icon}
 		</span>
 	);
@@ -540,27 +544,27 @@ function QueueRow({ item, picked, onPick }: { item: DownloadItem; picked: boolea
 	const detail = (() => {
 		switch (item.status) {
 			case "waiting":
-				return "Waiting";
+				return t("Waiting");
 			case "downloading": {
 				if (item.message) return item.message;
 				const pct = item.progress >= 0 ? `${Math.round(item.progress * 100)}%` : "";
-				return [pct, transferText(item)].filter(Boolean).join(" · ") || "Starting…";
+				return [pct, transferText(item)].filter(Boolean).join(" · ") || t("Starting…");
 			}
 			case "done":
-				if (item.imported) return "Your file · project ready";
-				return item.projectPath ? "Downloaded · project ready" : "Downloaded";
+				if (item.imported) return t("Your file · project ready");
+				return item.projectPath ? t("Downloaded · project ready") : t("Downloaded");
 			case "skipped":
-				return item.projectPath ? "Already downloaded · project ready" : "Already downloaded";
+				return item.projectPath ? t("Already downloaded · project ready") : t("Already downloaded");
 			case "failed":
-				return item.error ?? "Failed";
+				return item.error ?? t("Failed");
 			case "cancelled":
-				return "Cancelled";
+				return t("Cancelled");
 		}
 	})();
 	const open = () => item.projectPath && void openProjectAt(item.projectPath);
 	return (
 		<div className="flex items-center gap-3 px-3.5 py-2">
-			{onPick ? <Checkbox checked={picked} onCheckedChange={(on) => onPick(on === true)} aria-label={`Select ${item.title} to process`} /> : <span className="size-4 shrink-0" />}
+			{onPick ? <Checkbox checked={picked} onCheckedChange={(on) => onPick(on === true)} aria-label={t("Select {name} to process", { name: item.title })} /> : <span className="size-4 shrink-0" />}
 			<StatusIcon status={item.status} />
 			{item.index > 0 && <span className="w-7 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums">{item.index}</span>}
 			<div className="min-w-0 flex-1 space-y-1">
@@ -576,26 +580,26 @@ function QueueRow({ item, picked, onPick }: { item: DownloadItem; picked: boolea
 			<div className="flex shrink-0 items-center gap-0.5">
 				{(item.status === "done" || item.status === "skipped") && item.projectPath && (
 					<Button variant="outline" size="xs" onClick={open}>
-						<FileVideo /> Open project
+						<FileVideo /> {t("Open project")}
 					</Button>
 				)}
 				{(item.status === "failed" || item.status === "cancelled") && (
 					<Button variant="outline" size="xs" onClick={() => void window.kroma.retryDownload(item.id)}>
-						<RotateCcw /> Retry
+						<RotateCcw /> {t("Retry")}
 					</Button>
 				)}
 				{(item.status === "waiting" || item.status === "downloading") && (
-					<IconButton label="Cancel" size="icon-xs" onClick={() => void window.kroma.cancelDownload(item.id)}>
+					<IconButton label={t("Cancel")} size="icon-xs" onClick={() => void window.kroma.cancelDownload(item.id)}>
 						<X />
 					</IconButton>
 				)}
 				{(item.mediaPath || item.projectPath) && (
-					<IconButton label="Show in folder" size="icon-xs" onClick={() => void window.kroma.showDownload(item.id)}>
+					<IconButton label={t("Show in folder")} size="icon-xs" onClick={() => void window.kroma.showDownload(item.id)}>
 						<FolderOpen />
 					</IconButton>
 				)}
 				{item.status !== "downloading" && (
-					<IconButton label="Remove from the list (the files stay)" size="icon-xs" onClick={() => void window.kroma.removeDownload(item.id)}>
+					<IconButton label={t("Remove from the list (the files stay)")} size="icon-xs" onClick={() => void window.kroma.removeDownload(item.id)}>
 						<Trash2 />
 					</IconButton>
 				)}
@@ -623,11 +627,11 @@ function Sites() {
 				{(["chinese", "global"] as const).map((region) => (
 					<PageSection
 						key={region}
-						title={region === "chinese" ? "Chinese sites" : "Global sites"}
+						title={region === "chinese" ? t("Chinese sites") : t("Global sites")}
 						description={
 							region === "chinese"
-								? "Protected (DRM) VIP episodes can't be downloaded by any app like this one. Videos that need an account work after you turn on browser logins in Settings → Downloads."
-								: "Videos that need an account work after you turn on browser logins in Settings → Downloads."
+								? t("Protected (DRM) VIP episodes can't be downloaded by any app like this one. Videos that need an account work after you turn on browser logins in Settings → Downloads.")
+								: t("Videos that need an account work after you turn on browser logins in Settings → Downloads.")
 						}
 					>
 						<ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -639,17 +643,17 @@ function Sites() {
 										</p>
 										{p.support === "yes" ? (
 											<span className="flex shrink-0 items-center gap-1 rounded-sm border border-success/40 px-1.5 text-[10px] leading-5 text-success">
-												<Check className="size-3" /> Works
+												<Check className="size-3" /> {t("Works")}
 											</span>
 										) : (
-											<span className="shrink-0 rounded-sm border border-warning/40 px-1.5 text-[10px] leading-5 text-warning">Free only</span>
+											<span className="shrink-0 rounded-sm border border-warning/40 px-1.5 text-[10px] leading-5 text-warning">{t("Free only")}</span>
 										)}
 									</div>
-									<p className="flex-1 text-xs leading-relaxed text-muted-foreground">{p.note}</p>
+									<p className="flex-1 text-xs leading-relaxed text-muted-foreground">{t(p.note)}</p>
 									<div className="flex items-center justify-between gap-2 border-t pt-2">
 										<span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">{new URL(p.url).host.replace(/^www\./, "")}</span>
-										<Button variant="outline" size="xs" className="shrink-0" onClick={() => void window.kroma.openExternal(p.url)} aria-label={`Open ${p.name} in your browser`}>
-											Open site <ExternalLink />
+										<Button variant="outline" size="xs" className="shrink-0" onClick={() => void window.kroma.openExternal(p.url)} aria-label={t("Open {name} in your browser", { name: p.name })}>
+											{t("Open site")} <ExternalLink />
 										</Button>
 									</div>
 								</li>
@@ -658,22 +662,22 @@ function Sites() {
 					</PageSection>
 				))}
 				<PageSection
-					title={`Every site${all ? ` (${all.length.toLocaleString()})` : ""}`}
-					description="Everything yt-dlp, the downloader inside Kroma, can read."
-					action={<Input aria-label="Search sites" placeholder="Search sites" className="w-56 text-xs" value={query} onChange={(e) => setQuery(e.target.value)} />}
+					title={`${t("Every site")}${all ? ` (${all.length.toLocaleString()})` : ""}`}
+					description={t("Everything yt-dlp, the downloader inside Kroma, can read.")}
+					action={<Input aria-label={t("Search sites")} placeholder={t("Search sites")} className="w-56 text-xs" value={query} onChange={(e) => setQuery(e.target.value)} />}
 				>
 					{all === null ? (
 						<p className="flex items-center gap-2 text-xs text-muted-foreground">
-							<Loader2 className="size-3 animate-spin" /> Loading the list…
+							<Loader2 className="size-3 animate-spin" /> {t("Loading the list…")}
 						</p>
 					) : matches.length === 0 ? (
-						<EmptyState fill={false} compact className="rounded-lg border border-dashed" scene={all.length ? "search" : "error"} tone={all.length ? "primary" : "warning"} title={all.length ? "No site matches" : "The list isn't available"} description={all.length ? `Nothing called "${query}". Sites not listed may still work: try the link.` : "yt-dlp, the downloader inside Kroma, is missing."} />
+						<EmptyState fill={false} compact className="rounded-lg border border-dashed" scene={all.length ? "search" : "error"} tone={all.length ? "primary" : "warning"} title={all.length ? t("No site matches") : t("The list isn't available")} description={all.length ? t("Nothing called \"{query}\". Sites not listed may still work: try the link.", { query }) : t("yt-dlp, the downloader inside Kroma, is missing.")} />
 					) : (
 						<ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-4 rounded-lg border bg-card/50 px-3.5 py-2.5">
 							{matches.map((s) => (
-								<li key={s.name} className={cn("flex h-6 min-w-0 items-center gap-1.5 text-xs", s.broken && "text-muted-foreground")} title={s.broken ? `${s.name}: not working right now` : s.name}>
+								<li key={s.name} className={cn("flex h-6 min-w-0 items-center gap-1.5 text-xs", s.broken && "text-muted-foreground")} title={s.broken ? t("{name}: not working right now", { name: s.name }) : s.name}>
 									<span className="truncate">{s.name}</span>
-									{s.broken && <span className="shrink-0 text-[10px]">not working</span>}
+									{s.broken && <span className="shrink-0 text-[10px]">{t("not working")}</span>}
 								</li>
 							))}
 						</ul>

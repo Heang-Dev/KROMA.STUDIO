@@ -5,5 +5,7 @@ declare global {
 		kroma: KromaApi;
 		/** "darwin", "win32" or "linux". */
 		kromaPlatform: string;
+		/** The interface language the window opened in: "en" or "km". */
+		kromaLanguage: string;
 	}
 }

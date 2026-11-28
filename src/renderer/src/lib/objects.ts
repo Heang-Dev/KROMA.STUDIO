@@ -1,6 +1,7 @@
 import { ASPECT_SIZE, type Project, type VideoObject } from "@shared/types";
 import { runTask, useEditor } from "@/state/store";
 import { uid } from "./timeline";
+import { t } from "@shared/i18n";
 
 // Objects over the video (blur boxes, logos, text), placed in fractions of the output frame so the preview and the
 // export line up exactly. Text is drawn by the editor (Chromium shapes Khmer) and exported as an image.
@@ -73,11 +74,11 @@ export async function coverOriginalSubtitles(options: { quiet?: boolean } = {}):
 	const { project } = state();
 	const media = project.media.find((m) => m.id === project.clips[0]?.mediaId);
 	if (!media) {
-		if (!options.quiet) state().showToast("Add a video first.", "error");
+		if (!options.quiet) state().showToast(t("Add a video first."), "error");
 		return false;
 	}
 	// Wrapped, so "none found" (null) isn't taken for a failure (runTask gives null then).
-	const result = await runTask(`hardsubs-${Date.now()}`, "Find burned-in subtitles", async (id) => ({ found: await window.kroma.findBurnedSubtitles(id, media.path, media.duration) }), { kind: "subtitles", done: false, failed: "Couldn't look for burned-in subtitles" });
+	const result = await runTask(`hardsubs-${Date.now()}`, "Find burned-in subtitles", async (id) => ({ found: await window.kroma.findBurnedSubtitles(id, media.path, media.duration) }), { kind: "subtitles", done: false, failed: t("Couldn't look for burned-in subtitles") });
 	if (!result) return false;
 	const { found } = result;
 	const guess = { x: 0.08, y: 0.8, w: 0.84, h: 0.14 };
@@ -87,9 +88,9 @@ export async function coverOriginalSubtitles(options: { quiet?: boolean } = {}):
 	if (!options.quiet) state().select({ kind: "object", id: box.id });
 	if (!options.quiet)
 		state().showToast(
-			found ? "Covered the burned-in subtitles" : "No burned-in subtitles found",
+			found ? t("Covered the burned-in subtitles") : t("No burned-in subtitles found"),
 			found ? "info" : "error",
-			found ? "The blur box sits over them for the whole video. Drag its edges to adjust." : "The box is where subtitles usually are: move it if needed, or delete it.",
+			found ? t("The blur box sits over them for the whole video. Drag its edges to adjust.") : t("The box is where subtitles usually are: move it if needed, or delete it."),
 		);
 	return Boolean(found);
 }
@@ -127,7 +128,7 @@ function imageSize(path: string): Promise<{ width: number; height: number }> {
 	return new Promise((resolve, reject) => {
 		const img = new Image();
 		img.onload = () => resolve({ width: img.naturalWidth || 1, height: img.naturalHeight || 1 });
-		img.onerror = () => reject(new Error("Couldn't open that image."));
+		img.onerror = () => reject(new Error(t("Couldn't open that image.")));
 		img.src = `kroma://media${path.split("/").map(encodeURIComponent).join("/")}`;
 	});
 }

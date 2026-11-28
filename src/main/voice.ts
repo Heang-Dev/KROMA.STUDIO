@@ -7,6 +7,7 @@ import { planVoice } from "@shared/voice";
 import { languageOf, languageOfVoice } from "@shared/languages";
 import { LIBRARY_DIR } from "./download";
 import { mapLimit, requireTool, runBuffer } from "./tools";
+import { t } from "@shared/i18n";
 
 // Khmer voice-over with Microsoft's neural Khmer voices (the free Edge read-aloud service: no key, runs in the cloud).
 // Lines are cached by (text, voice, speed), so editing one line only re-speaks that line.
@@ -28,7 +29,7 @@ export async function synthesizeLines(
 	let done = 0;
 	let failed = 0;
 	let lastError = "";
-	onProgress(0, `Speaking 0/${lines.length} lines`);
+	onProgress(0, t("Speaking {done}/{total} lines", { done: 0, total: lines.length }));
 
 	const workers = Array.from({ length: Math.min(PARALLEL, lines.length) }, () => ({ tts: null as MsEdgeTTS | null }));
 	let next = 0;
@@ -67,13 +68,13 @@ export async function synthesizeLines(
 					worker.tts = null; // reconnect for the next line
 				}
 				done += 1;
-				onProgress(done / lines.length, `Speaking ${done}/${lines.length} lines${failed ? ` · ${failed} failed` : ""}`);
+				onProgress(done / lines.length, `${t("Speaking {done}/{total} lines", { done, total: lines.length })}${failed ? ` · ${t("{n} failed", { n: failed })}` : ""}`);
 			}
 			worker.tts?.close();
 		}),
 	);
 	if (signal?.aborted) throw new Error("Cancelled");
-	if (failed === lines.length) throw new Error(`The voice service didn't answer: ${lastError}`);
+	if (failed === lines.length) throw new Error(t("The voice service didn't answer: {error}", { error: lastError }));
 	return result;
 }
 
@@ -82,21 +83,21 @@ export async function synthesizeLines(
 export async function instantSample(voice: string, rate: number): Promise<string> {
 	const result = await synthesizeLines([{ id: "sample", text: (languageOfVoice(voice) ?? languageOf()).sample }], voice, rate, () => undefined);
 	const line = result.sample;
-	if (!line) throw new Error("The voice service didn't answer. Check your internet and try again.");
+	if (!line) throw new Error(t("The voice service didn't answer. Check your internet and try again."));
 	return line.path;
 }
 
 async function speak(tts: MsEdgeTTS, text: string, rate: number): Promise<Buffer> {
 	const { audioStream } = tts.toStream(escapeXml(text), { rate: `${rate >= 0 ? "+" : ""}${rate}%` });
 	const chunks: Buffer[] = [];
-	const timeout = setTimeout(() => audioStream.destroy(new Error("The voice service timed out")), 30_000);
+	const timeout = setTimeout(() => audioStream.destroy(new Error(t("The voice service timed out"))), 30_000);
 	try {
 		for await (const chunk of audioStream) chunks.push(chunk as Buffer);
 	} finally {
 		clearTimeout(timeout);
 	}
 	const audio = Buffer.concat(chunks);
-	if (audio.length < 500) throw new Error("The voice service returned no audio");
+	if (audio.length < 500) throw new Error(t("The voice service returned no audio"));
 	return audio;
 }
 
@@ -115,7 +116,7 @@ export async function buildVoiceTrack(lines: VoiceCue[], total: number, outPath:
 	const pcm = await mapLimit(sorted, 6, async (line, i) => {
 		const data = await runBuffer(ffmpeg, ["-v", "error", "-i", line.path, "-filter:a", tempoFilter(plan[i].tempo), "-ac", "1", "-ar", String(SAMPLE_RATE), "-f", "s16le", "pipe:1"], signal);
 		decoded += 1;
-		if (decoded % 20 === 0) onProgress(decoded / sorted.length, `Preparing the voice-over ${decoded}/${sorted.length}`);
+		if (decoded % 20 === 0) onProgress(decoded / sorted.length, t("Preparing the voice-over {done}/{total}", { done: decoded, total: sorted.length }));
 		return data;
 	});
 

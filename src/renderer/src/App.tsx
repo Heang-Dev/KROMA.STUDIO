@@ -19,6 +19,7 @@ import { BatchPage } from "./components/BatchPage";
 import * as batch from "./lib/batch";
 import { loadBatch, stopBatch, useBatch } from "./lib/batch";
 import { STEP_LABEL, stepText } from "@shared/batch";
+import { t } from "@shared/i18n";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./components/ui/tooltip";
 import { NotificationBell } from "./components/NotificationBell";
 import kromaIcon from "./assets/kroma-icon.png";
@@ -102,7 +103,7 @@ export function App() {
 		// Browser-style notice when the interface size changes.
 		const stopZoom = window.kroma.onZoomChanged((zoom) => {
 			setZoomVar(zoom);
-			toast.info(`Interface size ${Math.round(zoom * 100)}%`, { id: "zoom", duration: 1200 });
+			toast.info(t("Interface size {percent}%", { percent: Math.round(zoom * 100) }), { id: "zoom", duration: 1200 });
 		});
 		const stopFullscreen = window.kroma.onFullscreenChanged((on) => document.documentElement.toggleAttribute("data-fullscreen", on));
 		return () => {
@@ -119,8 +120,8 @@ export function App() {
 				<BatchBanner />
 				{missingTools.length > 0 && (
 					<div role="alert" className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-						<TriangleAlert className="size-4" /> Missing {missingTools.join(", ")}. Install with:
-						{[missingTools.some((t) => t.startsWith("ff")) && installHints.ffmpeg, missingTools.includes("yt-dlp") && installHints.ytdlp].filter(Boolean).map((hint) => (
+						<TriangleAlert className="size-4" /> {t("Missing {tools}. Install with:", { tools: missingTools.join(", ") })}
+						{[missingTools.some((tool) => tool.startsWith("ff")) && installHints.ffmpeg, missingTools.includes("yt-dlp") && installHints.ytdlp].filter(Boolean).map((hint) => (
 							<code key={String(hint)} className="rounded-sm bg-background/60 px-1.5 py-0.5">
 								{hint}
 							</code>
@@ -152,7 +153,7 @@ export function App() {
 											{panel === "objects" && <ObjectsPanel />}
 											{panel === "post" && <PostPanel />}
 										</aside>
-										<ResizeHandle panel="left" edge="right" label="Resize the tools panel" />
+										<ResizeHandle panel="left" edge="right" label={t("Resize the tools panel")} />
 									</div>
 									<main className="flex min-w-0 flex-1 flex-col bg-background">
 										<Preview />
@@ -185,7 +186,7 @@ function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" |
 			disabled={Boolean(disabled)}
 			aria-current={active ? "page" : undefined}
 			className={cn(
-				"flex w-16 flex-col items-center gap-1 rounded-md py-2 text-[10px] transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-4",
+				"flex w-16 shrink-0 flex-col items-center gap-1 rounded-md py-2 text-[10px] transition-colors [@media(max-height:800px)]:gap-0.5 [@media(max-height:800px)]:py-1.5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-4",
 				active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-foreground/5 hover:text-sidebar-foreground",
 				disabled && "pointer-events-none opacity-40",
 			)}
@@ -202,7 +203,7 @@ function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" |
 					<span tabIndex={0}>{button}</span>
 				</TooltipTrigger>
 				<TooltipContent side="right" className="max-w-56">
-					A batch is using the editor. {disabled}
+					{t("A batch is using the editor.")} {disabled}
 				</TooltipContent>
 			</Tooltip>
 		);
@@ -213,15 +214,16 @@ function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" |
 		s.setPanel(id);
 	};
 	return (
-		<nav className="flex w-[72px] shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-2" aria-label="Menu">
-			{PANELS.map((p) => item(p.id, p.label, p.icon, panel === p.id, () => openPanel(p.id), locked))}
+		// On a short window the items sit a little closer, and the rail scrolls rather than cutting off Batch and Settings.
+		<nav className="flex min-h-0 w-[72px] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r bg-sidebar py-2 [scrollbar-width:none] [@media(max-height:800px)]:gap-0.5" aria-label={t("Menu")}>
+			{PANELS.map((p) => item(p.id, t(p.label), p.icon, panel === p.id, () => openPanel(p.id), locked))}
 			<div className="my-1 h-px w-10 bg-border" />
-			{item("voices", "Voices", <Library />, page === "voices", () => useEditor.getState().openVoices())}
-			{item("story", "Story", <BookOpenText />, page === "story", () => useEditor.getState().openStory())}
-			{item("downloads", "Downloads", <Download />, page === "downloads", () => useEditor.getState().openDownloads())}
-			{item("batch", "Batch", <BatchIcon />, page === "batch", () => useEditor.getState().openBatch())}
+			{item("voices", t("Voices"), <Library />, page === "voices", () => useEditor.getState().openVoices())}
+			{item("story", t("Story"), <BookOpenText />, page === "story", () => useEditor.getState().openStory())}
+			{item("downloads", t("Downloads"), <Download />, page === "downloads", () => useEditor.getState().openDownloads())}
+			{item("batch", t("Batch"), <BatchIcon />, page === "batch", () => useEditor.getState().openBatch())}
 			{/* Same style as the other menu items (icon over label), pinned to the bottom. */}
-			<div className="mt-auto">{item("settings", "Settings", <Settings />, false, () => useEditor.getState().openSettings())}</div>
+			<div className="mt-auto">{item("settings", t("Settings"), <Settings />, false, () => useEditor.getState().openSettings())}</div>
 		</nav>
 	);
 }
@@ -233,7 +235,7 @@ function BatchIcon() {
 	return (
 		<span className="relative">
 			<ListChecks />
-			{(running || failed) && <span className={cn("absolute -top-0.5 -right-1 size-2 rounded-full border border-sidebar", running ? "bg-primary" : "bg-destructive")} aria-label={running ? "Running" : "A video failed"} />}
+			{(running || failed) && <span className={cn("absolute -top-0.5 -right-1 size-2 rounded-full border border-sidebar", running ? "bg-primary" : "bg-destructive")} aria-label={running ? t("Running") : t("A video failed")} />}
 		</span>
 	);
 }
@@ -249,27 +251,33 @@ function BatchBanner() {
 	return (
 		<div role="status" className="flex h-8 shrink-0 items-center gap-2 border-b bg-primary/10 px-4 text-xs">
 			<Loader2 className="size-3.5 animate-spin text-primary" />
-			<span className="font-medium">{busy === "post" ? "Posting" : "Batch running"}</span>
+			<span className="font-medium">{busy === "post" ? t("Posting") : t("Batch running")}</span>
 			{item && (
 				<span className="min-w-0 truncate text-muted-foreground" title={item.title}>
-					— {item.title} · {item.current ? STEP_LABEL[item.current] : stepText(item)}
-					{left ? ` · ${left} waiting` : ""}
+					— {item.title} · {item.current ? t(STEP_LABEL[item.current]) : stepLine(item)}
+					{left ? ` · ${t("{n} waiting", { n: left })}` : ""}
 				</span>
 			)}
-			<span className="hidden text-muted-foreground lg:inline">· the editor is free again when it's done</span>
+			<span className="hidden text-muted-foreground lg:inline">· {t("the editor is free again when it's done")}</span>
 			<span className="flex-1" />
 			{!onBatch && (
 				<Button variant="ghost" size="xs" onClick={() => useEditor.getState().openBatch(busy === "post" ? "ready" : "process")}>
-					Open Batch
+					{t("Open Batch")}
 				</Button>
 			)}
 			{busy === "process" && (
 				<Button variant="outline" size="xs" disabled={stopping} onClick={stopBatch}>
-					<Square /> {stopping ? "Stopping…" : "Stop"}
+					<Square /> {stopping ? t("Stopping…") : t("Stop")}
 				</Button>
 			)}
 		</div>
 	);
+}
+
+/** "3/7 · Translating", in the interface language (the step's name comes from @shared/batch in English). */
+function stepLine(item: Parameters<typeof stepText>[0]): string {
+	const [count, label] = stepText(item).split(" · ");
+	return label ? `${count} · ${t(label)}` : count;
 }
 
 /** The title bar sizes itself against the zoom so the traffic lights always fit (styles.css .title-bar). */
@@ -297,19 +305,19 @@ function TopBar() {
 			<input
 				title={name}
 				className="no-drag h-7 w-64 truncate rounded-md border border-transparent bg-transparent px-2 text-[13px] outline-none hover:border-input focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-				value={locked ? "Batch running…" : name}
+				value={locked ? t("Batch running…") : name}
 				readOnly={locked}
-				aria-label="Project name"
+				aria-label={t("Project name")}
 				onFocus={() => useEditor.getState().checkpoint()}
 				onChange={(e) => useEditor.getState().update((p) => ({ ...p, name: e.target.value }), false)}
 			/>
-			{dirty && !locked && <span className="size-1.5 rounded-full bg-muted-foreground" title="Unsaved changes" />}
+			{dirty && !locked && <span className="size-1.5 rounded-full bg-muted-foreground" title={t("Unsaved changes")} />}
 			{!inSettings && !locked && (
 				<div className="no-drag flex items-center">
-					<IconButton label="Undo" shortcut="⌘Z" onClick={() => useEditor.getState().undo()} disabled={!canUndo}>
+					<IconButton label={t("Undo")} shortcut="⌘Z" onClick={() => useEditor.getState().undo()} disabled={!canUndo}>
 						<Undo2 />
 					</IconButton>
-					<IconButton label="Redo" shortcut="⇧⌘Z" onClick={() => useEditor.getState().redo()} disabled={!canRedo}>
+					<IconButton label={t("Redo")} shortcut="⇧⌘Z" onClick={() => useEditor.getState().redo()} disabled={!canRedo}>
 						<Redo2 />
 					</IconButton>
 				</div>
@@ -321,25 +329,25 @@ function TopBar() {
 						<ProgressBar value={exportTask.progress} />
 					</div>
 				)}
-				<IconButton label="New project" shortcut="⌘N" disabled={locked} onClick={startNewProject}>
+				<IconButton label={t("New project")} shortcut="⌘N" disabled={locked} onClick={startNewProject}>
 					<FilePlus />
 				</IconButton>
-				<IconButton label="Open project" shortcut="⌘O" disabled={locked} onClick={() => void openProject()}>
+				<IconButton label={t("Open project")} shortcut="⌘O" disabled={locked} onClick={() => void openProject()}>
 					<FolderOpen />
 				</IconButton>
-				<IconButton label="Save project" shortcut="⌘S" disabled={locked} onClick={() => void saveProject()}>
+				<IconButton label={t("Save project")} shortcut="⌘S" disabled={locked} onClick={() => void saveProject()}>
 					<Save />
 				</IconButton>
 				<NotificationBell />
 				<Separator orientation="vertical" className="mx-1.5 h-4!" />
 				{exporting ? (
 					<Button variant="outline" size="sm" onClick={() => exportTask && void window.kroma.cancel(exportTask.id)}>
-						Cancel export
+						{t("Cancel export")}
 					</Button>
 				) : (
 					<ExportMenu>
 						<Button size="sm" disabled={!hasClips || locked}>
-							<Upload /> Export {aspect} <ChevronDown className="opacity-60" />
+							<Upload /> {t("Export {aspect}", { aspect })} <ChevronDown className="opacity-60" />
 						</Button>
 					</ExportMenu>
 				)}

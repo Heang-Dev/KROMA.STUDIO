@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpenText, FolderOpen, Headphones, Loader2, Pause, PencilLine, Plus, RotateCcw, Save, Sparkles, Trash2, Users } from "lucide-react";
 import { KVS_TEMPLATES, groupTemplates, type KvsVoice, type StoryRecord, type StoryRequest } from "@shared/types";
 import { EXAMPLE_STORY, MAX_SPEAKERS, detectSpeakers, parseStory, spokenText } from "@shared/story";
+import { t } from "@shared/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,9 @@ const DOTS = ["bg-sky-500", "bg-amber-500", "bg-emerald-500", "bg-rose-500", "bg
 type Speakers = StoryRequest["speakers"];
 type Tab = "write" | "listen";
 
+/** A speaker's name as shown: the script's own words, except the default Narrator, which is named in the interface's language. */
+const speakerName = (name: string) => (name === "Narrator" ? t("Narrator") : name);
+
 /** A first guess at a speaker's voice from their name (a template whose words match), else the engine's default. */
 function suggestVoice(name: string, templates: string[]): string {
 	const lower = name.toLowerCase();
@@ -36,7 +40,7 @@ function suggestVoice(name: string, templates: string[]): string {
 		[/mother|mom|ម្ដាយ|ម៉ាក់/, "Mother (caring)"],
 		[/father|dad|ឪពុក|ប៉ា/, "Father (strict)"],
 	];
-	const hit = hints.find(([re, t]) => re.test(lower) && templates.includes(t));
+	const hit = hints.find(([re, voice]) => re.test(lower) && templates.includes(voice));
 	return hit ? `kvs-design:${hit[1]}` : "default";
 }
 
@@ -59,14 +63,14 @@ export function StoryPage() {
 	}, [refresh]);
 
 	const presets = status?.presets.length ? status.presets : KVS_TEMPLATES;
-	const templates = presets.map((t) => t.name);
+	const templates = presets.map((p) => p.name);
 	// Grouped like the character picker: the engine's default, your cloned voices, then the preset groups with what
 	// each sounds like (instant voices aren't offered: the engine reads stories).
 	const voiceOptions: Option[] = useMemo(
 		() => [
-			{ value: "default", label: "Engine default voice", description: "Whatever voice the engine picks", group: "Default" },
-			...voices.filter((v) => !v.preset).map((v) => ({ value: `kvs-clone:${v.id}`, label: v.name, description: "Your cloned voice", group: "Your voices" })),
-			...groupTemplates(presets).flatMap((g) => g.items.map((t) => ({ value: `kvs-design:${t.name}`, label: t.name, description: t.description, group: g.title }))),
+			{ value: "default", label: t("Engine default voice"), description: t("Whatever voice the engine picks"), group: t("Default") },
+			...voices.filter((v) => !v.preset).map((v) => ({ value: `kvs-clone:${v.id}`, label: v.name, description: t("Your cloned voice"), group: t("Your voices") })),
+			...groupTemplates(presets).flatMap((g) => g.items.map((tpl) => ({ value: `kvs-design:${tpl.name}`, label: tpl.name, description: tpl.description, group: t(g.title) }))),
 		],
 		[voices, presets],
 	);
@@ -105,10 +109,10 @@ export function StoryPage() {
 	};
 
 	const tell = async () => {
-		const made = await runTask(`story-${Date.now()}`, "Story", (id) => window.kroma.tellStory(id, { title, script, speakers }), {
+		const made = await runTask(`story-${Date.now()}`, t("Story"), (id) => window.kroma.tellStory(id, { title, script, speakers }), {
 			kind: "voices",
-			done: (s) => ({ tone: "success", title: `Story ready: ${s.title}`, action: { kind: "view", view: "story" } }),
-			failed: "The story failed",
+			done: (s) => ({ tone: "success", title: t("Story ready: {title}", { title: s.title }), action: { kind: "view", view: "story" } }),
+			failed: t("The story failed"),
 			retry: () => tell(),
 		});
 		if (!made) return;
@@ -116,10 +120,10 @@ export function StoryPage() {
 		open(made.id);
 	};
 	const redo = async (from: StoryRecord, line: number) => {
-		const made = await runTask(`story-redo-${Date.now()}`, `Redo line ${line + 1}`, (id) => window.kroma.redoStoryLine(id, from.id, line), {
+		const made = await runTask(`story-redo-${Date.now()}`, t("Redo line {n}", { n: line + 1 }), (id) => window.kroma.redoStoryLine(id, from.id, line), {
 			kind: "voices",
-			done: () => ({ tone: "success", title: `Line ${line + 1} spoken again`, detail: "The earlier version is still in your stories.", action: { kind: "view", view: "story" } }),
-			failed: `Couldn't redo line ${line + 1}`,
+			done: () => ({ tone: "success", title: t("Line {n} spoken again", { n: line + 1 }), detail: t("The earlier version is still in your stories."), action: { kind: "view", view: "story" } }),
+			failed: t("Couldn't redo line {n}", { n: line + 1 }),
 			retry: () => redo(from, line),
 		});
 		if (!made) return;
@@ -127,7 +131,7 @@ export function StoryPage() {
 		open(made.id);
 	};
 	const remove = (s: StoryRecord) => {
-		if (!window.confirm(`Delete the story "${s.title}"?`)) return;
+		if (!window.confirm(t("Delete the story \"{title}\"?", { title: s.title }))) return;
 		void window.kroma.deleteStory(s.id).then(() => {
 			if (selected === s.id) {
 				setSelected(null);
@@ -153,7 +157,7 @@ export function StoryPage() {
 
 	/** Adds a character: a new line "Name: " at the end of the script, with the cursor after it, ready to type. */
 	const [newName, setNewName] = useState("");
-	const nameProblem = !newName.trim() ? "" : /[:：៖()]/.test(newName) ? "A name can't have : or ( )" : newName.trim().length > 30 ? "At most 30 characters" : "";
+	const nameProblem = !newName.trim() ? "" : /[:：៖()]/.test(newName) ? t("A name can't have : or ( )") : newName.trim().length > 30 ? t("At most 30 characters") : "";
 	const addCharacter = () => {
 		const name = newName.trim();
 		if (!name || nameProblem) return;
@@ -172,25 +176,25 @@ export function StoryPage() {
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
 			<PageHeader
 				icon={<BookOpenText />}
-				title="Story"
-				description="A different voice for every character of a story."
+				title={t("Story")}
+				description={t("A different voice for every character of a story.")}
 				actions={
 					<>
 						<EngineChip />
-						<Button size="sm" disabled={telling || offline || lineCount === 0} onClick={() => void tell()} title={offline ? "Start the voice engine first" : lineCount === 0 ? "Write a line first" : undefined}>
-							{telling ? <Loader2 className="animate-spin" /> : <Sparkles />} {telling ? "Working…" : "Generate story"}
+						<Button size="sm" disabled={telling || offline || lineCount === 0} onClick={() => void tell()} title={offline ? t("Start the voice engine first") : lineCount === 0 ? t("Write a line first") : undefined}>
+							{telling ? <Loader2 className="animate-spin" /> : <Sparkles />} {telling ? t("Working…") : t("Generate story")}
 						</Button>
 					</>
 				}
 			>
 				<Segmented
-					label="Write or listen"
+					label={t("Write or listen")}
 					value={tab}
 					options={[
-						{ value: "write", label: "1 · Write" },
-						{ value: "listen", label: "2 · Listen" },
+						{ value: "write", label: `1 · ${t("Write")}` },
+						{ value: "listen", label: `2 · ${t("Listen")}` },
 					]}
-					onChange={(t) => (t === "listen" && !story ? stories[0] && open(stories[0].id) : setTab(t))}
+					onChange={(next) => (next === "listen" && !story ? stories[0] && open(stories[0].id) : setTab(next))}
 				/>
 			</PageHeader>
 			{telling && (
@@ -202,14 +206,14 @@ export function StoryPage() {
 			{/* Your stories */}
 			<aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar">
 				<div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2">
-					<span className="text-xs font-medium text-muted-foreground">Your stories · {stories.length}</span>
+					<span className="text-xs font-medium text-muted-foreground">{t("Your stories")} · {stories.length}</span>
 					<Button variant="outline" size="xs" onClick={newStory}>
-						<Plus /> New story
+						<Plus /> {t("New story")}
 					</Button>
 				</div>
 				<div className="min-h-0 flex-1 overflow-y-auto p-2">
 					{stories.length === 0 ? (
-						<EmptyState compact scene="story" title="No stories yet" description="Write a script on the right, then press Generate story. Every story you make is kept here." />
+						<EmptyState compact scene="story" title={t("No stories yet")} description={t("Write a script on the right, then press Generate story. Every story you make is kept here.")} />
 					) : (
 						<ul className="space-y-0.5">
 							{stories.map((s) => (
@@ -224,7 +228,7 @@ export function StoryPage() {
 											{s.title}
 										</span>
 										<span className="text-[11px] text-muted-foreground">
-											{s.cues.length} lines · {formatClock(s.seconds)} · {new Date(s.created).toLocaleDateString()}
+											{t("{n} lines", { n: s.cues.length })} · {formatClock(s.seconds)} · {new Date(s.created).toLocaleDateString()}
 										</span>
 									</button>
 								</li>
@@ -241,40 +245,40 @@ export function StoryPage() {
 						<section className="flex min-h-0 flex-col border-r">
 							<div className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
 								<label htmlFor="story-title" className="shrink-0 text-xs text-muted-foreground">
-									Title
+									{t("Title")}
 								</label>
 								<Input
 									id="story-title"
-									aria-label="Story title"
+									aria-label={t("Story title")}
 									title={title || undefined}
 									className="max-w-md truncate text-[13px] font-medium"
 									maxLength={120}
-									placeholder="Untitled story"
+									placeholder={t("Untitled story")}
 									value={title}
 									onChange={(e) => setTitle(e.target.value)}
 								/>
 							</div>
 							<div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b px-4 py-2 [scrollbar-width:none]">
-								<span className="mr-1 shrink-0 text-[11px] text-muted-foreground">Insert</span>
+								<span className="mr-1 shrink-0 text-[11px] text-muted-foreground">{t("Insert")}</span>
 								<Button variant="outline" size="xs" className="shrink-0" onClick={() => insert(" [pause 1s] ")}>
-									<Pause /> Pause
+									<Pause /> {t("Pause")}
 								</Button>
 								{names.map((name, i) => (
-									<Button key={name} variant="outline" size="xs" className="max-w-44 shrink-0" title={`Insert "${name}: "`} onClick={() => insert(`${name}: `, true)}>
-										<span aria-hidden className={cn("size-2 shrink-0 rounded-full", DOTS[i % DOTS.length])} /> <span className="truncate">{name}</span>
+									<Button key={name} variant="outline" size="xs" className="max-w-44 shrink-0" title={t("Insert \"{name}: \"", { name })} onClick={() => insert(`${name}: `, true)}>
+										<span aria-hidden className={cn("size-2 shrink-0 rounded-full", DOTS[i % DOTS.length])} /> <span className="truncate">{speakerName(name)}</span>
 									</Button>
 								))}
 								<span className="flex-1" />
 								{!script && (
 									<Button variant="outline" size="xs" onClick={() => setScript(EXAMPLE_STORY)}>
-										Use the example
+										{t("Use the example")}
 									</Button>
 								)}
 							</div>
 							<textarea
 								ref={editor}
 								lang="km"
-								aria-label="Script"
+								aria-label={t("Script")}
 								maxLength={MAX_SCRIPT}
 								value={script}
 								onChange={(e) => setScript(e.target.value)}
@@ -283,11 +287,11 @@ export function StoryPage() {
 							/>
 							<div className="flex shrink-0 items-center justify-between gap-4 border-t px-4 py-2 text-[11px] text-muted-foreground">
 								<span>
-									One line per speaker: <code className="text-foreground/80">Sokha: …</code> or <code className="text-foreground/80">សុខា៖ …</code> · no name = Narrator · <code className="text-foreground/80">[pause 2s]</code> for a pause ·{" "}
-									<code className="text-foreground/80">Sokha (whisper): …</code> for one line's style
+									{t("One line per speaker:")} <code className="text-foreground/80">Sokha: …</code> {t("or")} <code className="text-foreground/80">សុខា៖ …</code> · {t("no name = Narrator")} · <code className="text-foreground/80">[pause 2s]</code> {t("for a pause")} ·{" "}
+									<code className="text-foreground/80">Sokha (whisper): …</code> {t("for one line's style")}
 								</span>
 								<span className="shrink-0 tabular-nums">
-									{lineCount} lines · {script.length.toLocaleString()} / {MAX_SCRIPT.toLocaleString()}
+									{t("{n} lines", { n: lineCount })} · {script.length.toLocaleString()} / {MAX_SCRIPT.toLocaleString()}
 								</span>
 							</div>
 						</section>
@@ -296,22 +300,22 @@ export function StoryPage() {
 						<aside className="min-h-0 overflow-y-auto">
 							<section className="space-y-3 border-b p-4">
 								<h2 className="flex items-center gap-2 text-[13px] font-semibold">
-									<Users className="size-4" /> Cast
+									<Users className="size-4" /> {t("Cast")}
 								</h2>
-								{names.length > MAX_SPEAKERS && <p className="text-[11px] text-warning">Only the first {MAX_SPEAKERS} speakers get their own voice.</p>}
+								{names.length > MAX_SPEAKERS && <p className="text-[11px] text-warning">{t("Only the first {n} speakers get their own voice.", { n: MAX_SPEAKERS })}</p>}
 								{names.length === 0 ? (
-									<EmptyState compact fill={false} className="rounded-lg border border-dashed" scene="people" title="No characters yet" description={<>Each character in the script shows here, to choose their voice. Add one below, or write a line like &quot;Sokha: …&quot;.</>} />
+									<EmptyState compact fill={false} className="rounded-lg border border-dashed" scene="people" title={t("No characters yet")} description={t("Each character in the script shows here, to choose their voice. Add one below, or write a line like \"Sokha: …\".")} />
 								) : (
 									<ul className="space-y-3">
 										{Object.entries(speakers).map(([name, s], i) => (
 											<li key={name} className="space-y-1.5 rounded-lg border bg-card/50 p-2.5">
 												<p className="flex items-center gap-2 text-[13px] font-medium">
-													<span aria-hidden className={cn("size-2 rounded-full", DOTS[i % DOTS.length])} /> {name}
+													<span aria-hidden className={cn("size-2 rounded-full", DOTS[i % DOTS.length])} /> {speakerName(name)}
 												</p>
-												<AppSelect label={`Voice for ${name}`} value={s.voice} options={voiceOptions} onChange={(voice) => setSpeakers((c) => ({ ...c, [name]: { ...c[name], voice } }))} />
+												<AppSelect label={t("Voice for {name}", { name: speakerName(name) })} value={s.voice} options={voiceOptions} onChange={(voice) => setSpeakers((c) => ({ ...c, [name]: { ...c[name], voice } }))} />
 												<Input
-													aria-label={`Style for ${name}`}
-													placeholder="Style (optional), e.g. calm"
+													aria-label={t("Style for {name}", { name: speakerName(name) })}
+													placeholder={t("Style (optional), e.g. calm")}
 													className="text-xs"
 													maxLength={200}
 													value={s.style}
@@ -329,22 +333,22 @@ export function StoryPage() {
 									}}
 								>
 									<div className="flex gap-2">
-										<Input aria-label="New character's name" placeholder="New character, e.g. Mother" className="min-w-0 flex-1 text-xs" maxLength={40} value={newName} onChange={(e) => setNewName(e.target.value)} />
+										<Input aria-label={t("New character's name")} placeholder={t("New character, e.g. Mother")} className="min-w-0 flex-1 text-xs" maxLength={40} value={newName} onChange={(e) => setNewName(e.target.value)} />
 										<Button type="submit" variant="outline" size="sm" disabled={!newName.trim() || Boolean(nameProblem)}>
-											<Plus /> Add
+											<Plus /> {t("Add")}
 										</Button>
 									</div>
 									{nameProblem ? (
 										<p className="text-[11px] text-destructive">{nameProblem}</p>
 									) : names.length >= MAX_SPEAKERS && newName.trim() && !names.includes(newName.trim()) ? (
-										<p className="text-[11px] text-warning">Only the first {MAX_SPEAKERS} characters get their own voice; more use the Narrator's.</p>
+										<p className="text-[11px] text-warning">{t("Only the first {n} characters get their own voice; more use the Narrator's.", { n: MAX_SPEAKERS })}</p>
 									) : (
-										<p className="text-[11px] text-muted-foreground">Starts a new line for them in the script; they get a fitting voice you can change.</p>
+										<p className="text-[11px] text-muted-foreground">{t("Starts a new line for them in the script; they get a fitting voice you can change.")}</p>
 									)}
 								</form>
 							</section>
 							<section className="space-y-2 p-4">
-								<h2 className="text-[13px] font-semibold">How it will be read</h2>
+								<h2 className="text-[13px] font-semibold">{t("How it will be read")}</h2>
 								<ScriptPreview items={items} speakers={Object.keys(speakers)} />
 							</section>
 						</aside>
@@ -354,7 +358,7 @@ export function StoryPage() {
 						<StoryResult story={story} busy={telling} offline={offline} onRedo={(line) => void redo(story, line)} onEdit={() => edit(story)} onDelete={() => remove(story)} />
 					</div>
 				) : (
-					<div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">Choose a story on the left to listen to it.</div>
+					<div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">{t("Choose a story on the left to listen to it.")}</div>
 				)}
 			</div>
 			</div>
@@ -364,13 +368,13 @@ export function StoryPage() {
 
 /** The script as the engine will read it: who says what, the pauses, and each line's own style. */
 function ScriptPreview({ items, speakers }: { items: ReturnType<typeof parseStory>; speakers: string[] }) {
-	if (!items.length) return <p className="text-xs text-muted-foreground">The lines show here as you write them.</p>;
+	if (!items.length) return <p className="text-xs text-muted-foreground">{t("The lines show here as you write them.")}</p>;
 	return (
 		<ol className="space-y-2">
 			{items.map((item, i) =>
 				item.type === "pause" ? (
 					<li key={i} className="flex items-center gap-2 pl-4 text-[11px] text-muted-foreground">
-						<Pause className="size-3" /> {item.seconds} s pause
+						<Pause className="size-3" /> {t("{n} s pause", { n: item.seconds })}
 					</li>
 				) : (
 					<li key={i} className="flex gap-2">
@@ -380,7 +384,7 @@ function ScriptPreview({ items, speakers }: { items: ReturnType<typeof parseStor
 								{spokenText(item.text)}
 							</span>
 							<span className="text-[11px] text-muted-foreground">
-								{item.speaker}
+								{speakerName(item.speaker)}
 								{item.style && ` · ${item.style}`}
 							</span>
 						</span>
@@ -400,27 +404,27 @@ function StoryResult({ story, busy, offline, onRedo, onEdit, onDelete }: { story
 			</h2>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<p className="flex items-center gap-2 text-xs text-muted-foreground">
-					<Headphones className="size-4" /> {story.cues.length} lines · {formatClock(story.seconds)} · {new Date(story.created).toLocaleString()}
-					{story.redoneLine !== undefined && <span className="rounded-sm border px-1.5 py-0.5 text-[10px]">line {story.redoneLine + 1} redone</span>}
+					<Headphones className="size-4" /> {t("{n} lines", { n: story.cues.length })} · {formatClock(story.seconds)} · {new Date(story.created).toLocaleString()}
+					{story.redoneLine !== undefined && <span className="rounded-sm border px-1.5 py-0.5 text-[10px]">{t("line {n} redone", { n: story.redoneLine + 1 })}</span>}
 				</p>
 				<div className="flex flex-wrap gap-1.5">
 					<Button variant="outline" size="sm" onClick={onEdit}>
-						<PencilLine /> Edit the script
+						<PencilLine /> {t("Edit the script")}
 					</Button>
-					<Button variant="outline" size="sm" onClick={() => void window.kroma.saveStoryAs(story.id).then((p) => p && useEditor.getState().showToast("Saved", "info", p))}>
-						<Save /> Save audio as…
+					<Button variant="outline" size="sm" onClick={() => void window.kroma.saveStoryAs(story.id).then((p) => p && useEditor.getState().showToast(t("Saved"), "info", p))}>
+						<Save /> {t("Save audio as…")}
 					</Button>
 					<Button variant="ghost" size="sm" onClick={() => void window.kroma.showStory(story.id)}>
-						<FolderOpen /> Show in folder
+						<FolderOpen /> {t("Show in folder")}
 					</Button>
 					<Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={onDelete}>
-						<Trash2 /> Delete
+						<Trash2 /> {t("Delete")}
 					</Button>
 				</div>
 			</div>
-			<div className="rounded-lg border bg-card/50 p-4">{story.audio ? <WaveformPlayer path={story.audio} /> : <p className="text-xs text-destructive">The audio file is missing.</p>}</div>
+			<div className="rounded-lg border bg-card/50 p-4">{story.audio ? <WaveformPlayer path={story.audio} /> : <p className="text-xs text-destructive">{t("The audio file is missing.")}</p>}</div>
 			<div>
-				<p className="mb-2 text-[11px] text-muted-foreground">Not happy with a line? Press ↻ to speak just that line again; the rest stays the same.</p>
+				<p className="mb-2 text-[11px] text-muted-foreground">{t("Not happy with a line? Press ↻ to speak just that line again; the rest stays the same.")}</p>
 				<ul className="divide-y rounded-lg border">
 					{story.cues.map(([start, end, text], i) => {
 						const colon = text.indexOf(": ");
@@ -433,12 +437,12 @@ function StoryResult({ story, busy, offline, onRedo, onEdit, onDelete }: { story
 								</span>
 								<span className="flex w-28 shrink-0 items-center gap-1.5 pt-0.5 text-[12px] text-muted-foreground">
 									<span aria-hidden className={cn("size-2 rounded-full", DOTS[Math.max(0, speakers.indexOf(speaker)) % DOTS.length])} />
-									<span className="truncate">{speaker}</span>
+									<span className="truncate">{speakerName(speaker)}</span>
 								</span>
 								<span lang="km" className="min-w-0 flex-1 text-[13px] leading-relaxed">
 									{spokenText(words)}
 								</span>
-								<IconButton label={offline ? "Start the voice engine to redo a line" : `Speak line ${i + 1} again`} disabled={busy || offline} onClick={() => onRedo(i)}>
+								<IconButton label={offline ? t("Start the voice engine to redo a line") : t("Speak line {n} again", { n: i + 1 })} disabled={busy || offline} onClick={() => onRedo(i)}>
 									<RotateCcw />
 								</IconButton>
 							</li>

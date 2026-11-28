@@ -11,6 +11,7 @@ import { drawCue, ensureFonts } from "@/lib/subtitleRender";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/state/store";
 import { AppSelect, Card, ChoiceTiles, Row, Section, Segmented, SliderField, SwitchRow } from "./common";
+import { t } from "@shared/i18n";
 
 const ASPECTS: { value: Aspect; label: string; description: string }[] = [
 	{ value: "16:9", label: "16:9", description: "YouTube, Facebook" },
@@ -33,35 +34,35 @@ export function StylePanel() {
 
 	return (
 		<>
-			<Section title="Format" hint="Where the video is going. Export the same project in each format.">
-				<ChoiceTiles label="Format" columns={3} value={project.aspect} options={ASPECTS} onChange={(v) => update((p) => ({ ...p, aspect: v }))} />
+			<Section title={t("Format")} hint={t("Where the video is going. Export the same project in each format.")}>
+				<ChoiceTiles label={t("Format")} columns={3} value={project.aspect} options={ASPECTS.map((a) => ({ ...a, description: t(a.description) }))} onChange={(v) => update((p) => ({ ...p, aspect: v }))} />
 				<Card>
-					<Row stack label="When it doesn't fit" control={<Segmented label="When the video doesn't fit" equalWidth value={project.fit} options={FITS} onChange={(v) => update((p) => ({ ...p, fit: v }))} />} />
+					<Row stack label={t("When it doesn't fit")} control={<Segmented label={t("When the video doesn't fit")} equalWidth value={project.fit} options={FITS.map((f) => ({ ...f, label: t(f.label) }))} onChange={(v) => update((p) => ({ ...p, fit: v }))} />} />
 				</Card>
 			</Section>
 
-			<Section title="Subtitle style">
+			<Section title={t("Subtitle style")}>
 				<Card>
-					<Row stack label="Preset" control={<PresetGrid style={style} onPick={(v) => setStyle(lookOf(v))} onPickMine={(mine) => setStyle({ ...mine, showSource: style.showSource })} />} />
-					<Row stack label="Animation" description="How each line comes in, or follows the voice word by word." control={<AppSelect label="Animation" value={style.animation ?? "none"} options={CAPTION_ANIMATIONS} onChange={(animation) => setStyle({ animation })} />} />
-					{style.animation === "words" && <Row label="Spoken word colour" control={<ColorSwatch label="Spoken word colour" value={style.highlightColor || "#ffe14d"} onChange={(v) => setStyle({ highlightColor: v })} />} />}
-					<Row stack label="Font" control={<AppSelect label="Font" value={style.font ?? "kantumruy"} options={FONT_OPTIONS} onChange={(font) => setStyle({ font })} />} />
-					<SliderField label="Size" value={style.size} min={0.025} max={0.1} step={0.002} format={(v) => `${Math.round(v * 1000) / 10}%`} onStart={begin} onChange={(v) => setStyle({ size: v }, false)} />
-					<SliderField label="Position" value={style.position} min={0.2} max={0.98} step={0.005} format={(v) => `${Math.round(v * 100)}%`} onStart={begin} onChange={(v) => setStyle({ position: v }, false)} />
-					<SliderField label="Outline" value={style.outline} min={0} max={0.25} step={0.01} format={(v) => (v ? `${Math.round(v * 100)}` : "Off")} onStart={begin} onChange={(v) => setStyle({ outline: v }, false)} />
-					<SliderField label="Shadow" value={style.shadow ?? 0} min={0} max={0.5} step={0.01} format={(v) => (v ? `${Math.round(v * 100)}` : "Off")} onStart={begin} onChange={(v) => setStyle({ shadow: v }, false)} />
+					<Row stack label={t("Preset")} control={<PresetGrid style={style} onPick={(v) => setStyle(lookOf(v))} onPickMine={(mine) => setStyle({ ...mine, showSource: style.showSource })} />} />
+					<Row stack label={t("Animation")} description={t("How each line comes in, or follows the voice word by word.")} control={<AppSelect label={t("Animation")} value={style.animation ?? "none"} options={CAPTION_ANIMATIONS.map((a) => ({ ...a, label: t(a.label), description: t(a.description) }))} onChange={(animation) => setStyle({ animation })} />} />
+					{style.animation === "words" && <Row label={t("Spoken word colour")} control={<ColorSwatch label={t("Spoken word colour")} value={style.highlightColor || "#ffe14d"} onChange={(v) => setStyle({ highlightColor: v })} />} />}
+					<Row stack label={t("Font")} control={<AppSelect label={t("Font")} value={style.font ?? "kantumruy"} options={FONT_OPTIONS.map((f) => ({ ...f, description: t(f.description) }))} onChange={(font) => setStyle({ font })} />} />
+					<SliderField label={t("Size")} value={style.size} min={0.025} max={0.1} step={0.002} format={(v) => `${Math.round(v * 1000) / 10}%`} onStart={begin} onChange={(v) => setStyle({ size: v }, false)} />
+					<SliderField label={t("Position")} value={style.position} min={0.2} max={0.98} step={0.005} format={(v) => `${Math.round(v * 100)}%`} onStart={begin} onChange={(v) => setStyle({ position: v }, false)} />
+					<SliderField label={t("Outline")} value={style.outline} min={0} max={0.25} step={0.01} format={(v) => (v ? `${Math.round(v * 100)}` : t("Off"))} onStart={begin} onChange={(v) => setStyle({ outline: v }, false)} />
+					<SliderField label={t("Shadow")} value={style.shadow ?? 0} min={0} max={0.5} step={0.01} format={(v) => (v ? `${Math.round(v * 100)}` : t("Off"))} onStart={begin} onChange={(v) => setStyle({ shadow: v }, false)} />
 					{(style.shadow ?? 0) > 0 && (
 						<Row
-							label="Shadow colour"
-							description="Dark drops a shadow; a bright colour makes a glow."
-							control={<ColorSwatch label="Shadow colour" value={style.shadowColor || "#000000"} onChange={(v) => setStyle({ shadowColor: v === "#000000" ? "" : v })} />}
+							label={t("Shadow colour")}
+							description={t("Dark drops a shadow; a bright colour makes a glow.")}
+							control={<ColorSwatch label={t("Shadow colour")} value={style.shadowColor || "#000000"} onChange={(v) => setStyle({ shadowColor: v === "#000000" ? "" : v })} />}
 						/>
 					)}
-					<Row label="Text colour" control={<ColorSwatch label="Text colour" value={style.color} onChange={(v) => setStyle({ color: v })} />} />
-					<Row label="Outline colour" control={<ColorSwatch label="Outline colour" value={style.outlineColor} onChange={(v) => setStyle({ outlineColor: v })} />} />
-					<SwitchRow label="Bold" checked={style.bold} onChange={(v) => setStyle({ bold: v })} />
-					<SwitchRow label="Dark box behind the text" checked={style.box} onChange={(v) => setStyle({ box: v })} />
-					<SwitchRow label="Bilingual" description="The original line above the translation." checked={style.showSource} onChange={(v) => setStyle({ showSource: v })} />
+					<Row label={t("Text colour")} control={<ColorSwatch label={t("Text colour")} value={style.color} onChange={(v) => setStyle({ color: v })} />} />
+					<Row label={t("Outline colour")} control={<ColorSwatch label={t("Outline colour")} value={style.outlineColor} onChange={(v) => setStyle({ outlineColor: v })} />} />
+					<SwitchRow label={t("Bold")} checked={style.bold} onChange={(v) => setStyle({ bold: v })} />
+					<SwitchRow label={t("Dark box behind the text")} checked={style.box} onChange={(v) => setStyle({ box: v })} />
+					<SwitchRow label={t("Bilingual")} description={t("The original line above the translation.")} checked={style.showSource} onChange={(v) => setStyle({ showSource: v })} />
 					<SaveMyStyle style={style} />
 				</Card>
 			</Section>
@@ -94,10 +95,10 @@ function PresetGrid({ style, onPick, onPickMine }: { style: SubtitleStyle; onPic
 	const load = useMyStyles((s) => s.load);
 	useEffect(() => void load(), [load]);
 	return (
-		<div role="radiogroup" aria-label="Preset" className="space-y-3">
+		<div role="radiogroup" aria-label={t("Preset")} className="space-y-3">
 			{mine.length > 0 && (
 				<div className="space-y-1.5">
-					<p className="text-[11px] text-muted-foreground">My styles</p>
+					<p className="text-[11px] text-muted-foreground">{t("My styles")}</p>
 					<div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-1.5">
 						{mine.map((m) => {
 							const on = sameStyle(style, m.style);
@@ -109,10 +110,10 @@ function PresetGrid({ style, onPick, onPickMine }: { style: SubtitleStyle; onPic
 									</button>
 									<button
 										type="button"
-										aria-label={`Delete my style ${m.name}`}
-										title="Delete this style"
+										aria-label={t("Delete my style {name}", { name: m.name })}
+										title={t("Delete this style")}
 										onClick={() => {
-											if (window.confirm(`Delete your style "${m.name}"? Projects that use it keep their look.`)) void useMyStyles.getState().remove(m.id);
+											if (window.confirm(t(`Delete your style "{name}"? Projects that use it keep their look.`, { name: m.name }))) void useMyStyles.getState().remove(m.id);
 										}}
 										className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-sm bg-black/60 text-white opacity-0 transition-opacity group-hover/tile:opacity-100 hover:bg-black/80 focus-visible:opacity-100"
 									>
@@ -126,12 +127,12 @@ function PresetGrid({ style, onPick, onPickMine }: { style: SubtitleStyle; onPic
 			)}
 			{GROUPS.map((group) => (
 				<div key={group} className="space-y-1.5">
-					<p className="text-[11px] text-muted-foreground">{group}</p>
+					<p className="text-[11px] text-muted-foreground">{t(group)}</p>
 					<div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-1.5">
 						{PRESET_OPTIONS.filter((o) => o.group === group).map((o) => (
-							<button key={o.value} type="button" role="radio" aria-checked={current === o.value} title={o.label} onClick={() => onPick(o.value)} className={tileClass(current === o.value)}>
+							<button key={o.value} type="button" role="radio" aria-checked={current === o.value} title={t(o.label)} onClick={() => onPick(o.value)} className={tileClass(current === o.value)}>
 								<PresetTile look={{ ...style, ...lookOf(o.value) }} />
-								<span className={labelClass(current === o.value)}>{o.label}</span>
+								<span className={labelClass(current === o.value)}>{t(o.label)}</span>
 							</button>
 						))}
 					</div>
@@ -149,11 +150,11 @@ function SaveMyStyle({ style }: { style: SubtitleStyle }) {
 	if (name === null)
 		return (
 			<Row
-				label="My styles"
-				description={saved ? `This look is saved as "${saved.name}".` : "Keep this look (size, position and font too) to use it in every project and in Batch."}
+				label={t("My styles")}
+				description={saved ? t(`This look is saved as "{name}".`, { name: saved.name }) : t("Keep this look (size, position and font too) to use it in every project and in Batch.")}
 				control={
-					<Button variant="outline" size="sm" disabled={Boolean(saved)} onClick={() => setName(`My style ${mine.length + 1}`)}>
-						<BookmarkPlus /> Save as my style
+					<Button variant="outline" size="sm" disabled={Boolean(saved)} onClick={() => setName(t("My style {n}", { n: mine.length + 1 }))}>
+						<BookmarkPlus /> {t("Save as my style")}
 					</Button>
 				}
 			/>
@@ -161,12 +162,12 @@ function SaveMyStyle({ style }: { style: SubtitleStyle }) {
 	const save = async () => {
 		const entry = await useMyStyles.getState().add(name, style);
 		setName(null);
-		toast.success(`Saved "${entry.name}" in My styles`);
+		toast.success(t(`Saved "{name}" in My styles`, { name: entry.name }));
 	};
 	return (
 		<Row
 			stack
-			label="Name your style"
+			label={t("Name your style")}
 			control={
 				<form
 					className="flex gap-1.5"
@@ -175,12 +176,12 @@ function SaveMyStyle({ style }: { style: SubtitleStyle }) {
 						void save();
 					}}
 				>
-					<Input autoFocus aria-label="Style name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} className="min-w-0 flex-1" />
+					<Input autoFocus aria-label={t("Style name")} maxLength={40} value={name} onChange={(e) => setName(e.target.value)} className="min-w-0 flex-1" />
 					<Button type="submit" size="sm" disabled={!name.trim()}>
-						Save
+						{t("Save")}
 					</Button>
 					<Button type="button" variant="ghost" size="sm" onClick={() => setName(null)}>
-						Cancel
+						{t("Cancel")}
 					</Button>
 				</form>
 			}

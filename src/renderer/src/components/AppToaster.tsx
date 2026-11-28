@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CircleCheck, CircleX, Info, Loader2, TriangleAlert } from "lucide-react";
 import { Toaster as Sonner } from "sonner";
 import { isDark } from "@/lib/appearance";
+import { t } from "@shared/i18n";
 
 /**
  * The app's one toaster, styled like Orca's notices: a compact card in the popover colours, a coloured icon per kind,
@@ -27,6 +28,7 @@ export function AppToaster() {
 			// Listed one above another (Orca's notices), not collapsed into a pile.
 			expand
 			duration={3500}
+			containerAriaLabel={t("Notifications")}
 			icons={{
 				success: <CircleCheck className="size-4 text-success" />,
 				error: <CircleX className="size-4 text-destructive" />,
@@ -36,6 +38,7 @@ export function AppToaster() {
 			}}
 			toastOptions={{
 				unstyled: true,
+				closeButtonAriaLabel: t("Close"),
 				classNames: {
 					toast:
 						"group/toast pointer-events-auto relative flex w-[360px] items-start gap-2.5 rounded-md border bg-popover p-3 pr-8 font-sans text-[13px] text-popover-foreground",

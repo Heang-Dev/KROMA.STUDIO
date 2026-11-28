@@ -20,6 +20,7 @@ import {
 	type StylePreset,
 	type PostFormat,
 } from "@shared/batch";
+import { t } from "@shared/i18n";
 import { useEditor } from "@/state/store";
 import { batchMode } from "./batchMode";
 import { exportFormat, findCharacters, getSubtitles, mainMedia, makeVoiceOver, preferredSiteSubtitle, publishVideo, removeOriginalVoices, setLanguage, setVoice, short, translateCues, voiceSettings, writePosts, PLATFORM_NAMES } from "./actions";
@@ -126,7 +127,7 @@ export function retryBatchFrom(id: string, step: BatchStep): void {
 export function stopBatch(): void {
 	if (!useBatch.getState().busy) return;
 	useBatch.setState({ stopping: true });
-	for (const t of Object.values(useEditor.getState().tasks)) if (t.status === "running") void window.kroma.cancel(t.id);
+	for (const task of Object.values(useEditor.getState().tasks)) if (task.status === "running") void window.kroma.cancel(task.id);
 }
 
 /**
@@ -157,7 +158,7 @@ async function runQueue(): Promise<void> {
 	change((s) => ({ ...s, runs: [...(s.runs ?? []), { id: runId, at: Date.now() }], items: s.items.map((i) => (i.status === "waiting" && !i.runId ? { ...i, runId } : i)) }));
 	const tally = { ready: 0, failed: 0, stopped: 0 };
 	try {
-		await borrowEditor("It's processing videos. Wait for it, or press Stop in the bar above.", async () => {
+		await borrowEditor(t("It's processing videos. Wait for it, or press Stop in the bar above."), async () => {
 			for (;;) {
 				if (useBatch.getState().stopping) break;
 				const item = nextToRun(get().items);
@@ -179,8 +180,8 @@ async function runQueue(): Promise<void> {
 			batch: true,
 			kind: "export",
 			tone: tally.failed ? "error" : "success",
-			title: `Batch finished: ${runSummary(total, tally.failed, tally.stopped)}`,
-			detail: tally.ready ? `${tally.ready} ready to post.` : undefined,
+			title: t("Batch finished: {summary}", { summary: runSummary(total, tally.failed, tally.stopped) }),
+			detail: tally.ready ? t("{n} ready to post.", { n: tally.ready }) : undefined,
 			action: { kind: "view", view: "batch", section: "ready" },
 		});
 	}
@@ -199,7 +200,7 @@ async function processItem(id: string): Promise<"ready" | "failed" | "stopped"> 
 	const log = (step: BatchStep, entry: Partial<StepLog>) => patch(id, (i) => ({ log: { ...i.log, [step]: { ...(i.log?.[step] ?? { status: "running", start: Date.now() }), ...entry } } }));
 	const fail = (step: BatchStep | null, reason: string) => {
 		const stopped = useBatch.getState().stopping;
-		if (step) log(step, stopped ? { status: "failed", end: Date.now(), message: "Stopped" } : { status: "failed", end: Date.now(), message: reason });
+		if (step) log(step, stopped ? { status: "failed", end: Date.now(), message: t("Stopped") } : { status: "failed", end: Date.now(), message: reason });
 		patch(id, { status: stopped ? "stopped" : "failed", current: undefined, error: stopped ? undefined : reason });
 		if (stopped) return "stopped" as const;
 		const title = itemOf(id)?.title ?? start.title;
@@ -207,7 +208,7 @@ async function processItem(id: string): Promise<"ready" | "failed" | "stopped"> 
 			batch: true,
 			kind: "export",
 			tone: "error",
-			title: `${short(title, 32)}: ${step ? `${STEP_NOUN[step]} failed` : "couldn't open"}`,
+			title: step ? t("{title}: {step} failed", { title: short(title, 32), step: t(STEP_NOUN[step]) }) : t("{title}: couldn't open", { title: short(title, 32) }),
 			detail: reason,
 			action: { kind: "retry", run: () => retryBatchItem(id) },
 		});
@@ -217,14 +218,14 @@ async function processItem(id: string): Promise<"ready" | "failed" | "stopped"> 
 	try {
 		useEditor.getState().load(await window.kroma.readProject(start.projectPath), start.projectPath);
 	} catch {
-		return fail(null, "The project file was moved or deleted.");
+		return fail(null, t("The project file was moved or deleted."));
 	}
 
 	for (;;) {
 		const item = itemOf(id)!;
 		const step = nextStep(item);
 		if (!step) break;
-		if (useBatch.getState().stopping) return fail(step, "Stopped");
+		if (useBatch.getState().stopping) return fail(step, t("Stopped"));
 		patch(id, (i) => ({ current: step, log: { ...i.log, [step]: { status: "running", start: Date.now() } } }));
 		batchMode.lastError = null;
 		batchMode.lastNote = null;
@@ -234,7 +235,7 @@ async function processItem(id: string): Promise<"ready" | "failed" | "stopped"> 
 		} catch (err) {
 			batchMode.lastError ??= err instanceof Error ? err.message : String(err);
 		}
-		if (!ok) return fail(step, batchMode.lastError ?? "It didn't work. Open the project to see why.");
+		if (!ok) return fail(step, batchMode.lastError ?? t("It didn't work. Open the project to see why."));
 		await saveOpen(item.projectPath);
 		const format = stepFormat(step);
 		log(step, { status: "done", end: Date.now(), message: (format && itemOf(id)?.exports?.[format]) || batchMode.lastNote || undefined });
@@ -243,7 +244,7 @@ async function processItem(id: string): Promise<"ready" | "failed" | "stopped"> 
 
 	const project = useEditor.getState().project;
 	patch(id, { status: "done", current: undefined, duration: totalDuration(project.clips), title: itemOf(id)!.title });
-	notify({ batch: true, kind: "export", tone: "success", title: `${short(start.title, 40)} ready to post`, detail: (itemOf(id)?.exports && Object.keys(itemOf(id)!.exports!).join(" and ")) || undefined, action: { kind: "view", view: "batch", section: "ready" } });
+	notify({ batch: true, kind: "export", tone: "success", title: t("{title} ready to post", { title: short(start.title, 40) }), detail: (itemOf(id)?.exports && Object.keys(itemOf(id)!.exports!).join(t(" and "))) || undefined, action: { kind: "view", view: "batch", section: "ready" } });
 	return "ready";
 }
 
@@ -262,7 +263,7 @@ async function runStep(step: BatchStep, item: BatchItem): Promise<boolean> {
 		case "subtitles": {
 			const media = mainMedia();
 			if (!media) {
-				batchMode.lastError = "The project has no video.";
+				batchMode.lastError = t("The project has no video.");
 				return false;
 			}
 			const site = preferredSiteSubtitle(media);
@@ -289,7 +290,7 @@ async function runStep(step: BatchStep, item: BatchItem): Promise<boolean> {
 		case "hideSubtitles": {
 			// Found: blurred exactly. None found isn't a failure (many videos have none): the step notes it.
 			const found = await coverOriginalSubtitles({ quiet: true });
-			batchMode.lastNote = found ? "Burned-in subtitles blurred" : "No burned-in subtitles found";
+			batchMode.lastNote = found ? t("Burned-in subtitles blurred") : t("No burned-in subtitles found");
 			if (!found) editor.update((p) => ({ ...p, objects: (p.objects ?? []).filter((x) => x.name !== HIDE_SUBTITLES_NAME) }));
 			return true;
 		}
@@ -300,14 +301,14 @@ async function runStep(step: BatchStep, item: BatchItem): Promise<boolean> {
 				// One of my styles: the whole look, size and position included.
 				await useMyStyles.getState().load();
 				const mine = myStyleOf(choice);
-				if (!mine) throw new Error("That saved style was deleted. Choose another subtitle style in the steps.");
+				if (!mine) throw new Error(t("That saved style was deleted. Choose another subtitle style in the steps."));
 				editor.update((p) => ({ ...p, style: { ...mine.style, showSource: p.style.showSource } }));
-				batchMode.lastNote = `Style: ${mine.name}`;
+				batchMode.lastNote = t("Style: {name}", { name: mine.name });
 				return true;
 			}
 			const preset = choice as StylePreset;
 			editor.update((p) => ({ ...p, style: { ...p.style, ...lookOf(preset) } }));
-			batchMode.lastNote = `Style: ${preset}`;
+			batchMode.lastNote = t("Style: {name}", { name: preset });
 			return true;
 		}
 		case "covers": {
@@ -316,7 +317,8 @@ async function runStep(step: BatchStep, item: BatchItem): Promise<boolean> {
 			const saved = await makeCovers(formats, true);
 			const now = useEditor.getState();
 			const words = coverWords(now.project, now.projectPath);
-			batchMode.lastNote = `Covers${words.label ? ` · ${words.label}` : ""}: ${Object.keys(saved ?? {}).join(", ")}`;
+			const formatsMade = Object.keys(saved ?? {}).join(", ");
+			batchMode.lastNote = words.label ? t("Covers · {label}: {formats}", { label: words.label, formats: formatsMade }) : t("Covers: {formats}", { formats: formatsMade });
 			return Boolean(saved);
 		}
 		case "posts":
@@ -331,7 +333,7 @@ export async function postBatchItems(choices: { id: string; choice: PostChoice }
 	if (useBatch.getState().busy || !choices.length) return;
 	useBatch.setState({ busy: "post", stopping: false });
 	try {
-		await borrowEditor("It's posting videos. Wait for it to finish.", async () => {
+		await borrowEditor(t("It's posting videos. Wait for it to finish."), async () => {
 			for (const { id, choice } of choices) {
 				if (useBatch.getState().stopping) break;
 				const item = itemOf(id);
@@ -339,7 +341,7 @@ export async function postBatchItems(choices: { id: string; choice: PostChoice }
 				try {
 					useEditor.getState().load(await window.kroma.readProject(item.projectPath), item.projectPath);
 				} catch {
-					notify({ batch: true, kind: "export", tone: "error", title: `${short(item.title, 32)}: not posted`, detail: "The project file was moved or deleted." });
+					notify({ batch: true, kind: "export", tone: "error", title: t("{title}: not posted", { title: short(item.title, 32) }), detail: t("The project file was moved or deleted.") });
 					continue;
 				}
 				batchMode.lastError = null;
@@ -349,15 +351,15 @@ export async function postBatchItems(choices: { id: string; choice: PostChoice }
 				const exports = useEditor.getState().project.exports;
 				patch(id, (i) => ({ exports: { ...i.exports, ...Object.fromEntries(Object.entries(exports ?? {}).filter(([f]) => f !== "1:1").map(([f, e]) => [f, e!.path])) } }));
 				if (!results) {
-					notify({ batch: true, kind: "export", tone: "error", title: `${short(item.title, 32)}: not posted`, detail: batchMode.lastError ?? "Posting didn't start." });
+					notify({ batch: true, kind: "export", tone: "error", title: t("{title}: not posted", { title: short(item.title, 32) }), detail: batchMode.lastError ?? t("Posting didn't start.") });
 					continue;
 				}
 				patch(id, { posted: { at: Date.now(), results } });
 				const failed = results.filter((r) => r.state === "failed");
 				notify(
 					failed.length
-						? { batch: true, kind: "export", tone: "error", title: `${short(item.title, 32)}: not posted to ${failed.map((r) => PLATFORM_NAMES[r.platform]).join(", ")}`, detail: failed[0].message }
-						: { batch: true, kind: "export", tone: "success", title: `Posted ${short(item.title, 32)} to ${results.map((r) => PLATFORM_NAMES[r.platform]).join(", ")}` },
+						? { batch: true, kind: "export", tone: "error", title: t("{title}: not posted to {platforms}", { title: short(item.title, 32), platforms: failed.map((r) => PLATFORM_NAMES[r.platform]).join(", ") }), detail: failed[0].message }
+						: { batch: true, kind: "export", tone: "success", title: t("Posted {title} to {platforms}", { title: short(item.title, 32), platforms: results.map((r) => PLATFORM_NAMES[r.platform]).join(", ") }) },
 				);
 			}
 		});

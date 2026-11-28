@@ -14,6 +14,7 @@ import { IconButton } from "./common";
 export { mediaUrl } from "@shared/media";
 import { mediaUrl } from "@shared/media";
 import { EmptyIllustration } from "@/components/empty/EmptyState";
+import { t } from "@shared/i18n";
 
 export function Preview() {
 	const project = useEditor((s) => s.project);
@@ -293,13 +294,13 @@ function Transport({ total, playing, onToggle }: { total: number; playing: boole
 	return (
 		<div className="flex h-11 shrink-0 items-center justify-center gap-1 border-t border-border">
 			<span className="w-28 text-right font-mono text-xs tabular-nums text-foreground">{formatTime(time, true)}</span>
-			<IconButton label="Back 5 seconds (Shift + ←)" onClick={() => seek(time - 5)} disabled={!total}>
+			<IconButton label={t("Back 5 seconds (Shift + ←)")} onClick={() => seek(time - 5)} disabled={!total}>
 				<SkipBack className="size-4" />
 			</IconButton>
-			<IconButton label={playing ? "Pause (Space)" : "Play (Space)"} onClick={onToggle} disabled={!total} className="size-9 text-foreground">
+			<IconButton label={playing ? t("Pause (Space)") : t("Play (Space)")} onClick={onToggle} disabled={!total} className="size-9 text-foreground">
 				{playing ? <Pause className="size-5" /> : <Play className="size-5" />}
 			</IconButton>
-			<IconButton label="Forward 5 seconds (Shift + →)" onClick={() => seek(time + 5)} disabled={!total}>
+			<IconButton label={t("Forward 5 seconds (Shift + →)")} onClick={() => seek(time + 5)} disabled={!total}>
 				<SkipForward className="size-4" />
 			</IconButton>
 			<span className="w-28 font-mono text-xs tabular-nums text-muted-foreground">{formatTime(total, true)}</span>
@@ -309,11 +310,16 @@ function Transport({ total, playing, onToggle }: { total: number; playing: boole
 
 function EmptyState() {
 	const target = languageOf(useEditor((s) => s.project.language));
+	const [before, after] = t("Paste a video link or import a file on the left. Then press {button}.").split("{button}");
 	return (
 		<div className="flex max-w-sm flex-col items-center text-center">
 			<EmptyIllustration scene="video" className="mb-3 h-28" />
 			<p className="font-khmer text-2xl font-semibold text-foreground">សូមស្វាគមន៍</p>
-			<p className="mt-2 text-sm text-muted-foreground">Paste a video link or import a file on the left. Then press <span className="text-primary">Make {target.name} subtitles</span>.</p>
+			<p className="mt-2 text-sm text-muted-foreground">
+				{before}
+				<span className="text-primary">{t("Make {language} subtitles", { language: t(target.name) })}</span>
+				{after}
+			</p>
 		</div>
 	);
 }

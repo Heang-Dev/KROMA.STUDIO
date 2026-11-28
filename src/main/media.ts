@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
 import type { MediaItem } from "@shared/types";
 import { requireTool, run } from "./tools";
+import { t } from "@shared/i18n";
 
 interface ProbeStream {
 	codec_type: string;
@@ -17,8 +18,8 @@ export async function probe(path: string): Promise<MediaItem> {
 	const video = data.streams.find((s) => s.codec_type === "video");
 	const hasAudio = data.streams.some((s) => s.codec_type === "audio");
 	const duration = Number.parseFloat(data.format.duration ?? "0");
-	if (!video && !hasAudio) throw new Error("This file has no video or audio.");
-	if (!(duration > 0)) throw new Error("Couldn't read how long this file is.");
+	if (!video && !hasAudio) throw new Error(t("This file has no video or audio."));
+	if (!(duration > 0)) throw new Error(t("Couldn't read how long this file is."));
 
 	let width = video?.width ?? 0;
 	let height = video?.height ?? 0;

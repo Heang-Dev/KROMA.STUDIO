@@ -3,6 +3,7 @@
 
 import type { Settings } from "@shared/types";
 import { saveSettings } from "./settings";
+import { t } from "@shared/i18n";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -70,16 +71,16 @@ export async function geminiJson<T>(opts: GeminiRequest): Promise<T> {
 		} catch (err) {
 			if (opts.signal?.aborted) throw new Error("Cancelled");
 			// One retry for a stalled request; after that the caller moves on (lighter model, then Google Translate).
-			if (attempt >= 1) throw new Error(timeout.aborted ? "Gemini didn't answer in time (it's very busy right now)." : `Couldn't reach Gemini: ${(err as Error).message}`);
-			opts.onRetry?.("Gemini is slow right now, retrying…");
+			if (attempt >= 1) throw new Error(timeout.aborted ? t("Gemini didn't answer in time (it's very busy right now).") : t("Couldn't reach Gemini: {error}", { error: (err as Error).message }));
+			opts.onRetry?.(t("Gemini is slow right now, retrying…"));
 			await sleep(2000, opts.signal);
 			continue;
 		}
 		if (response.ok) {
 			const data = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]; promptFeedback?: { blockReason?: string } };
-			if (data.promptFeedback?.blockReason) throw new Error(`Gemini declined this part (${data.promptFeedback.blockReason}).`);
+			if (data.promptFeedback?.blockReason) throw new Error(t("Gemini declined this part ({reason}).", { reason: data.promptFeedback.blockReason }));
 			const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-			if (!text) throw new Error(`Gemini returned nothing (${data.candidates?.[0]?.finishReason ?? "no answer"}).`);
+			if (!text) throw new Error(t("Gemini returned nothing ({reason}).", { reason: data.candidates?.[0]?.finishReason ?? t("no answer") }));
 			return JSON.parse(text) as T;
 		}
 		const errorText = await response.text();
@@ -95,20 +96,20 @@ export async function geminiJson<T>(opts: GeminiRequest): Promise<T> {
 		if (!retryable || attempt >= 2) throw new Error(geminiError(response.status, errorText));
 		// The free tier answers 429 with how long to wait ("retryDelay": "23s"); 503 means "busy, try again". Never wait long.
 		const wait = Math.min(20, (hinted || 2 ** attempt * 3) + 1);
-		opts.onRetry?.(`Gemini is busy, retrying in ${Math.round(wait)} s…`);
+		opts.onRetry?.(t("Gemini is busy, retrying in {n} s…", { n: Math.round(wait) }));
 		await sleep(wait * 1000, opts.signal);
 	}
 }
 
 function geminiError(status: number, body: string): string {
-	if (status === 400 && /api key/i.test(body)) return "The Gemini API key was refused. Check it in Settings → Translation.";
-	if (status === 403) return "This Gemini key can't use that model. Pick another model in Settings → Translation.";
-	if (status === 404) return "That Gemini model isn't available. Pick another one in Settings → Translation.";
-	if (status === 429 && /quota/i.test(body)) return "Gemini's free daily limit is used up (it resets tomorrow). Switch to Google Translate, or add a Groq key for speech to text.";
-	if (status === 429) return "Gemini's free limit is used up for now. Wait a minute, lower 'Parallel requests', or switch to Google Translate.";
-	if (status === 503) return "Gemini is very busy right now. Try again in a few minutes.";
+	if (status === 400 && /api key/i.test(body)) return t("The Gemini API key was refused. Check it in Settings → Translation.");
+	if (status === 403) return t("This Gemini key can't use that model. Pick another model in Settings → Translation.");
+	if (status === 404) return t("That Gemini model isn't available. Pick another one in Settings → Translation.");
+	if (status === 429 && /quota/i.test(body)) return t("Gemini's free daily limit is used up (it resets tomorrow). Switch to Google Translate, or add a Groq key for speech to text.");
+	if (status === 429) return t("Gemini's free limit is used up for now. Wait a minute, lower 'Parallel requests', or switch to Google Translate.");
+	if (status === 503) return t("Gemini is very busy right now. Try again in a few minutes.");
 	const message = body.match(/"message":\s*"([^"]+)"/)?.[1];
-	return `Gemini error ${status}${message ? `: ${message}` : ""}`;
+	return message ? t("Gemini error {status}: {message}", { status, message }) : t("Gemini error {status}", { status });
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -141,7 +142,7 @@ export async function geminiWithFallback<T>(settings: Settings, opts: Omit<Gemin
 		}
 		if (settings.geminiModel === GEMINI_LITE_MODEL || err instanceof GeminiModelMissing) throw err;
 		const quota = err instanceof GeminiQuotaExceeded;
-		opts.onRetry?.(quota ? "Gemini's free daily limit is reached, using the lighter Flash-Lite model…" : "Gemini is busy, trying the lighter Flash-Lite model…");
+		opts.onRetry?.(quota ? t("Gemini's free daily limit is reached, using the lighter Flash-Lite model…") : t("Gemini is busy, trying the lighter Flash-Lite model…"));
 		opts.onFallback?.(quota ? "quota" : "busy");
 		return geminiJson<T>({ key: settings.geminiKey, model: GEMINI_LITE_MODEL, ...opts });
 	}

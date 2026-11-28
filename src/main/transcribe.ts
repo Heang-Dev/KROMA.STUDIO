@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { Settings, SourceCue } from "@shared/types";
 import { geminiWithFallback } from "./gemini";
 import { mapLimit, requireTool, run } from "./tools";
+import { t } from "@shared/i18n";
 
 // Cloud speech-to-text through an OpenAI-compatible endpoint (Groq by default).
 // The audio is cut into small pieces and sent in parallel, so a long movie takes about as long as one piece.
@@ -31,8 +32,8 @@ export async function transcribe(
 	signal?: AbortSignal,
 ): Promise<{ cues: SourceCue[]; note?: string }> {
 	const useGemini = settings.asrProvider === "gemini";
-	if (useGemini && !settings.geminiKey) throw new Error("Add your free Gemini key in Settings → Translation (speech to text uses it too), or choose Groq in Settings → Speech to Text.");
-	if (!useGemini && !settings.asrKey) throw new Error("Add your speech-to-text API key in Settings → Speech to Text (Groq is free to start).");
+	if (useGemini && !settings.geminiKey) throw new Error(t("Add your free Gemini key in Settings → Translation (speech to text uses it too), or choose Groq in Settings → Speech to Text."));
+	if (!useGemini && !settings.asrKey) throw new Error(t("Add your speech-to-text API key in Settings → Speech to Text (Groq is free to start)."));
 	const ffmpeg = requireTool("ffmpeg");
 	const dir = mkdtempSync(join(tmpdir(), "kroma-asr-"));
 	// Gemini listens to shorter pieces (its timings stay accurate and each answer stays small); Whisper takes 10 minutes at once.
@@ -42,8 +43,8 @@ export async function transcribe(
 
 	let done = 0;
 	let liteParts = 0;
-	const service = useGemini ? "Gemini" : "the cloud";
-	const report = (note = "") => onProgress(done / starts.length, note || `Transcribing with ${service} · ${done}/${starts.length} parts`);
+	const report = (note = "") =>
+		onProgress(done / starts.length, note || (useGemini ? t("Transcribing with {name} · {done}/{total} parts", { name: "Gemini", done, total: starts.length }) : t("Transcribing in the cloud · {done}/{total} parts", { done, total: starts.length })));
 	report();
 
 	try {
@@ -53,14 +54,14 @@ export async function transcribe(
 			// Mono 16 kHz at 32 kbps: ~2.4 MB per 10 minutes, well under upload limits.
 			await run(ffmpeg, ["-y", "-ss", String(start), "-t", String(length), "-i", mediaPath, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "aac", "-b:a", "32k", chunk], { signal });
 			const segments = useGemini
-				? await geminiTranscription(chunk, length, language, settings, signal, (reason) => report(`${reason} · ${done}/${starts.length} parts done`), () => liteParts++)
+				? await geminiTranscription(chunk, length, language, settings, signal, (reason) => report(t("{reason} · {done}/{total} parts done", { reason, done, total: starts.length })), () => liteParts++)
 				: await requestTranscription(chunk, language, settings, signal);
 			done += 1;
 			report();
 			return segments.map((s) => ({ ...s, start: s.start + start, end: Math.min(s.end, length) + start }));
 		});
 		const note = liteParts
-			? `Gemini's main model wasn't available (free daily limit or busy), so ${liteParts} of ${starts.length} parts used the lighter Flash-Lite model, which is less accurate. Add a free Groq key in Settings → Speech to Text for full accuracy on long videos.`
+			? t("Gemini's main model wasn't available (free daily limit or busy), so {n} of {total} parts used the lighter Flash-Lite model, which is less accurate. Add a free Groq key in Settings → Speech to Text for full accuracy on long videos.", { n: liteParts, total: starts.length })
 			: undefined;
 		return { cues: clean(parts.flat()), note };
 	} finally {
@@ -88,8 +89,8 @@ async function requestTranscription(file: string, language: string, settings: Se
 		const body = await response.text();
 		const retryable = response.status === 429 || response.status >= 500;
 		if (!retryable || attempt >= 4) {
-			if (response.status === 401) throw new Error("The speech-to-text API key was refused. Check it in Settings.");
-			throw new Error(`Speech-to-text failed (${response.status}): ${body.slice(0, 200)}`);
+			if (response.status === 401) throw new Error(t("The speech-to-text API key was refused. Check it in Settings."));
+			throw new Error(t("Speech-to-text failed ({status}): {message}", { status: response.status, message: body.slice(0, 200) }));
 		}
 		const wait = Number(response.headers.get("retry-after")) || 2 ** attempt * 3;
 		await new Promise((r) => setTimeout(r, wait * 1000));

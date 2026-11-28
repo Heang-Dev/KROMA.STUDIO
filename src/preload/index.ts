@@ -167,6 +167,13 @@ const api = {
 		ipcRenderer.on("notify:blocked", handler);
 		return () => ipcRenderer.off("notify:blocked", handler);
 	},
+	/** The interface language now ("en" | "km"), and when it changes (Settings → Appearance → Language). */
+	uiLanguage: (): Promise<"en" | "km"> => ipcRenderer.invoke("ui:language"),
+	onUiLanguage: (listener: (language: "en" | "km") => void): (() => void) => {
+		const handler = (_e: unknown, language: "en" | "km") => listener(language);
+		ipcRenderer.on("ui:language", handler);
+		return () => ipcRenderer.off("ui:language", handler);
+	},
 	onNoticeClicked: (listener: (id: string) => void): (() => void) => {
 		const handler = (_e: unknown, id: string) => listener(id);
 		ipcRenderer.on("notify:clicked", handler);
@@ -180,4 +187,6 @@ const api = {
 
 export type KromaApi = typeof api;
 contextBridge.exposeInMainWorld("kromaPlatform", process.platform);
+// The interface language the window opens in (see main: additionalArguments).
+contextBridge.exposeInMainWorld("kromaLanguage", process.argv.find((a) => a.startsWith("--kroma-language="))?.split("=")[1] ?? "en");
 contextBridge.exposeInMainWorld("kroma", api);

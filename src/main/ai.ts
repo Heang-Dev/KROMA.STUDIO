@@ -7,6 +7,7 @@ import { type GlossaryTerm, applyGlossary, cleanGlossary, glossaryPrompt } from 
 import { geminiWithFallback as gemini } from "./gemini";
 import { googleTranslate } from "./google-translate";
 import { mapLimit } from "./tools";
+import { t } from "@shared/i18n";
 
 // Translation (Khmer, or another chosen language) and the post writer: Gemini (free tier), Google Translate (free, no key) or Claude (paid, best).
 
@@ -14,7 +15,7 @@ const BATCH = 60;
 const CONTEXT_LINES = 6;
 
 function client(settings: Settings): Anthropic {
-	if (!settings.anthropicKey) throw new Error("Add your Anthropic API key in Settings to translate with Claude.");
+	if (!settings.anthropicKey) throw new Error(t("Add your Anthropic API key in Settings to translate with Claude."));
 	return new Anthropic({ apiKey: settings.anthropicKey, maxRetries: 4 });
 }
 
@@ -61,12 +62,12 @@ export async function translateToKhmer(
 	const lang = languageOf(languageCode);
 	const TRANSLATE_SYSTEM = translateSystem(lang);
 	if (settings.translateProvider === "google") {
-		onProgress(0, "Translating with Google Translate");
-		return googleTranslate(forGoogle(lines), (done, total) => onProgress(done / total, `Translating with Google Translate · ${done}/${total}`), signal, lang.code);
+		onProgress(0, t("Translating with {name}", { name: "Google Translate" }));
+		return googleTranslate(forGoogle(lines), (done, total) => onProgress(done / total, t("Translating with Google Translate · {done}/{total}", { done, total })), signal, lang.code);
 	}
 
 	const useGemini = settings.translateProvider === "gemini";
-	if (useGemini && !settings.geminiKey) throw new Error("Add your free Gemini key in Settings → Translation, or choose Google Translate there.");
+	if (useGemini && !settings.geminiKey) throw new Error(t("Add your free Gemini key in Settings → Translation, or choose Google Translate there."));
 	const anthropic = useGemini ? null : client(settings);
 	const name = useGemini ? "Gemini" : "Claude";
 	const batches: { start: number; items: TranslateLine[] }[] = [];
@@ -75,7 +76,7 @@ export async function translateToKhmer(
 	const result: Record<string, string> = {};
 	let done = 0;
 	const failures: string[] = [];
-	onProgress(0, `Translating with ${name} · 0/${batches.length} batches`);
+	onProgress(0, t("Translating with {name} · {done}/{total} batches", { name, done: 0, total: batches.length }));
 
 	// Gemini's free tier allows few requests a minute, so it runs fewer at once.
 	await mapLimit(batches, useGemini ? Math.min(settings.concurrency, 2) : settings.concurrency, async ({ start, items }) => {
@@ -98,7 +99,7 @@ export async function translateToKhmer(
 					prompt,
 					schema: GEMINI_TRANSLATION_SCHEMA,
 					signal,
-					onRetry: (reason) => onProgress(done / batches.length, `${reason} · ${done}/${batches.length} batches done`),
+					onRetry: (reason) => onProgress(done / batches.length, t("{reason} · {done}/{total} batches done", { reason, done, total: batches.length })),
 				});
 				translated = answer.lines ?? [];
 			} else {
@@ -114,7 +115,7 @@ export async function translateToKhmer(
 					},
 					{ signal },
 				);
-				if (response.stop_reason === "refusal") throw new Error("Claude declined this part");
+				if (response.stop_reason === "refusal") throw new Error(t("Claude declined this part"));
 				translated = response.parsed_output?.lines ?? [];
 			}
 			for (const line of translated) {
@@ -126,13 +127,13 @@ export async function translateToKhmer(
 			failures.push(errorText(err));
 		}
 		done += 1;
-		onProgress(done / batches.length, `Translating with ${name} · ${done}/${batches.length} batches`);
+		onProgress(done / batches.length, t("Translating with {name} · {done}/{total} batches", { name, done, total: batches.length }));
 	});
 
 	// Lines Gemini couldn't do (busy, timed out) still get a translation from Google Translate.
 	const missing = lines.filter((l) => result[l.id] === undefined);
 	if (useGemini && missing.length) {
-		onProgress(-1, `Gemini is busy: translating ${missing.length} lines with Google Translate`);
+		onProgress(-1, t("Gemini is busy: translating {n} lines with Google Translate", { n: missing.length }));
 		try {
 			Object.assign(result, await googleTranslate(forGoogle(missing), () => undefined, signal, lang.code));
 			fallbackCount.set(lines, missing.length);
@@ -158,7 +159,7 @@ async function repairScript(
 ): Promise<Record<string, string>> {
 	const wrong = lines.filter((l) => result[l.id] && hasWrongScript(result[l.id], lang.code));
 	if (!wrong.length) return result;
-	onProgress(-1, `Fixing ${wrong.length} line${wrong.length === 1 ? "" : "s"} that mixed in another script`);
+	onProgress(-1, wrong.length === 1 ? t("Fixing 1 line that mixed in another script") : t("Fixing {n} lines that mixed in another script", { n: wrong.length }));
 	const note = `${notes}\nThese lines must be written only in ${lang.name} script: an earlier answer mixed in letters of another language.`.trim();
 	try {
 		const again = await translateToKhmer(wrong, note, settings, () => undefined, signal, lang.code, true, glossary);
@@ -184,7 +185,7 @@ export async function findGlossaryTerms(pairs: { source: string; text: string }[
 	const lang = languageOf(languageCode);
 	// The chosen AI if it has a key; with Google Translate chosen, whichever AI has a key (Gemini first).
 	const useGemini = settings.translateProvider === "claude" && settings.anthropicKey ? false : Boolean(settings.geminiKey);
-	if (!useGemini && !settings.anthropicKey) throw new Error("Finding names needs Gemini or Claude: add a key in Settings → Translation.");
+	if (!useGemini && !settings.anthropicKey) throw new Error(t("Finding names needs Gemini or Claude: add a key in Settings → Translation."));
 	const system = `You build a glossary for translating a video series into ${lang.name}. From the original subtitles and their ${lang.name} translation, list every name of a person, place, family, company, title or rank, and any special term that recurs, with the exact ${lang.name} spelling the translation used. Use a short note to say who or what it is (in English). Leave out ordinary words. If the translation spelled a name in different ways, choose the most common one.`;
 	const sample = pairs.filter((p) => p.source.trim() && p.text.trim()).slice(0, 400);
 	if (!sample.length) return [];
@@ -257,7 +258,7 @@ export async function writeCaptions(request: CaptionRequest, settings: Settings,
 
 	const useClaude = settings.translateProvider === "claude" ? Boolean(settings.anthropicKey) : !settings.geminiKey && Boolean(settings.anthropicKey);
 	if (!useClaude) {
-		if (!settings.geminiKey) throw new Error("Writing posts needs an AI: add a free Gemini key (or a Claude key) in Settings → Translation.");
+		if (!settings.geminiKey) throw new Error(t("Writing posts needs an AI: add a free Gemini key (or a Claude key) in Settings → Translation."));
 		const answer = await gemini<{ posts: PlatformCaption[] }>(settings, { system: CAPTION_SYSTEM, prompt, schema: GEMINI_CAPTION_SCHEMA, signal });
 		return tidy(answer.posts ?? []);
 	}
@@ -274,13 +275,13 @@ export async function writeCaptions(request: CaptionRequest, settings: Settings,
 		},
 		{ signal },
 	);
-	if (response.stop_reason === "refusal") throw new Error("Claude declined to write posts for this video.");
+	if (response.stop_reason === "refusal") throw new Error(t("Claude declined to write posts for this video."));
 	return tidy(response.parsed_output?.posts ?? []);
 }
 
 function errorText(err: unknown): string {
-	if (err instanceof Anthropic.AuthenticationError) return "The Anthropic API key was refused. Check it in Settings.";
-	if (err instanceof Anthropic.RateLimitError) return "Claude is rate limiting this key. Lower 'parallel requests' in Settings or try again shortly.";
-	if (err instanceof Anthropic.APIError) return `Claude error ${err.status ?? ""}: ${err.message}`;
+	if (err instanceof Anthropic.AuthenticationError) return t("The Anthropic API key was refused. Check it in Settings.");
+	if (err instanceof Anthropic.RateLimitError) return t("Claude is rate limiting this key. Lower 'parallel requests' in Settings or try again shortly.");
+	if (err instanceof Anthropic.APIError) return t("Claude error {status}: {message}", { status: err.status ?? "", message: err.message });
 	return err instanceof Error ? err.message : String(err);
 }
