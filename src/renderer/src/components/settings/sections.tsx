@@ -9,7 +9,7 @@ import { keyCaps } from "@/lib/platform";
 import { applyAppearance } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 import { runTask, useEditor } from "@/state/store";
-import { notify, playSound, setNotifyPrefs } from "@/lib/notify";
+import { notify, playSound, setNotifyPrefs, useNotificationsBlocked } from "@/lib/notify";
 import { MAC_SOUNDS } from "@shared/notify";
 import { useNotifications } from "@/state/notifications";
 import { useUpdateState } from "../UpdateButton";
@@ -667,6 +667,7 @@ function SoundRow({ label, tone, value, onChange }: { label: string; tone: "succ
 }
 
 function NotificationsSection({ settings, save }: SectionProps) {
+	const blocked = useNotificationsBlocked((s) => s.blocked);
 	const history = useNotifications((s) => s.entries.length);
 	// notify() follows these settings in this window straight away.
 	useEffect(() => setNotifyPrefs(settings), [settings]);
@@ -679,6 +680,22 @@ function NotificationsSection({ settings, save }: SectionProps) {
 		});
 	return (
 		<>
+			{blocked && (
+				<div role="alert" className="flex items-start gap-2.5 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+					<CircleX className="mt-0.5 size-4 shrink-0 text-destructive" />
+					<div className="min-w-0 flex-1 space-y-1">
+						<p className="text-[13px] font-medium">Your {isMac ? "Mac" : "computer"} isn't showing Kroma's notifications</p>
+						<p className="text-xs leading-relaxed text-muted-foreground">
+							{isMac
+								? "macOS said Kroma Studio isn't allowed to. In System Settings → Notifications → Kroma Studio, turn on Allow notifications and choose Banners. Then press Send test."
+								: "Your system said Kroma Studio isn't allowed to. Allow it in your notification settings, then press Send test."}
+						</p>
+					</div>
+					<Button variant="outline" size="sm" className="shrink-0" onClick={() => void window.kroma.openNotificationSettings()}>
+						<ExternalLink /> Open settings
+					</Button>
+				</div>
+			)}
 			<Group title="Notifications" description="When long work finishes or fails: a notice in Kroma, and a system notification while you're in another app. Everything also goes into the bell in the title bar.">
 				<Card>
 					<SwitchRow label="Notify me when Kroma is in the background" description="System notifications. Failures show one even while you're in Kroma." checked={settings.notifySystem} onChange={(v) => void save({ notifySystem: v })} />

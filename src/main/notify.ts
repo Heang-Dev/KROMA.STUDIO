@@ -51,15 +51,32 @@ export function showSystemNotice(notice: SystemNotice, target?: BrowserWindow | 
 	let shown = false;
 	n.on("show", () => {
 		shown = true;
+		setBlocked(false);
 		logNotice(`shown by the system: ${notice.title}`);
 	});
-	n.on("failed", (_e, error) => logNotice(`failed: ${notice.title}: ${error}`));
+	n.on("failed", (_e, error) => {
+		logNotice(`failed: ${notice.title}: ${error}`);
+		// macOS's "not allowed" (UNErrorDomain error 1): Kroma Studio isn't allowed to show notifications.
+		if (/UNErrorDomain error 1\b|not allowed|denied/i.test(String(error))) setBlocked(true);
+	});
 	setTimeout(() => !shown && logNotice(`no confirmation from the system after 5 s: ${notice.title}`), 5000);
 	logNotice(`asked the system to show: ${notice.title}`);
 	n.show();
 	// In the Dock: a failure while you're in another app makes Kroma's icon bounce once (works without banners).
 	if (process.platform === "darwin" && notice.tone === "error" && inBackground()) app.dock?.bounce("informational");
 	return true;
+}
+
+/**
+ * Whether the system refused Kroma's last notification (not allowed for Kroma Studio). The windows are told once per
+ * change, and show a notice with a way to the system settings; a notification that gets through clears it.
+ */
+let blocked = false;
+export const notificationsBlocked = () => blocked;
+function setBlocked(next: boolean): void {
+	if (next === blocked) return;
+	blocked = next;
+	for (const w of BrowserWindow.getAllWindows()) w.webContents.send("notify:blocked", blocked);
 }
 
 /** notify.log in Kroma's settings folder: the last notifications and what the system did with them. */
