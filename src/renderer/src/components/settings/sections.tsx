@@ -697,14 +697,34 @@ function NotificationsSection({ settings, save }: SectionProps) {
 					/>
 				</Card>
 			</Group>
-			<Group title="Not seeing them?" description="Your computer decides whether Kroma may show notifications, and whether they make a sound. If the test shows nothing outside Kroma, allow Kroma Studio there.">
+			<Group
+				title="Not seeing them?"
+				description="Your computer decides whether a notification pops up, or only plays its sound and waits in Notification Center. Kroma also shows the number of unread notifications on its Dock icon, and bounces it once when something fails while you're in another app."
+			>
 				<Card>
 					<Row
 						label={isMac ? "System Settings → Notifications → Kroma Studio" : "Your system's notification settings"}
-						description={isMac ? "Turn on Allow notifications, and Play sound for notifications." : "Allow notifications from Kroma Studio."}
+						description={
+							isMac
+								? "Turn on Allow notifications, set the alert style to Banners (they go away by themselves) or Alerts (they stay until you close them), and turn on Play sound for notifications. A sound with no banner means the style is None, or a Focus is on."
+								: "Allow notifications from Kroma Studio."
+						}
 						control={
 							<Button variant="outline" size="sm" onClick={() => void window.kroma.openNotificationSettings()}>
 								<ExternalLink /> Open
+							</Button>
+						}
+					/>
+				</Card>
+			</Group>
+			<Group title="Notification log" description="When a notification didn't show: the last notifications Kroma sent and whether your computer showed them.">
+				<Card>
+					<Row
+						label="notify.log"
+						description="In Kroma's settings folder. Send it along if notifications still don't show."
+						control={
+							<Button variant="outline" size="sm" onClick={() => void window.kroma.showNotifyLog()}>
+								<FolderOpen /> Show
 							</Button>
 						}
 					/>
