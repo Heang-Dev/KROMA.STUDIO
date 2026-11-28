@@ -6,6 +6,18 @@
 set -euo pipefail
 REPO="Heang-Dev/kroma"
 cd "$(dirname "$0")/.."
+
+# The live site is replaced as a whole, so publish only from a checkout that has everything on main. A checkout
+# behind origin/main (an old branch, a worktree made earlier) would quietly undo other people's site changes.
+# PUBLISH_ANYWAY=1 skips this check.
+if [ "${PUBLISH_ANYWAY:-}" != "1" ]; then
+	git fetch -q origin main
+	if ! git merge-base --is-ancestor origin/main HEAD; then
+		echo "Not publishing: this checkout is missing commits from origin/main ($(git rev-list --count HEAD..origin/main) behind)." >&2
+		echo "Update it first (git pull, or publish from a worktree at origin/main), then run this again." >&2
+		exit 1
+	fi
+fi
 NEXT_BASE_PATH=/kroma NEXT_PUBLIC_SITE_URL=https://heang-dev.github.io/kroma/ bun run build
 touch out/.nojekyll   # GitHub Pages must serve the _next/ folder as is
 work=$(mktemp -d)
