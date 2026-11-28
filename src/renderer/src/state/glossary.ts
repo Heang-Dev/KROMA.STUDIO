@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { type GlossaryTerm, mergeGlossary } from "@shared/glossary";
+import { t } from "@shared/i18n";
 
 // The open project's series glossary (shared by the projects in its folder; see main/glossary.ts).
 interface GlossaryState {
@@ -22,7 +23,7 @@ export const useGlossary = create<GlossaryState>((set, get) => ({
 	},
 	save: async (terms) => {
 		const { path } = get();
-		if (!path) throw new Error("Save the project first: the glossary is shared by the projects in its folder.");
+		if (!path) throw new Error(t("Save the project first: the glossary is shared by the projects in its folder."));
 		set({ terms: await window.kroma.setGlossary(path, terms) });
 	},
 	merge: async (path, found) => {

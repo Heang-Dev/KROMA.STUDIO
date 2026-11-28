@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { MyStyle, SubtitleStyle } from "@shared/types";
+import { t } from "@shared/i18n";
 
 // My saved subtitle styles, loaded once and shared by the Style panel and Batch.
 interface MyStylesState {
@@ -22,7 +23,7 @@ export const useMyStyles = create<MyStylesState>((set, get) => ({
 		set({ list, loaded: true });
 	},
 	add: async (name, style) => {
-		const entry: MyStyle = { id: newId(), name: name.trim() || "My style", style: { ...style } };
+		const entry: MyStyle = { id: newId(), name: name.trim() || t("My style"), style: { ...style } };
 		set({ list: await window.kroma.setMyStyles([...get().list, entry]) });
 		return entry;
 	},

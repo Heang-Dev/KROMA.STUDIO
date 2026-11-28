@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from
 import { join } from "node:path";
 import { LIBRARY_DIR } from "./download";
 import { findTool, installHint, requireTool, run } from "./tools";
+import { t } from "@shared/i18n";
 
 // Removes the original voices from a video's sound and keeps the music and effects (the UVR models, through
 // audio-separator), so the Khmer voice-over replaces the Chinese speech instead of talking over it.
@@ -34,16 +35,16 @@ export function removeVoices(mediaPath: string, duration: number, quality: Separ
 
 async function separate(mediaPath: string, duration: number, quality: SeparationQuality, out: string, onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<string> {
 	const uvx = findTool("uvx");
-	if (!uvx) throw new Error(`Removing voices needs uv. Install it with: ${installHint("uvx")}`);
+	if (!uvx) throw new Error(t("Removing voices needs uv. Install it with: {command}", { command: installHint("uvx") }));
 	const ffmpeg = requireTool("ffmpeg");
 	const work = join(CACHE, `work-${Date.now()}`);
 	mkdirSync(work, { recursive: true });
 	try {
-		onProgress(-1, "Reading the sound");
+		onProgress(-1, t("Reading the sound"));
 		const input = join(work, "sound.wav");
 		await run(ffmpeg, ["-y", "-v", "error", "-i", mediaPath, "-vn", "-ac", "2", "-ar", "44100", input], { signal });
 
-		onProgress(-1, "Preparing voice removal (the first time downloads the tool and model)");
+		onProgress(-1, t("Preparing voice removal (the first time downloads the tool and model)"));
 		let started = false;
 		await run(
 			uvx,
@@ -80,15 +81,15 @@ async function separate(mediaPath: string, duration: number, quality: Separation
 					if (m) {
 						started = true;
 						const p = Number(m[1]) / Number(m[2]);
-						onProgress(p, `Removing the original voices · ${Math.round(p * 100)}%`);
-					} else if (!started && /download/i.test(line)) onProgress(-1, "Downloading the voice-removal model (first time only)");
+						onProgress(p, t("Removing the original voices · {percent}%", { percent: Math.round(p * 100) }));
+					} else if (!started && /download/i.test(line)) onProgress(-1, t("Downloading the voice-removal model (first time only)"));
 				},
 			},
 		);
 		const result = readdirSync(work).find((f) => f.includes("(Instrumental)"));
-		if (!result) throw new Error("Voice removal finished without a result.");
+		if (!result) throw new Error(t("Voice removal finished without a result."));
 		renameSync(join(work, result), out);
-		onProgress(1, `Original voices removed (${Math.round(duration / 60)} min of sound)`);
+		onProgress(1, t("Original voices removed ({n} min of sound)", { n: Math.round(duration / 60) }));
 		return out;
 	} finally {
 		rmSync(work, { recursive: true, force: true });

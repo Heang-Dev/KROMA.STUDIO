@@ -11,12 +11,13 @@ import { captionWords, ensureFonts, renderBandPng, subtitleBand } from "./subtit
 import { motionFrames, wordShares } from "@shared/captionMotion";
 import { placeClips, placeSourceCues, totalDuration, uid } from "./timeline";
 import { useGlossary } from "@/state/glossary";
+import { t } from "@shared/i18n";
 
 const state = () => useEditor.getState();
 
 export function addMedia(items: MediaItem[]): void {
 	const playable = items.filter((m) => m.width > 0);
-	if (playable.length < items.length) state().showToast("Audio-only files can't go on the video track yet.", "error");
+	if (playable.length < items.length) state().showToast(t("Audio-only files can't go on the video track yet."), "error");
 	if (!playable.length) return;
 	state().update((p) => {
 		const first = p.clips.length === 0;
@@ -48,7 +49,7 @@ export async function downloadFromLink(url: string): Promise<MediaItem | null> {
 	addMedia([result.media]);
 	if (firstVideo) state().update((p) => ({ ...p, name: title.slice(0, 80) }));
 	const subs = Object.keys(result.media.siteSubtitles ?? {});
-	notify({ kind: "downloads", tone: "success", title: `Downloaded ${short(title)}`, detail: subs.length ? `With the site's subtitles (${subs.join(", ")}).` : undefined });
+	notify({ kind: "downloads", tone: "success", title: t("Downloaded {name}", { name: short(title) }), detail: subs.length ? t("With the site's subtitles ({languages}).", { languages: subs.join(", ") }) : undefined });
 	return result.media;
 }
 
@@ -71,14 +72,14 @@ export function preferredSiteSubtitle(media: MediaItem): string | null {
 function confirmReplace(count: number, what: string): boolean {
 	// A batch was told what to do for every project: it doesn't ask.
 	if (!count || batchMode.on) return true;
-	return window.confirm(`${what}\n\nThis replaces the ${count} line${count === 1 ? "" : "s"} you have now, including any you fixed by hand. Undo (⌘Z / Ctrl+Z) brings them back.`);
+	return window.confirm(`${what}\n\n${count === 1 ? t("This replaces the 1 line you have now, including any you fixed by hand. Undo (⌘Z / Ctrl+Z) brings them back.") : t("This replaces the {n} lines you have now, including any you fixed by hand. Undo (⌘Z / Ctrl+Z) brings them back.", { n: count })}`);
 }
 
 /** Fills the subtitle track from the site's subtitles or cloud speech-to-text. Replaces existing cues of that media (after asking). */
 export async function getSubtitles(media: MediaItem, source: { kind: "site"; path: string } | { kind: "cloud"; language: string }): Promise<boolean> {
 	const { project } = state();
 	const existing = project.cues.filter((c) => placeClips(project.clips).some((clip) => clip.mediaId === media.id && c.start >= clip.start && c.start < clip.end));
-	if (!confirmReplace(existing.length, "Get the subtitles again?")) return false;
+	if (!confirmReplace(existing.length, t("Get the subtitles again?"))) return false;
 	let cues: SourceCue[] | null;
 	let note: string | undefined;
 	if (source.kind === "site") cues = await window.kroma.readSubtitles(source.path);
@@ -86,7 +87,7 @@ export async function getSubtitles(media: MediaItem, source: { kind: "site"; pat
 		const answer = await runTask(`asr-${Date.now()}`, "Speech to text", (id) => window.kroma.transcribe(id, media.path, media.duration, source.language), {
 			kind: "subtitles",
 			done: false,
-			failed: "Speech to text failed",
+			failed: t("Speech to text failed"),
 			retry: () => getSubtitles(media, source),
 		});
 		cues = answer?.cues ?? null;
@@ -94,8 +95,8 @@ export async function getSubtitles(media: MediaItem, source: { kind: "site"; pat
 	}
 	if (!cues) return false;
 	if (!cues.length) {
-		if (source.kind === "cloud") notify({ kind: "subtitles", tone: "error", title: "No speech was found", detail: short(media.name) });
-		else state().showToast("No speech was found.", "error");
+		if (source.kind === "cloud") notify({ kind: "subtitles", tone: "error", title: t("No speech was found"), detail: short(media.name) });
+		else state().showToast(t("No speech was found."), "error");
 		return false;
 	}
 	state().update((p) => {
@@ -103,8 +104,8 @@ export async function getSubtitles(media: MediaItem, source: { kind: "site"; pat
 		return { ...p, cues: [...others, ...placeSourceCues(cues, media.id, p.clips)] };
 	});
 	// Speech to text is long work (notified, kept in the history); the site's own subtitles load at once.
-	if (source.kind === "cloud") notify(note ? { kind: "subtitles", tone: "error", title: `${cues.length} subtitle lines ready, lower accuracy`, detail: note } : { kind: "subtitles", tone: "success", title: `${cues.length} subtitle lines ready`, detail: short(media.name) });
-	else state().showToast(`${cues.length} subtitle lines ready.`);
+	if (source.kind === "cloud") notify(note ? { kind: "subtitles", tone: "error", title: t("{n} subtitle lines ready, lower accuracy", { n: cues.length }), detail: note } : { kind: "subtitles", tone: "success", title: t("{n} subtitle lines ready", { n: cues.length }), detail: short(media.name) });
+	else state().showToast(t("{n} subtitle lines ready.", { n: cues.length }));
 	return true;
 }
 
@@ -112,27 +113,27 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 	const { project } = state();
 	const lines = project.cues.filter((c) => c.source.trim() && (!onlyMissing || !c.text.trim())).map((c) => ({ id: c.id, text: c.source, seconds: c.end - c.start }));
 	if (!lines.length) {
-		state().showToast(onlyMissing ? "Every line is already translated." : "There are no lines to translate yet.", "error");
+		state().showToast(onlyMissing ? t("Every line is already translated.") : t("There are no lines to translate yet."), "error");
 		return false;
 	}
 	const lang = languageOf(project.language);
 	const replacing = onlyMissing ? 0 : project.cues.filter((c) => c.source.trim() && c.text.trim()).length;
-	if (!confirmReplace(replacing, `Translate every line to ${lang.name} again?`)) return false;
+	if (!confirmReplace(replacing, t("Translate every line to {language} again?", { language: t(lang.name) }))) return false;
 	const projectPath = state().projectPath;
 	const glossary = await useGlossary.getState().load(projectPath);
-	const answer = await runTask(`translate-${Date.now()}`, `Translate to ${lang.name}`, (id) => window.kroma.translate(id, lines, project.context, lang.code, projectPath), {
+	const answer = await runTask(`translate-${Date.now()}`, t("Translate to {language}", { language: t(lang.name) }), (id) => window.kroma.translate(id, lines, project.context, lang.code, projectPath), {
 		kind: "subtitles",
 		done: false,
-		failed: "Translation failed",
+		failed: t("Translation failed"),
 		retry: () => translateCues(onlyMissing),
 	});
 	if (!answer) return false;
 	const result = answer.translations;
 	state().update((p) => ({ ...p, cues: p.cues.map((c) => (result[c.id] !== undefined ? { ...c, text: result[c.id] } : c)) }));
 	const missed = lines.length - Object.keys(result).length;
-	if (missed) notify({ kind: "subtitles", tone: "error", title: `Translated ${lines.length - missed} of ${lines.length} lines`, detail: `${missed} need another try.`, action: { label: "Translate missing", run: () => translateCues(true) } });
-	else if (answer.fallback) notify({ kind: "subtitles", tone: "success", title: `Translated ${lines.length} lines to ${lang.name}`, detail: `Gemini was busy, so ${answer.fallback} lines used Google Translate. Press "Translate all" later for Gemini's better wording.` });
-	else notify({ kind: "subtitles", tone: "success", title: `Translated ${lines.length} lines to ${lang.name}`, detail: short(project.name) });
+	if (missed) notify({ kind: "subtitles", tone: "error", title: t("Translated {done} of {total} lines", { done: lines.length - missed, total: lines.length }), detail: t("{n} need another try.", { n: missed }), action: { label: t("Translate missing"), run: () => translateCues(true) } });
+	else if (answer.fallback) notify({ kind: "subtitles", tone: "success", title: t("Translated {n} lines to {language}", { n: lines.length, language: t(lang.name) }), detail: t("Gemini was busy, so {n} lines used Google Translate. Press \"Translate all\" later for Gemini's better wording.", { n: answer.fallback }) });
+	else notify({ kind: "subtitles", tone: "success", title: t("Translated {n} lines to {language}", { n: lines.length, language: t(lang.name) }), detail: short(project.name) });
 	// The first translated episode of a series fills the glossary, so the next ones spell names the same way.
 	if (projectPath && !glossary.length) void findGlossaryNames(true);
 	return true;
@@ -145,27 +146,27 @@ export async function translateCues(onlyMissing: boolean): Promise<boolean> {
 export async function findGlossaryNames(quiet = false): Promise<number> {
 	const { project, projectPath } = state();
 	if (!projectPath) {
-		if (!quiet) state().showToast("Save the project first: the glossary is shared by the projects in its folder.", "error");
+		if (!quiet) state().showToast(t("Save the project first: the glossary is shared by the projects in its folder."), "error");
 		return 0;
 	}
 	const settings = await window.kroma.getSettings();
 	if (!settings.hasGeminiKey && !settings.hasAnthropicKey) {
-		if (!quiet) state().showToast("Finding names needs Gemini or Claude: add a key in Settings → Translation.", "error");
+		if (!quiet) state().showToast(t("Finding names needs Gemini or Claude: add a key in Settings → Translation."), "error");
 		return 0;
 	}
 	const pairs = project.cues.filter((c) => c.source.trim() && c.text.trim()).map((c) => ({ source: c.source, text: c.text }));
 	if (!pairs.length) {
-		if (!quiet) state().showToast("Translate the lines first: names are found in the translation.", "error");
+		if (!quiet) state().showToast(t("Translate the lines first: names are found in the translation."), "error");
 		return 0;
 	}
 	// After a translation it runs quietly in the background (a failure only means no names this time).
 	const found = quiet
 		? await window.kroma.findGlossaryTerms(`glossary-${Date.now()}`, pairs, project.language).catch(() => null)
-		: await runTask(`glossary-${Date.now()}`, "Find names for the glossary", (id) => window.kroma.findGlossaryTerms(id, pairs, project.language), { kind: "subtitles", done: false, failed: "Couldn't find names" });
+		: await runTask(`glossary-${Date.now()}`, "Find names for the glossary", (id) => window.kroma.findGlossaryTerms(id, pairs, project.language), { kind: "subtitles", done: false, failed: t("Couldn't find names") });
 	if (!found) return 0;
 	const added = await useGlossary.getState().merge(projectPath, found);
-	if (added) notify({ kind: "subtitles", tone: "success", title: `Added ${added} name${added === 1 ? "" : "s"} to the series glossary`, detail: "Every episode in this folder now translates them the same way (Translate → Series glossary)." });
-	else if (!quiet) state().showToast("No new names: the glossary already has them.", "info");
+	if (added) notify({ kind: "subtitles", tone: "success", title: added === 1 ? t("Added 1 name to the series glossary") : t("Added {n} names to the series glossary", { n: added }), detail: t("Every episode in this folder now translates them the same way (Translate → Series glossary).") });
+	else if (!quiet) state().showToast(t("No new names: the glossary already has them."), "info");
 	return added;
 }
 
@@ -173,7 +174,7 @@ export async function findGlossaryNames(quiet = false): Promise<number> {
 export async function autoKhmer(language: string): Promise<void> {
 	const media = mainMedia();
 	if (!media) {
-		state().showToast("Add a video first.", "error");
+		state().showToast(t("Add a video first."), "error");
 		return;
 	}
 	const site = preferredSiteSubtitle(media);
@@ -187,7 +188,7 @@ export async function autoKhmer(language: string): Promise<void> {
  */
 export async function exportVideo(quality: ExportQuality, quiet = false, outPath?: string): Promise<string | null> {
 	if (!state().project.clips.length) {
-		state().showToast("The timeline is empty.", "error");
+		state().showToast(t("The timeline is empty."), "error");
 		return null;
 	}
 	// A voice-over made before voices were removed automatically: remove them now, so no original speech is heard.
@@ -211,7 +212,7 @@ export async function exportVideo(quality: ExportQuality, quiet = false, outPath
 			// An animated caption is a few images (coming in) or one per word; a still one is one image.
 			const shares = wordShares(captionWords(cue, project.style, frame));
 			for (const part of motionFrames(project.style.animation, shares, cue.start, cue.end)) overlays.push({ start: part.start, end: part.end, png: await renderBandPng(cue, project.style, frame, band, part.motion) });
-			if (i % 25 === 0) useEditor.getState().setTask({ id, label: "Export", progress: -1, message: `Drawing subtitles ${i}/${visible.length}`, status: "running" });
+			if (i % 25 === 0) useEditor.getState().setTask({ id, label: t("Export"), progress: -1, message: t("Drawing subtitles {done}/{total}", { done: i, total: visible.length }), status: "running" });
 		}
 		const mediaById = new Map(project.media.map((m) => [m.id, m]));
 		const voiceNow = voiceSettings(project);
@@ -224,7 +225,7 @@ export async function exportVideo(quality: ExportQuality, quiet = false, outPath
 		const voice = voiceSettings(project);
 		const voiceLines = voice.enabled ? voiceCues(project) : [];
 		if (voice.enabled && voiceLines.length < project.cues.filter((c) => c.text.trim()).length) {
-			useEditor.getState().showToast("Some lines have no voice yet; they'll be silent. Press 'Make voice-over' to fill them.", "error");
+			useEditor.getState().showToast(t("Some lines have no voice yet; they'll be silent. Press 'Make voice-over' to fill them."), "error");
 		}
 		return window.kroma.exportVideo(id, {
 			outPath: target,
@@ -240,13 +241,13 @@ export async function exportVideo(quality: ExportQuality, quiet = false, outPath
 		});
 		},
 		// Posting exports quietly and notifies once it's posted.
-		{ kind: "export", done: false, failed: quiet ? "Export for posting failed" : "Export failed", retry: quiet ? undefined : () => exportVideo(quality, quiet) },
+		{ kind: "export", done: false, failed: quiet ? t("Export for posting failed") : t("Export failed"), retry: quiet ? undefined : () => exportVideo(quality, quiet) },
 	);
 	if (!result) return null;
 	// Remember it (per format), so posting can reuse this file while nothing in the video changes.
 	state().update((p) => recordExport(p, project.aspect, result, videoFingerprint(project)), false);
 	if (!quiet) {
-		notify({ kind: "export", tone: "success", title: `Exported ${short(project.name)} · ${Math.min(frame.width, frame.height)}p`, detail: result.replace(/^\/Users\/[^/]+/, "~"), action: { kind: "showFile", path: result } });
+		notify({ kind: "export", tone: "success", title: t("Exported {name} · {size}p", { name: short(project.name), size: Math.min(frame.width, frame.height) }), detail: result.replace(/^\/Users\/[^/]+/, "~"), action: { kind: "showFile", path: result } });
 		void window.kroma.showInFolder(result);
 	}
 	return result;
@@ -290,7 +291,7 @@ export async function exportSrt(which: "khmer" | "source"): Promise<void> {
 	const content = toSrt(project.cues.map((c) => ({ start: c.start, end: c.end, text: which === "khmer" ? c.text : c.source })));
 	const path = await window.kroma.exportSrt(`${project.name}${which === "khmer" ? ".km" : ""}`, content);
 	if (path) {
-		state().showToast("Subtitles saved", "info", path.replace(/^\/Users\/[^/]+/, "~"));
+		state().showToast(t("Subtitles saved"), "info", path.replace(/^\/Users\/[^/]+/, "~"));
 		void window.kroma.showInFolder(path);
 	}
 }
@@ -298,19 +299,19 @@ export async function exportSrt(which: "khmer" | "source"): Promise<void> {
 export async function importSrt(): Promise<void> {
 	const cues = await window.kroma.importSrt();
 	if (!cues) return;
-	if (!confirmReplace(state().project.cues.length, `Import ${cues.length} lines from this file?`)) return;
+	if (!confirmReplace(state().project.cues.length, t("Import {n} lines from this file?", { n: cues.length }))) return;
 	const khmer = cues.some((c) => /[ក-៿]/.test(c.text));
 	state().update((p) => ({
 		...p,
 		cues: cues.map((c) => ({ id: uid(), start: c.start, end: c.end, source: khmer ? "" : c.text, text: khmer ? c.text : "" })),
 	}));
-	state().showToast(`Imported ${cues.length} lines.`);
+	state().showToast(t("Imported {n} lines.", { n: cues.length }));
 }
 
 /** True (and says why) while a batch is using the editor. */
 export function editorLocked(): boolean {
 	const { locked } = state();
-	if (locked) useEditor.getState().showToast("A batch is using the editor", "error", locked);
+	if (locked) useEditor.getState().showToast(t("A batch is using the editor"), "error", locked);
 	return Boolean(locked);
 }
 
@@ -320,7 +321,7 @@ export async function saveProject(saveAs = false): Promise<void> {
 	const path = await window.kroma.saveProject(project, saveAs ? null : projectPath);
 	if (path) {
 		markSaved(path);
-		showToast("Project saved.");
+		showToast(t("Project saved."));
 	}
 }
 
@@ -334,11 +335,11 @@ export async function openProject(): Promise<void> {
 export async function openProjectAt(path: string): Promise<boolean> {
 	if (editorLocked()) return false;
 	const { dirty, projectPath, project, load, showToast } = state();
-	if (dirty && project.clips.length && !window.confirm(projectPath ? "Open another project? Changes to this one since you last saved are lost." : "Open another project? The current one isn't saved to a file (it stays in autosave until you open another).")) return false;
+	if (dirty && project.clips.length && !window.confirm(projectPath ? t("Open another project? Changes to this one since you last saved are lost.") : t("Open another project? The current one isn't saved to a file (it stays in autosave until you open another)."))) return false;
 	try {
 		load(await window.kroma.readProject(path), path);
 	} catch {
-		showToast("Couldn't open the project", "error", "The file was moved or deleted.");
+		showToast(t("Couldn't open the project"), "error", t("The file was moved or deleted."));
 		return false;
 	}
 	useEditor.setState({ view: { name: "editor" }, panel: "media" });
@@ -418,7 +419,7 @@ export async function removeOriginalVoices(quality: "fast" | "best"): Promise<bo
 	const { project } = state();
 	const used = project.media.filter((m) => m.hasAudio && project.clips.some((c) => c.mediaId === m.id));
 	if (!used.length) {
-		state().showToast("Add a video with sound first.", "error");
+		state().showToast(t("Add a video with sound first."), "error");
 		return false;
 	}
 	const backgrounds: Record<string, string> = { ...(voiceSettings(project).backgrounds ?? {}) };
@@ -426,14 +427,14 @@ export async function removeOriginalVoices(quality: "fast" | "best"): Promise<bo
 		const path = await runTask(`separate-${Date.now()}`, "Remove voices", (id) => window.kroma.removeVoices(id, media.path, media.duration, quality), {
 			kind: "voices",
 			done: false,
-			failed: "Couldn't remove the original voices",
+			failed: t("Couldn't remove the original voices"),
 			retry: () => removeOriginalVoices(quality),
 		});
 		if (!path) return false;
 		backgrounds[media.id] = path;
 	}
 	state().update((p) => ({ ...p, voice: { ...voiceSettings(p), removeVoices: true, separation: quality, backgrounds, enabled: true } }));
-	notify({ kind: "voices", tone: "success", title: "Original voices removed", detail: "The voice-over now plays over the music and effects only." });
+	notify({ kind: "voices", tone: "success", title: t("Original voices removed"), detail: t("The voice-over now plays over the music and effects only.") });
 	return true;
 }
 
@@ -445,7 +446,7 @@ export async function makeVoiceOver(): Promise<boolean> {
 		const has = project.cues.some((c) => c.text.trim());
 		// Nothing left to voice is success for a batch (a retry after the voice-over finished).
 		if (batchMode.on && has) return true;
-		state().showToast(has ? "Every line already has a voice." : `Make the ${languageOf(project.language).name} subtitles first.`, "error");
+		state().showToast(has ? t("Every line already has a voice.") : t("Make the {language} subtitles first.", { language: t(languageOf(project.language).name) }), "error");
 		return false;
 	}
 	// One run per voice: each character's lines are spoken together, so the voice stays the same.
@@ -460,8 +461,8 @@ export async function makeVoiceOver(): Promise<boolean> {
 	for (const [v, group] of groups) {
 		k += 1;
 		const who = voice.cast?.filter((c) => c.voice === v).map((c) => c.name).join(", ");
-		const label = groups.size > 1 ? `Voice-over ${k}/${groups.size}${who ? `: ${who}` : ""}` : "Voice-over";
-		const result = await runTask(`voice-${Date.now()}`, label, (id) => window.kroma.voiceOver(id, group, v, voice.rate), { kind: "voices", done: false, failed: `${label} failed`, retry: () => makeVoiceOver() });
+		const label = groups.size > 1 ? (who ? t("Voice-over {k}/{total}: {who}", { k, total: groups.size, who }) : t("Voice-over {k}/{total}", { k, total: groups.size })) : t("Voice-over");
+		const result = await runTask(`voice-${Date.now()}`, label, (id) => window.kroma.voiceOver(id, group, v, voice.rate), { kind: "voices", done: false, failed: t("{label} failed", { label }), retry: () => makeVoiceOver() });
 		if (!result) break;
 		voiced += Object.keys(result).length;
 		state().update((p) => {
@@ -474,11 +475,11 @@ export async function makeVoiceOver(): Promise<boolean> {
 	const missed = lines.length - voiced;
 	notify(
 		missed
-			? { kind: "voices", tone: "error", title: `Voiced ${voiced} of ${lines.length} lines`, detail: `${missed} not done yet.`, action: { label: "Finish them", run: () => makeVoiceOver() } }
-			: { kind: "voices", tone: "success", title: `Voice-over ready · ${voiced} lines`, detail: short(project.name) },
+			? { kind: "voices", tone: "error", title: t("Voiced {done} of {total} lines", { done: voiced, total: lines.length }), detail: t("{n} not done yet.", { n: missed }), action: { label: t("Finish them"), run: () => makeVoiceOver() } }
+			: { kind: "voices", tone: "success", title: t("Voice-over ready · {n} lines", { n: voiced }), detail: short(project.name) },
 	);
 	await removeVoicesUnlessOff();
-	if (missed) noteBatchError(`${missed} of ${lines.length} lines have no voice yet.`);
+	if (missed) noteBatchError(t("{missed} of {total} lines have no voice yet.", { missed, total: lines.length }));
 	return !missed;
 }
 
@@ -490,7 +491,7 @@ async function removeVoicesUnlessOff(): Promise<void> {
 	const voice = voiceSettings(state().project);
 	if (!voice.enabled || voice.removeVoices !== undefined) return;
 	const ok = await removeOriginalVoices(voice.separation ?? "fast");
-	if (!ok) state().showToast("The original voices are still in", "error", "Removing them didn't work, so the original sound plays quietly under the voice-over. Try again from Voice → Mix.");
+	if (!ok) state().showToast(t("The original voices are still in"), "error", t("Removing them didn't work, so the original sound plays quietly under the voice-over. Try again from Voice → Mix."));
 }
 
 /** The voices the character finder may choose from: the language's instant voices, and the engine's templates for Khmer (not clones of real people). */
@@ -525,7 +526,7 @@ export async function findCharacters(): Promise<boolean> {
 	const { project } = state();
 	const lines = project.cues.filter((c) => (c.source || c.text).trim()).map((c) => ({ id: c.id, text: (c.source || c.text).trim(), start: c.start }));
 	if (!lines.length) {
-		state().showToast("Make the subtitles first.", "error");
+		state().showToast(t("Make the subtitles first."), "error");
 		return false;
 	}
 	// Prefer the voice family already in use: designed voices when the default is one, instant ones otherwise.
@@ -535,7 +536,7 @@ export async function findCharacters(): Promise<boolean> {
 	const result = await runTask(`characters-${Date.now()}`, "Find characters", (id) => window.kroma.findCharacters(id, lines, voices, project.context), {
 		kind: "voices",
 		done: false,
-		failed: "Couldn't find the characters",
+		failed: t("Couldn't find the characters"),
 		retry: () => findCharacters(),
 	});
 	if (!result) return false;
@@ -545,7 +546,7 @@ export async function findCharacters(): Promise<boolean> {
 		const cast = result.characters.map((c) => ({ ...c, voice: current.cast?.find((x) => x.name === c.name)?.voice ?? c.voice }));
 		return { ...p, cues: p.cues.map((c) => ({ ...c, speaker: result.speakers[c.id] ?? c.speaker })), voice: { ...current, cast } };
 	});
-	notify({ kind: "voices", tone: "success", title: `Found ${result.characters.length} character${result.characters.length === 1 ? "" : "s"}`, detail: "Each has a voice. Change any voice in the list, or who says a line in the subtitles." });
+	notify({ kind: "voices", tone: "success", title: result.characters.length === 1 ? t("Found 1 character") : t("Found {n} characters", { n: result.characters.length }), detail: t("Each has a voice. Change any voice in the list, or who says a line in the subtitles.") });
 	return true;
 }
 
@@ -576,8 +577,8 @@ export function addCharacter(): string {
 	const current = voiceSettings(state().project);
 	const cast = current.cast ?? [];
 	let n = cast.length + 1;
-	while (cast.some((c) => c.name === `Character ${n}`)) n += 1;
-	const name = `Character ${n}`;
+	while (cast.some((c) => c.name === t("Character {n}", { n }))) n += 1;
+	const name = t("Character {n}", { n });
 	setVoice({ cast: [...cast, { name, voice: current.voice }] });
 	return name;
 }
@@ -589,7 +590,7 @@ export function setSpeaker(cueId: string, speaker: string | undefined): void {
 export function startNewProject(): void {
 	if (editorLocked()) return;
 	const { dirty, projectPath, load } = state();
-	if (dirty && !projectPath && state().project.clips.length && !window.confirm("Start a new project? The current one isn't saved to a file (it stays in autosave until you start another).")) return;
+	if (dirty && !projectPath && state().project.clips.length && !window.confirm(t("Start a new project? The current one isn't saved to a file (it stays in autosave until you start another)."))) return;
 	load(newProject(), null);
 }
 
@@ -615,7 +616,7 @@ export async function restoreAutosave(): Promise<void> {
 	state().load(saved.project, saved.path);
 	if (saved.path) state().markSaved(saved.path);
 	else useEditor.setState({ dirty: true });
-	state().showToast("Reopened your last project.");
+	state().showToast(t("Reopened your last project."));
 }
 
 /** How many translated lines contain the text. */
@@ -646,12 +647,12 @@ export async function writePosts(): Promise<boolean> {
 	const { project } = state();
 	const transcript = project.cues.map((c) => c.text.trim()).filter(Boolean).join("\n");
 	if (!transcript) {
-		state().showToast(`Make the ${languageOf(project.language).name} subtitles first.`, "error");
+		state().showToast(t("Make the {language} subtitles first.", { language: t(languageOf(project.language).name) }), "error");
 		return false;
 	}
 	const posts = await runTask(`captions-${Date.now()}`, "Write posts", (id) => window.kroma.captions(id, { transcript, title: project.name, context: project.context, language: project.language }), {
-		done: () => ({ kind: "export", tone: "success", title: "Posts written", detail: `YouTube, Facebook and TikTok · ${short(project.name)}` }),
-		failed: "Couldn't write the posts",
+		done: () => ({ kind: "export", tone: "success", title: t("Posts written"), detail: t("YouTube, Facebook and TikTok · {name}", { name: short(project.name) }) }),
+		failed: t("Couldn't write the posts"),
 		retry: () => writePosts(),
 	});
 	if (!posts) return false;
@@ -675,12 +676,12 @@ export interface PublishOptions extends PostChoice {
 export async function publishVideo(options: PublishOptions): Promise<PublishResult[] | null> {
 	const settings = await window.kroma.getSettings();
 	if (!settings.hasPostKey) {
-		state().showToast("Connect your accounts first", "error", "Add your Upload-Post key in Settings → Posting.");
+		state().showToast(t("Connect your accounts first"), "error", t("Add your Upload-Post key in Settings → Posting."));
 		if (!batchMode.on) state().openSettings("posting");
 		return null;
 	}
 	if (!options.platforms.length) {
-		state().showToast("Choose where to post.", "error");
+		state().showToast(t("Choose where to post."), "error");
 		return null;
 	}
 	if (!state().project.posts?.length && !(await writePosts())) return null;
@@ -689,7 +690,7 @@ export async function publishVideo(options: PublishOptions): Promise<PublishResu
 	if (options.platforms.includes("facebook") && !pageId) {
 		const pages = await window.kroma.facebookPages().catch(() => []);
 		if (pages.length !== 1) {
-			state().showToast("Choose your Facebook Page", "error", "Pick the Page to post to in Settings → Posting.");
+			state().showToast(t("Choose your Facebook Page"), "error", t("Pick the Page to post to in Settings → Posting."));
 			if (!batchMode.on) state().openSettings("posting");
 			return null;
 		}
@@ -715,13 +716,13 @@ export async function publishVideo(options: PublishOptions): Promise<PublishResu
 		pageId,
 		key: `${videoFingerprint(project)}-${Date.now()}`,
 	});
-	const results = await runTask(`publish-${Date.now()}`, "Post", (id) => window.kroma.publish(id, req), { kind: "export", done: false, failed: "Posting failed", retry: () => publishVideo(options) });
+	const results = await runTask(`publish-${Date.now()}`, "Post", (id) => window.kroma.publish(id, req), { kind: "export", done: false, failed: t("Posting failed"), retry: () => publishVideo(options) });
 	if (!results) return null;
 	state().update((p) => ({ ...p, published: [...(p.published ?? []), { at: Date.now(), results }] }), false);
 	const failed = results.filter((r) => r.state === "failed");
 	const names = (rs: PublishResult[]) => rs.map((r) => PLATFORM_NAMES[r.platform]).join(", ");
-	if (failed.length) notify({ kind: "export", tone: "error", title: `Not posted to ${names(failed)}`, detail: failed[0].message ?? "See the Post panel for details." });
-	else notify({ kind: "export", tone: "success", title: `Posted ${short(project.name)} to ${names(results)}`, detail: options.tiktokMode === "draft" && options.platforms.includes("tiktok") ? "TikTok: open the app and post it from your drafts." : undefined });
+	if (failed.length) notify({ kind: "export", tone: "error", title: t("Not posted to {platforms}", { platforms: names(failed) }), detail: failed[0].message ?? t("See the Post panel for details.") });
+	else notify({ kind: "export", tone: "success", title: t("Posted {name} to {platforms}", { name: short(project.name), platforms: names(results) }), detail: options.tiktokMode === "draft" && options.platforms.includes("tiktok") ? t("TikTok: open the app and post it from your drafts.") : undefined });
 	return results;
 }
 

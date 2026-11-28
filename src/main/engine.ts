@@ -8,6 +8,7 @@ import { app } from "electron";
 import type { KvsStatus, Settings } from "@shared/types";
 import { kvsStatus } from "./kvs";
 import { findTool, run } from "./tools";
+import { t } from "@shared/i18n";
 
 // Kroma's own voice engine (engine/ in this repo, shipped in the app's resources): installed once into Kroma's data
 // folder with one button, then started and stopped by Kroma. Nothing else is needed: Kroma fetches uv (a small Python
@@ -56,9 +57,9 @@ export const isInstalling = () => installing;
 
 /** What's missing to start the engine here, or null when it can start. */
 export function cannotStart(settings: Settings): string | null {
-	if (!isLocalEngine(settings.kvsUrl)) return "The engine runs on Google Colab (Settings → Voice Engine).";
-	if (installing) return "The voice engine is being installed.";
-	if (installState() === "missing") return "Install the voice engine first (Settings → Voice Engine).";
+	if (!isLocalEngine(settings.kvsUrl)) return t("The engine runs on Google Colab (Settings → Voice Engine).");
+	if (installing) return t("The voice engine is being installed.");
+	if (installState() === "missing") return t("Install the voice engine first (Settings → Voice Engine).");
 	return null;
 }
 
@@ -81,19 +82,19 @@ async function ensureUv(onProgress: (p: number, m: string) => void, signal?: Abo
 	if (own) return own;
 	const mine = join(home(), "bin", isWindows ? "uv.exe" : "uv");
 	if (existsSync(mine)) return mine;
-	onProgress(-1, "Getting the Python installer (uv, about 20 MB)");
+	onProgress(-1, t("Getting the Python installer (uv, about 20 MB)"));
 	const asset = uvAsset();
 	const tmp = join(home(), "tmp");
 	rmSync(tmp, { recursive: true, force: true });
 	mkdirSync(tmp, { recursive: true });
 	const archive = join(tmp, asset);
 	const res = await fetch(`https://github.com/astral-sh/uv/releases/latest/download/${asset}`, { signal });
-	if (!res.ok || !res.body) throw new Error(`Couldn't download the Python installer (${res.status}). Check the internet connection.`);
+	if (!res.ok || !res.body) throw new Error(t("Couldn't download the Python installer ({status}). Check the internet connection.", { status: res.status }));
 	await pipeline(Readable.fromWeb(res.body as import("node:stream/web").ReadableStream), createWriteStream(archive));
 	// tar unpacks both .tar.gz and .zip (bsdtar on macOS and Windows 10+).
 	await run("tar", ["-xf", archive, "-C", tmp], { signal });
 	const found = findFile(tmp, isWindows ? "uv.exe" : "uv");
-	if (!found) throw new Error("The Python installer download was incomplete. Try again.");
+	if (!found) throw new Error(t("The Python installer download was incomplete. Try again."));
 	mkdirSync(dirname(mine), { recursive: true });
 	renameSync(found, mine);
 	if (!isWindows) chmodSync(mine, 0o755);
@@ -118,7 +119,7 @@ function findFile(dir: string, name: string): string | null {
  * minutes). Safe to run again: it updates an older install. The voice model itself downloads on the first start.
  */
 export async function installEngine(onProgress: (p: number, m: string) => void, signal?: AbortSignal): Promise<void> {
-	if (installing) throw new Error("The voice engine is already being installed.");
+	if (installing) throw new Error(t("The voice engine is already being installed."));
 	installing = true;
 	stopEngine();
 	mkdirSync(home(), { recursive: true });
@@ -126,26 +127,26 @@ export async function installEngine(onProgress: (p: number, m: string) => void, 
 	const logLine = (line: string) => log.write(`${line}\n`);
 	try {
 		const uv = await ensureUv(onProgress, signal);
-		onProgress(0.05, "Setting up Python 3.11");
+		onProgress(0.05, t("Setting up Python 3.11"));
 		rmSync(marker(), { force: true });
 		await run(uv, ["venv", "--python", "3.11", "--allow-existing", venv()], { signal, onLine: logLine });
 		// uv prints one line per package as it lands; about 150 packages for the engine.
 		let done = 0;
-		onProgress(0.1, "Installing the voice engine (about 2 GB, a few minutes)");
+		onProgress(0.1, t("Installing the voice engine (about 2 GB, a few minutes)"));
 		await run(uv, ["pip", "install", "--python", python(), "-r", join(engineDir(), "requirements.txt")], {
 			signal,
 			onLine: (line) => {
 				logLine(line);
 				if (/^\s*(\+|Downloaded|Prepared|Built)\b/.test(line)) done++;
 				const name = line.match(/^\s*\+\s*([\w.-]+)/)?.[1] ?? line.match(/Downloaded\s+([\w.-]+)/)?.[1];
-				onProgress(Math.min(0.97, 0.1 + done / 320), name ? `Installing the voice engine · ${name}` : "Installing the voice engine (about 2 GB, a few minutes)");
+				onProgress(Math.min(0.97, 0.1 + done / 320), name ? t("Installing the voice engine · {name}", { name }) : t("Installing the voice engine (about 2 GB, a few minutes)"));
 			},
 		});
 		writeFileSync(marker(), JSON.stringify({ requirements: requirementsHash(), installed: new Date().toISOString(), version: app.getVersion() }, null, "\t"));
-		onProgress(1, "The voice engine is installed");
+		onProgress(1, t("The voice engine is installed"));
 	} catch (err) {
 		if (signal?.aborted) throw new Error("Cancelled");
-		throw new Error(`${err instanceof Error ? err.message.split("\n").slice(-3).join(" ") : String(err)} (Full log: ${installLog()})`);
+		throw new Error(t("{error} (Full log: {path})", { error: err instanceof Error ? err.message.split("\n").slice(-3).join(" ") : String(err), path: installLog() }));
 	} finally {
 		log.end();
 		installing = false;
@@ -154,7 +155,7 @@ export async function installEngine(onProgress: (p: number, m: string) => void, 
 
 /** Removes the installed engine (frees about 2 GB). The voice model in the shared model cache stays. */
 export function removeEngine(): void {
-	if (installing) throw new Error("Wait for the install to finish.");
+	if (installing) throw new Error(t("Wait for the install to finish."));
 	stopEngine();
 	rmSync(venv(), { recursive: true, force: true });
 	rmSync(marker(), { force: true });
@@ -189,11 +190,11 @@ export async function startEngine(settings: Settings): Promise<KvsStatus> {
 	const until = Date.now() + 120_000;
 	while (Date.now() < until) {
 		await new Promise((r) => setTimeout(r, 1500));
-		if (!engineStartedByKroma()) throw new Error(`The engine stopped while starting. Its log: ${engineLog()}`);
+		if (!engineStartedByKroma()) throw new Error(t("The engine stopped while starting. Its log: {path}", { path: engineLog() }));
 		const status = await kvsStatus(settings);
 		if (status.online) return status;
 	}
-	throw new Error(`The engine didn't answer after 2 minutes. Its log: ${engineLog()}`);
+	throw new Error(t("The engine didn't answer after 2 minutes. Its log: {path}", { path: engineLog() }));
 }
 
 /** Stops the engine Kroma started (an engine started another way isn't Kroma's to stop). */

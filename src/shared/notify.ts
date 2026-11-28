@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 // Notifications: the history entries both processes agree on, and the small rules they share.
 // The renderer keeps the history (src/renderer/src/state/notifications.ts); the main process shows the system
 // notifications (src/main/notify.ts) and reports work that finishes there (the Download Center, updates).
@@ -100,14 +102,14 @@ export const HISTORY_LIMIT = 100;
 /** "just now", "2 min ago", "3 h ago", "yesterday", "4 days ago", then the date. */
 export function relativeTime(time: number, now = Date.now()): string {
 	const seconds = Math.max(0, Math.round((now - time) / 1000));
-	if (seconds < 45) return "just now";
+	if (seconds < 45) return t("just now");
 	const minutes = Math.round(seconds / 60);
-	if (minutes < 60) return `${minutes} min ago`;
+	if (minutes < 60) return t("{n} min ago", { n: minutes });
 	const hours = Math.round(minutes / 60);
-	if (hours < 24) return `${hours} h ago`;
+	if (hours < 24) return t("{n} h ago", { n: hours });
 	const days = Math.round(hours / 24);
-	if (days === 1) return "yesterday";
-	if (days < 7) return `${days} days ago`;
+	if (days === 1) return t("yesterday");
+	if (days < 7) return t("{n} days ago", { n: days });
 	return new Date(time).toLocaleDateString(undefined, { day: "numeric", month: "short", year: new Date(time).getFullYear() === new Date(now).getFullYear() ? undefined : "numeric" });
 }
 
@@ -115,24 +117,24 @@ export function relativeTime(time: number, now = Date.now()): string {
 export function actionLabel(action: StoredAction, platform = "darwin"): string {
 	switch (action.kind) {
 		case "openProject":
-			return "Open project";
+			return t("Open project");
 		case "showFile":
-			return platform === "darwin" ? "Show in Finder" : "Show in folder";
+			return platform === "darwin" ? t("Show in Finder") : t("Show in folder");
 		case "installUpdate":
-			return "Restart";
+			return t("Restart");
 		case "callback":
-			return action.label;
+			return t(action.label);
 		case "view":
-			return { story: "Open Story", downloads: "Open Downloads", voices: "Open Voices", settings: "Open Settings", batch: "Open Batch" }[action.view];
+			return t({ story: "Open Story", downloads: "Open Downloads", voices: "Open Voices", settings: "Open Settings", batch: "Open Batch" }[action.view]);
 	}
 }
 
 /** "12 videos downloaded · 1 failed". */
 export function batchSummary(done: number, failed: number): string {
 	const parts = [];
-	if (done) parts.push(`${done} video${done === 1 ? "" : "s"} downloaded`);
-	if (failed) parts.push(`${failed} failed`);
-	return parts.join(" · ") || "Nothing downloaded";
+	if (done) parts.push(done === 1 ? t("1 video downloaded") : t("{n} videos downloaded", { n: done }));
+	if (failed) parts.push(t("{n} failed", { n: failed }));
+	return parts.join(" · ") || t("Nothing downloaded");
 }
 
 /**

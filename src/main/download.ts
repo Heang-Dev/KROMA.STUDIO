@@ -6,6 +6,7 @@ import { downloadErrorMessage, normalizeLink } from "@shared/links";
 import type { DownloadResult } from "@shared/types";
 import { probe } from "./media";
 import { findTool, requireTool, run } from "./tools";
+import { t } from "@shared/i18n";
 
 // The Movies folder on a Mac, Videos on Windows and Linux.
 export const LIBRARY_DIR = join(videosDir(), "Kroma Studio");
@@ -98,12 +99,12 @@ export async function downloadLink(
 		else if (line.startsWith("KROMA_PROGRESS ")) {
 			const [pct, speed, eta] = line.slice(15).split("|").map((s) => s.trim());
 			const value = Number.parseFloat(pct) / 100;
-			if (Number.isFinite(value)) onProgress(Math.min(0.99, value), `Downloading ${pct} · ${speed} · ${eta} left`);
-		} else if (line.includes("Merging formats")) onProgress(0.99, "Joining video and audio…");
-		else if (line.includes("Writing video subtitles")) onProgress(-1, "Getting the site's subtitles…");
+			if (Number.isFinite(value)) onProgress(Math.min(0.99, value), t("Downloading {percent} · {speed} · {eta} left", { percent: pct, speed, eta }));
+		} else if (line.includes("Merging formats")) onProgress(0.99, t("Joining video and audio…"));
+		else if (line.includes("Writing video subtitles")) onProgress(-1, t("Getting the site's subtitles…"));
 	};
 
-	onProgress(-1, "Reading the link…");
+	onProgress(-1, t("Reading the link…"));
 	try {
 		try {
 			await run(ytdlp, [...baseArgs, ...subArgs, url], { onLine, signal, env });
@@ -113,14 +114,14 @@ export async function downloadLink(
 			// Subtitle requests sometimes get rate limited; the video matters more, so retry without them.
 			// A link yt-dlp can't read at all fails the same way twice, so don't retry those.
 			if (file || /unsupported url|generic information extractor|drm|private|sign in/i.test(message)) throw err;
-			onProgress(-1, "Retrying without the site's subtitles…");
+			onProgress(-1, t("Retrying without the site's subtitles…"));
 			await run(ytdlp, [...baseArgs, url], { onLine, signal, env });
 		}
 	} catch (err) {
 		if (signal?.aborted) throw err;
 		throw new Error(downloadErrorMessage(err instanceof Error ? err.message : String(err)));
 	}
-	if (!file) throw new Error("The download finished but no video file was found.");
+	if (!file) throw new Error(t("The download finished but no video file was found."));
 
 	const media = await probe(file);
 	const siteSubtitles: Record<string, string> = {};

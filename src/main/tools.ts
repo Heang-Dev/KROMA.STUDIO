@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
+import { t } from "@shared/i18n";
 
 export type ToolName = "ffmpeg" | "ffprobe" | "yt-dlp" | "uvx" | "uv";
 
@@ -56,7 +57,7 @@ export function installHint(name: ToolName): string {
 
 export function requireTool(name: "ffmpeg" | "ffprobe" | "yt-dlp"): string {
 	const found = findTool(name);
-	if (!found) throw new Error(`${name} is not installed. Install it with: ${installHint(name)}`);
+	if (!found) throw new Error(t("{name} is not installed. Install it with: {command}", { name, command: installHint(name) }));
 	return found;
 }
 

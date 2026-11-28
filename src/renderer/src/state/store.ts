@@ -5,6 +5,7 @@ import { totalDuration } from "@/lib/timeline";
 import type { NoticeKind } from "@shared/notify";
 import { type NotifyAction, type NotifyInput, notify } from "@/lib/notify";
 import { batchMode, noteBatchError, noteBatchMessage } from "@/lib/batchMode";
+import { t } from "@shared/i18n";
 
 export type Panel = "media" | "ai" | "voice" | "style" | "objects" | "post";
 
@@ -176,9 +177,11 @@ export interface RunTaskOptions<T> {
  * Runs a main-process task, mirroring its progress into the store, and notifies when it's done or failed (not when
  * cancelled). Returns null if it failed or was cancelled.
  */
-export async function runTask<T>(id: string, label: string, work: (taskId: string) => Promise<T>, options: RunTaskOptions<T> = {}): Promise<T | null> {
+export async function runTask<T>(id: string, text: string, work: (taskId: string) => Promise<T>, options: RunTaskOptions<T> = {}): Promise<T | null> {
 	const { setTask } = useEditor.getState();
-	setTask({ id, label, progress: -1, message: "Starting…", status: "running" });
+	// The label is English in the code (the key), shown in the interface language.
+	const label = t(text);
+	setTask({ id, label, progress: -1, message: t("Starting…"), status: "running" });
 	let result: T;
 	try {
 		result = await work(id);
@@ -188,13 +191,13 @@ export async function runTask<T>(id: string, label: string, work: (taskId: strin
 		noteBatchError(message);
 		if (message !== "Cancelled" && !batchMode.on) {
 			const action = options.failedAction ?? (options.retry ? { kind: "retry" as const, run: options.retry } : undefined);
-			notify({ tone: "error", kind: options.kind, title: options.failed ?? `${label} failed`, detail: message, action });
+			notify({ tone: "error", kind: options.kind, title: options.failed ? t(options.failed) : t("{label} failed", { label }), detail: message, action });
 		}
 		return null;
 	}
-	setTask({ id, label, progress: 1, message: "Done", status: "done" });
+	setTask({ id, label, progress: 1, message: t("Done"), status: "done" });
 	if (options.done !== false) {
-		const notice = options.done ? options.done(result) : { tone: "success" as const, title: `${label} done` };
+		const notice = options.done ? options.done(result) : { tone: "success" as const, title: t("{label} done", { label }) };
 		if (notice) notify({ kind: options.kind, ...notice });
 	}
 	return result;

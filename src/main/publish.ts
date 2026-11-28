@@ -2,6 +2,7 @@ import { openAsBlob } from "node:fs";
 import { basename } from "node:path";
 import { uploadGroups } from "@shared/batch";
 import type { PostAccount, PostProfile, PublishPlatform, PublishRequest, PublishResult } from "@shared/types";
+import { t } from "@shared/i18n";
 
 // One-click posting through Upload-Post (upload-post.com): your YouTube, Facebook and TikTok accounts are connected
 // once on their site; Kroma uploads the video once with each platform's own title and text, then follows the result.
@@ -10,18 +11,18 @@ import type { PostAccount, PostProfile, PublishPlatform, PublishRequest, Publish
 const BASE = () => (process.env.KROMA_POST_API || "https://api.upload-post.com").replace(/\/$/, "");
 
 async function call<T>(key: string, path: string, init: RequestInit = {}, timeoutMs = 30_000): Promise<T> {
-	if (!key) throw new Error("Add your Upload-Post API key in Settings → Posting first.");
+	if (!key) throw new Error(t("Add your Upload-Post API key in Settings → Posting first."));
 	let response: Response;
 	try {
 		response = await fetch(`${BASE()}${path}`, { ...init, headers: { Authorization: `Apikey ${key}`, ...(init.headers as Record<string, string>) }, signal: init.signal ?? AbortSignal.timeout(timeoutMs) });
 	} catch (err) {
-		if ((err as Error).name === "AbortError" || (err as Error).name === "TimeoutError") throw new Error("Upload-Post didn't answer in time. Check your internet and try again.");
-		throw new Error("Can't reach Upload-Post. Check your internet connection.");
+		if ((err as Error).name === "AbortError" || (err as Error).name === "TimeoutError") throw new Error(t("Upload-Post didn't answer in time. Check your internet and try again."));
+		throw new Error(t("Can't reach Upload-Post. Check your internet connection."));
 	}
 	const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-	if (response.status === 401) throw new Error("Upload-Post refused the API key. Copy it again from app.upload-post.com → API Keys into Settings → Posting.");
-	if (response.status === 429) throw new Error("This month's Upload-Post uploads are used up (the free plan has 10). Upgrade the plan or wait for next month.");
-	if (!response.ok || body.success === false) throw new Error(String(body.message ?? body.error ?? `Upload-Post error ${response.status}`));
+	if (response.status === 401) throw new Error(t("Upload-Post refused the API key. Copy it again from app.upload-post.com → API Keys into Settings → Posting."));
+	if (response.status === 429) throw new Error(t("This month's Upload-Post uploads are used up (the free plan has 10). Upgrade the plan or wait for next month."));
+	if (!response.ok || body.success === false) throw new Error(String(body.message ?? body.error ?? t("Upload-Post error {status}", { status: response.status })));
 	return body as T;
 }
 
@@ -147,11 +148,11 @@ export async function publish(key: string, req: PublishRequest, onProgress: (p: 
 	if (groups.length === 1) return publishOne(key, { ...req, video: groups[0].video }, onProgress, signal);
 	const results: PublishResult[] = [];
 	for (const [i, group] of groups.entries()) {
-		const part = (p: number, m: string) => onProgress(p < 0 ? -1 : (i + p) / groups.length, `Upload ${i + 1}/${groups.length} · ${m}`);
+		const part = (p: number, m: string) => onProgress(p < 0 ? -1 : (i + p) / groups.length, t("Upload {n}/{total} · {message}", { n: i + 1, total: groups.length, message: m }));
 		// Each upload has its own key (the same one on a retry), so neither posts twice.
 		results.push(...(await publishOne(key, { ...req, video: group.video, platforms: group.platforms, idempotencyKey: `${req.idempotencyKey}-${i + 1}` }, part, signal)));
 	}
-	return req.platforms.map((p) => results.find((r) => r.platform === p) ?? { platform: p, state: "failed", message: "No answer for this platform." });
+	return req.platforms.map((p) => results.find((r) => r.platform === p) ?? { platform: p, state: "failed", message: t("No answer for this platform.") });
 }
 
 /**
@@ -162,7 +163,7 @@ async function publishOne(key: string, req: PublishRequest, onProgress: (p: numb
 	const form = new FormData();
 	for (const [name, value] of uploadFields(req)) form.append(name, value);
 	form.append("video", await openAsBlob(req.video, { type: "video/mp4" }), basename(req.video));
-	onProgress(-1, `Uploading the video to ${req.platforms.length} platform${req.platforms.length === 1 ? "" : "s"}…`);
+	onProgress(-1, req.platforms.length === 1 ? t("Uploading the video to 1 platform…") : t("Uploading the video to {n} platforms…", { n: req.platforms.length }));
 	const started = await call<{ request_id?: string; results?: unknown }>(key, "/api/upload", { method: "POST", body: form, headers: { "Idempotency-Key": req.idempotencyKey }, signal }, 60 * 60_000);
 	if (!started.request_id) return normaliseResults(started.results);
 
@@ -171,16 +172,16 @@ async function publishOne(key: string, req: PublishRequest, onProgress: (p: numb
 	let last: PublishResult[] = req.platforms.map((platform) => ({ platform, state: "working" }));
 	await new Promise((r) => setTimeout(r, 5000));
 	while (Date.now() < deadline) {
-		if (signal?.aborted) throw new Error("Stopped following the post. It may still finish on the platforms.");
+		if (signal?.aborted) throw new Error(t("Stopped following the post. It may still finish on the platforms."));
 		const status = await call<{ status?: string; completed?: number; total?: number; results?: unknown }>(key, `/api/uploadposts/status?request_id=${encodeURIComponent(started.request_id)}`).catch(() => null);
 		if (status) {
 			const now = normaliseResults(status.results);
 			last = req.platforms.map((p) => now.find((r) => r.platform === p) ?? { platform: p, state: status.status === "failed" ? "failed" : "working" });
 			const done = last.filter((r) => r.state !== "working").length;
-			onProgress(done / req.platforms.length, `Posting · ${done}/${req.platforms.length} platforms done`);
+			onProgress(done / req.platforms.length, t("Posting · {done}/{total} platforms done", { done, total: req.platforms.length }));
 			if (done === req.platforms.length || status.status === "completed" || status.status === "failed") return last;
 		}
 		await new Promise((r) => setTimeout(r, 12_000));
 	}
-	return last.map((r) => (r.state === "working" ? { ...r, message: "Still processing on the platform. Check it there in a few minutes." } : r));
+	return last.map((r) => (r.state === "working" ? { ...r, message: t("Still processing on the platform. Check it there in a few minutes.") } : r));
 }

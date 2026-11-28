@@ -43,6 +43,7 @@ import { createBatchTracker } from "@shared/notify";
 import { notifyFromMain } from "./notify";
 import { loadSettings } from "./settings";
 import { mapLimit, requireTool, run } from "./tools";
+import { t } from "@shared/i18n";
 
 /**
  * Videos listed at a time; "Load more" lists the next page. Big channels have thousands. Bilibili channel pages come
@@ -62,7 +63,7 @@ const isYouTube = (url: string) => /^https?:\/\/([\w-]+\.)?(youtube\.com|youtu\.
 /** Lists the videos behind each link in the pasted text. A link that fails comes back with its error. */
 export async function listLinks(text: string): Promise<ListedSource[]> {
 	const links = splitLinks(text);
-	if (!links.length) throw new Error("No links found. Paste links that start with https://, one per line.");
+	if (!links.length) throw new Error(t("No links found. Paste links that start with https://, one per line."));
 	const results: ListedSource[] = [];
 	for (const url of links) results.push(await listSource(url, 1));
 	return results;
@@ -282,19 +283,19 @@ const literal = (text: string) => text.replace(/%/g, "%%");
 async function download(item: DownloadItem): Promise<void> {
 	const controller = new AbortController();
 	running.set(item.id, controller);
-	patch(item.id, { status: "downloading", progress: -1, message: "Reading the page…", error: undefined });
+	patch(item.id, { status: "downloading", progress: -1, message: t("Reading the page…"), error: undefined });
 	try {
 		const result = await fetchVideo(item, controller.signal);
 		let projectPath: string | undefined;
 		if (item.makeProjects && result.media) {
-			patch(item.id, { progress: -1, message: "Making the project…" });
+			patch(item.id, { progress: -1, message: t("Making the project…") });
 			projectPath = ensureProject({ ...item, title: result.title }, result.media);
 		} else projectPath = findProject(item);
 		if (!result.skipped) finished(true, result.title || item.title, projectPath ? { kind: "openProject", path: projectPath } : result.media ? { kind: "showFile", path: result.media.path } : undefined);
 		patch(item.id, {
 			status: result.skipped ? "skipped" : "done",
 			progress: 1,
-			message: result.skipped ? "Already downloaded" : undefined,
+			message: result.skipped ? t("Already downloaded") : undefined,
 			speed: undefined,
 			secondsLeft: undefined,
 			mediaPath: result.media?.path,
@@ -309,7 +310,7 @@ async function download(item: DownloadItem): Promise<void> {
 			finished(false, item.title, undefined, downloadErrorMessage(raw));
 			// More downloads now would only make the site stricter: stop starting new ones until you resume.
 			if (isRateLimited(raw)) {
-				state = { ...state, paused: true, pauseReason: "The site wants a break (too many downloads in a row). Wait a while (Bilibili: a few minutes, YouTube: up to an hour) and press Resume, or turn on browser logins in Settings → Downloads." };
+				state = { ...state, paused: true, pauseReason: t("The site wants a break (too many downloads in a row). Wait a while (Bilibili: a few minutes, YouTube: up to an hour) and press Resume, or turn on browser logins in Settings → Downloads.") };
 				changed(true);
 			}
 		}
@@ -327,8 +328,8 @@ const batch = createBatchTracker(3);
 function finished(ok: boolean, title: string, action: StoredAction | undefined, error?: string): void {
 	const { system } = batch.item(ok);
 	const name = title.length > 60 ? `${title.slice(0, 59)}…` : title;
-	if (ok) notifyFromMain({ tone: "success", kind: "downloads", title: `Downloaded ${name}`, action, system });
-	else notifyFromMain({ tone: "error", kind: "downloads", title: `Download failed: ${name}`, detail: error, action: { kind: "view", view: "downloads" }, system });
+	if (ok) notifyFromMain({ tone: "success", kind: "downloads", title: t("Downloaded {name}", { name }), action, system });
+	else notifyFromMain({ tone: "error", kind: "downloads", title: t("Download failed: {name}", { name }), detail: error, action: { kind: "view", view: "downloads" }, system });
 }
 
 /** When nothing is downloading and nothing more will start (the queue is empty, or paused), the run is over. */
@@ -336,7 +337,7 @@ function endOfRun(): void {
 	if (!batch.count || running.size) return;
 	if (!state.paused && state.items.some((i) => i.status === "waiting")) return;
 	const summary = batch.finish();
-	if (summary) notifyFromMain({ ...summary, kind: "downloads", detail: state.paused ? "The queue is paused." : undefined, action: { kind: "view", view: "downloads" } });
+	if (summary) notifyFromMain({ ...summary, kind: "downloads", detail: state.paused ? t("The queue is paused.") : undefined, action: { kind: "view", view: "downloads" } });
 }
 
 /** Downloads one video with yt-dlp. `skipped`: the archive says it's done already (media is then the earlier file, if found). */
@@ -394,8 +395,8 @@ async function fetchVideo(listed: DownloadItem, signal: AbortSignal): Promise<{ 
 			const bytes = Number.parseFloat(speed);
 			const left = Number.parseFloat(eta);
 			patch(item.id, { progress: Math.min(0.99, overall), message: undefined, speed: Number.isFinite(bytes) ? bytes : undefined, secondsLeft: Number.isFinite(left) ? left + (parts === 2 && part === 0 ? left * 0.1 : 0) : undefined });
-		} else if (line.includes("Merging formats")) patch(item.id, { progress: -1, message: "Joining video and audio…", speed: undefined, secondsLeft: undefined });
-		else if (line.includes("Writing video subtitles")) patch(item.id, { message: "Getting the site's subtitles…" });
+		} else if (line.includes("Merging formats")) patch(item.id, { progress: -1, message: t("Joining video and audio…"), speed: undefined, secondsLeft: undefined });
+		else if (line.includes("Writing video subtitles")) patch(item.id, { message: t("Getting the site's subtitles…") });
 	};
 
 	try {
@@ -406,7 +407,7 @@ async function fetchVideo(listed: DownloadItem, signal: AbortSignal): Promise<{ 
 			const message = err instanceof Error ? err.message : String(err);
 			// Subtitle requests sometimes get rate limited; the video matters more, so try once more without them.
 			if (file || skipped || /unsupported url|generic information extractor|drm|private|sign in|not a bot/i.test(message)) throw err;
-			patch(item.id, { message: "Trying again without the site's subtitles…" });
+			patch(item.id, { message: t("Trying again without the site's subtitles…") });
 			await run(ytdlp, [...base, item.url], { onLine, signal, env });
 		}
 	} catch (err) {
@@ -418,7 +419,7 @@ async function fetchVideo(listed: DownloadItem, signal: AbortSignal): Promise<{ 
 		const earlier = item.videoId ? findFile(dir, item.videoId) : null;
 		return { media: earlier ? await describe(earlier, item) : null, skipped: true, title: item.title };
 	}
-	if (!file || !existsSync(file)) throw new Error("The download finished but no video file was found.");
+	if (!file || !existsSync(file)) throw new Error(t("The download finished but no video file was found."));
 	return { media: await describe(file, item), skipped: false, title: item.title };
 }
 
@@ -505,7 +506,7 @@ const fileLink = (path: string) => pathToFileURL(path).href;
 export async function pickImport(window: BrowserWindow, kind: "files" | "folder"): Promise<ImportPick | null> {
 	const res = await dialog.showOpenDialog(window, {
 		properties: kind === "folder" ? ["openDirectory"] : ["openFile", "multiSelections"],
-		filters: kind === "folder" ? undefined : [{ name: "Video", extensions: VIDEO_EXTENSIONS }],
+		filters: kind === "folder" ? undefined : [{ name: t("Video"), extensions: VIDEO_EXTENSIONS }],
 	});
 	if (res.canceled || !res.filePaths.length) return null;
 	return scanImport(kind === "folder" ? res.filePaths[0] : null, kind === "folder" ? [] : res.filePaths);
@@ -525,13 +526,13 @@ export async function scanImport(folder: string | null, files: string[]): Promis
 		const size = statSync(path).size;
 		try {
 			const media = await probe(path);
-			if (!media.width) return { path, name, size, error: "No video in this file (sound only)." };
+			if (!media.width) return { path, name, size, error: t("No video in this file (sound only).") };
 			const subs = sidecarSubtitles(name, namesIn(dirname(path)));
 			media.name = name.replace(/\.[^.]+$/, "");
 			media.siteSubtitles = Object.fromEntries(Object.entries(subs).map(([lang, file]) => [lang, join(dirname(path), file)]));
 			return { path, name, size, media };
 		} catch {
-			return { path, name, size, error: "Kroma can't read this file (damaged, or not a video)." };
+			return { path, name, size, error: t("Kroma can't read this file (damaged, or not a video).") };
 		}
 	};
 	return { group: folder ? basename(folder) : "Imported files", files: await mapLimit(paths, 4, read) };

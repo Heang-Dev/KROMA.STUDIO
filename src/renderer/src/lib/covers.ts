@@ -6,6 +6,7 @@ import { coverText, drawCover } from "./coverRender";
 import { notify } from "./notify";
 import { ensureFonts } from "./subtitleRender";
 import { pictureBox } from "./objects";
+import { t } from "@shared/i18n";
 
 // Episode covers for the open project: the settings it uses, the frame, and making and saving the JPEGs.
 
@@ -50,10 +51,10 @@ export async function coverTime(): Promise<number> {
 	const s = coverSettingsOf(project);
 	if (s.time !== undefined) return s.time;
 	const media = coverMedia(project);
-	if (!media) throw new Error("Add a video first.");
-	const t = await window.kroma.pickCoverTime(media.path, media.duration);
-	setCover({ time: t }, false);
-	return t;
+	if (!media) throw new Error(t("Add a video first."));
+	const time = await window.kroma.pickCoverTime(media.path, media.duration);
+	setCover({ time }, false);
+	return time;
 }
 
 const frames = new Map<string, Promise<ImageBitmap>>();
@@ -77,7 +78,7 @@ export async function makeCovers(formats: PostFormat[], quiet = false): Promise<
 	const { project, projectPath } = state();
 	const media = coverMedia(project);
 	if (!media) {
-		state().showToast("Add a video first.", "error");
+		state().showToast(t("Add a video first."), "error");
 		return null;
 	}
 	try {
@@ -97,11 +98,11 @@ export async function makeCovers(formats: PostFormat[], quiet = false): Promise<
 		}
 		state().update((p) => ({ ...p, covers: { ...p.covers, ...saved } }), false);
 		const first = Object.values(saved)[0];
-		if (!quiet && first) notify({ kind: "export", tone: "success", title: `Saved ${formats.length === 1 ? "the cover" : `${formats.length} covers`}${words.label ? ` · ${words.label}` : ""}`, detail: "Next to the exported videos.", action: { kind: "showFile", path: first } });
+		if (!quiet && first) notify({ kind: "export", tone: "success", title: `${formats.length === 1 ? t("Saved the cover") : t("Saved {n} covers", { n: formats.length })}${words.label ? ` · ${words.label}` : ""}`, detail: t("Next to the exported videos."), action: { kind: "showFile", path: first } });
 		return saved;
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		if (!quiet) notify({ kind: "export", tone: "error", title: "Couldn't make the cover", detail: message });
+		if (!quiet) notify({ kind: "export", tone: "error", title: t("Couldn't make the cover"), detail: message });
 		else throw err;
 		return null;
 	}

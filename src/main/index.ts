@@ -17,7 +17,7 @@ import { listGeminiModels } from "./gemini";
 import { probe } from "./media";
 import { mediaVisuals } from "./visuals";
 import { firstRun, loadSettings, saveSettings, viewOf } from "./settings";
-import { resolveUiLanguage, setUiLanguage, uiLanguage } from "@shared/i18n";
+import { resolveUiLanguage, setUiLanguage, t, uiLanguage } from "@shared/i18n";
 import { loadMyStyles, saveMyStyles } from "./styles";
 import { findTool, installHint } from "./tools";
 import { mediaPath } from "@shared/media";
@@ -114,7 +114,7 @@ function createWindow(): void {
 	win.once("ready-to-show", () => win.show());
 	// Closing an extra window with unsaved work asks first (the editor flags it); its autosave then goes away.
 	win.webContents.on("will-prevent-unload", (event) => {
-		const choice = dialog.showMessageBoxSync(win, { type: "warning", buttons: ["Close Window", "Cancel"], defaultId: 1, cancelId: 1, message: "Close this window?", detail: `This window's project has changes that aren't saved to a file. Save it first (${process.platform === "darwin" ? "⌘S" : "Ctrl+S"}) to keep them.` });
+		const choice = dialog.showMessageBoxSync(win, { type: "warning", buttons: [t("Close Window"), t("Cancel")], defaultId: 1, cancelId: 1, message: t("Close this window?"), detail: t("This window's project has changes that aren't saved to a file. Save it first ({shortcut}) to keep them.", { shortcut: process.platform === "darwin" ? "⌘S" : "Ctrl+S" }) });
 		if (choice === 0) event.preventDefault();
 	});
 	win.on("closed", () => {
@@ -159,27 +159,75 @@ function stepZoom(direction: 1 | -1 | 0): number {
 	return setZoom(next ?? current);
 }
 
-/** App menu: the standard macOS menus, with View's zoom items wired to the saved interface size. */
+/**
+ * App menu: the standard macOS menus, with View's zoom items wired to the saved interface size. Every item has its
+ * label written out (the roles' own labels follow the computer's language, not Kroma's), and it's built again when
+ * the interface language changes.
+ */
 function buildMenu(): void {
 	const zoomItems: Electron.MenuItemConstructorOptions[] = [
-		{ label: "Actual Size", accelerator: "CmdOrCtrl+0", click: () => stepZoom(0) },
-		{ label: "Zoom In", accelerator: "CmdOrCtrl+=", click: () => stepZoom(1) },
-		{ label: "Zoom In", accelerator: "CmdOrCtrl+Plus", visible: false, acceleratorWorksWhenHidden: true, click: () => stepZoom(1) },
-		{ label: "Zoom Out", accelerator: "CmdOrCtrl+-", click: () => stepZoom(-1) },
+		{ label: t("Actual Size"), accelerator: "CmdOrCtrl+0", click: () => stepZoom(0) },
+		{ label: t("Zoom In"), accelerator: "CmdOrCtrl+=", click: () => stepZoom(1) },
+		{ label: t("Zoom In"), accelerator: "CmdOrCtrl+Plus", visible: false, acceleratorWorksWhenHidden: true, click: () => stepZoom(1) },
+		{ label: t("Zoom Out"), accelerator: "CmdOrCtrl+-", click: () => stepZoom(-1) },
 	];
 	const mac = process.platform === "darwin";
+	const name = app.name;
+	const sep: Electron.MenuItemConstructorOptions = { type: "separator" };
+	const appMenu: Electron.MenuItemConstructorOptions[] = mac
+		? [
+				{
+					label: name,
+					submenu: [
+						{ role: "about", label: t("About {app}", { app: name }) },
+						sep,
+						{ role: "services", label: t("Services") },
+						sep,
+						{ role: "hide", label: t("Hide {app}", { app: name }) },
+						{ role: "hideOthers", label: t("Hide Others") },
+						{ role: "unhide", label: t("Show All") },
+						sep,
+						{ role: "quit", label: t("Quit {app}", { app: name }) },
+					],
+				},
+			]
+		: [];
 	Menu.setApplicationMenu(
 		Menu.buildFromTemplate([
-			...(mac ? ([{ role: "appMenu" }] as Electron.MenuItemConstructorOptions[]) : []),
+			...appMenu,
 			{
-				label: "File",
-				submenu: [{ label: "New Window", accelerator: "CmdOrCtrl+Shift+N", click: () => createWindow() }, { type: "separator" }, { role: "close" }, ...(mac ? [] : ([{ role: "quit", label: "Exit" }] as Electron.MenuItemConstructorOptions[]))],
+				label: t("File"),
+				submenu: [{ label: t("New Window"), accelerator: "CmdOrCtrl+Shift+N", click: () => createWindow() }, sep, { role: "close", label: t("Close Window") }, ...(mac ? [] : ([{ role: "quit", label: t("Exit") }] as Electron.MenuItemConstructorOptions[]))],
 			},
-			{ role: "editMenu" },
-			{ label: "View", submenu: [...zoomItems, { type: "separator" }, { role: "togglefullscreen" }, ...(app.isPackaged ? [] : ([{ type: "separator" }, { role: "reload" }, { role: "toggleDevTools" }] as Electron.MenuItemConstructorOptions[]))] },
-			{ role: "windowMenu" },
+			{
+				label: t("Edit"),
+				submenu: [
+					{ role: "undo", label: t("Undo") },
+					{ role: "redo", label: t("Redo") },
+					sep,
+					{ role: "cut", label: t("Cut") },
+					{ role: "copy", label: t("Copy") },
+					{ role: "paste", label: t("Paste") },
+					...(mac ? ([{ role: "pasteAndMatchStyle", label: t("Paste and Match Style") }] as Electron.MenuItemConstructorOptions[]) : []),
+					{ role: "delete", label: t("Delete") },
+					{ role: "selectAll", label: t("Select All") },
+				],
+			},
+			{ label: t("View"), submenu: [...zoomItems, sep, { role: "togglefullscreen", label: t("Toggle Full Screen") }, ...(app.isPackaged ? [] : ([sep, { role: "reload" }, { role: "toggleDevTools" }] as Electron.MenuItemConstructorOptions[]))] },
+			{
+				label: t("Window"),
+				role: "window",
+				submenu: [{ role: "minimize", label: t("Minimize") }, { role: "zoom", label: t("Zoom") }, ...(mac ? ([sep, { role: "front", label: t("Bring All to Front") }] as Electron.MenuItemConstructorOptions[]) : ([{ role: "close", label: t("Close") }] as Electron.MenuItemConstructorOptions[]))],
+			},
 		]),
 	);
+	buildDockMenu();
+}
+
+/** Right-click the Dock icon (Mac) or the taskbar button (Windows) → New Window. */
+function buildDockMenu(): void {
+	app.dock?.setMenu(Menu.buildFromTemplate([{ label: t("New Window"), click: () => createWindow() }]));
+	if (process.platform === "win32") app.setUserTasks([{ program: process.execPath, arguments: "--new-window", iconPath: process.execPath, iconIndex: 0, title: t("New Window"), description: t("Open another Kroma window") }]);
 }
 
 /** Runs a long task with progress events and cancellation by task id. */
@@ -193,7 +241,8 @@ function task<T>(taskId: string, work: (progress: (p: number, m: string) => void
 	return work(progress, controller.signal).finally(() => tasks.delete(taskId));
 }
 
-const VIDEO_FILTERS = [{ name: "Video", extensions: ["mp4", "mov", "m4v", "mkv", "webm", "avi", "flv", "ts"] }];
+/** Named when the dialog opens, so the name follows the interface language. */
+const videoFilters = () => [{ name: t("Video"), extensions: ["mp4", "mov", "m4v", "mkv", "webm", "avi", "flv", "ts"] }];
 
 function registerIpc(): void {
 	ipcMain.handle("app:info", (e) => ({
@@ -226,7 +275,7 @@ function registerIpc(): void {
 	ipcMain.handle("ui:language", () => uiLanguage());
 
 	ipcMain.handle("media:open", async () => {
-		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile", "multiSelections"], filters: VIDEO_FILTERS });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile", "multiSelections"], filters: videoFilters() });
 		if (res.canceled) return [];
 		return Promise.all(res.filePaths.map((p) => probe(p)));
 	});
@@ -267,7 +316,7 @@ function registerIpc(): void {
 	ipcMain.handle("kvs:removeEngine", () => removeEngine());
 	ipcMain.handle("kvs:delete", (_e, id: string) => deleteKvsVoice(id));
 	ipcMain.handle("kvs:pickRecording", async () => {
-		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: "Recording", extensions: ["wav", "mp3", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm"] }] });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: t("Recording"), extensions: ["wav", "mp3", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm"] }] });
 		return res.canceled ? null : res.filePaths[0];
 	});
 	ipcMain.handle("task:separate", (_e, taskId: string, path: string, duration: number, quality: SeparationQuality) => task(taskId, (p, s) => removeVoices(path, duration, quality, p, s)));
@@ -276,7 +325,7 @@ function registerIpc(): void {
 	ipcMain.handle("task:storyRedo", (_e, taskId: string, id: string, line: number) =>
 		task(taskId, (p, s) => {
 			const old = readStory(id);
-			if (!old) throw new Error("That story is gone.");
+			if (!old) throw new Error(t("That story is gone."));
 			return tellStory(loadSettings(), old, p, s, { from: id, line });
 		}),
 	);
@@ -289,9 +338,9 @@ function registerIpc(): void {
 	/** Saves the story's audio (MP3, or WAV) where you choose, with its subtitles (.srt) next to it. */
 	ipcMain.handle("story:saveAs", async (_e, id: string) => {
 		const story = readStory(id);
-		if (!story?.audio) throw new Error("This story has no audio.");
+		if (!story?.audio) throw new Error(t("This story has no audio."));
 		const ext = extname(story.audio).slice(1);
-		const res = await dialog.showSaveDialog(focused(), { defaultPath: `${story.title.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Story"}.${ext}`, filters: [{ name: "Audio", extensions: [ext] }] });
+		const res = await dialog.showSaveDialog(focused(), { defaultPath: `${story.title.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Story"}.${ext}`, filters: [{ name: t("Audio"), extensions: [ext] }] });
 		if (res.canceled || !res.filePath) return null;
 		writeFileSync(res.filePath, readFileSync(story.audio));
 		if (story.srt) writeFileSync(res.filePath.replace(/\.[^.\\/]+$/, "") + ".srt", readFileSync(story.srt));
@@ -352,7 +401,7 @@ function registerIpc(): void {
 		mkdirSync(dir, { recursive: true });
 		const safe = name.replace(/[/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Kroma export";
 		if (settings.askExportPath) {
-			const filters = ext === "mp4" ? [{ name: "MP4 video", extensions: ["mp4"] }] : [{ name: "SubRip subtitles", extensions: ["srt"] }];
+			const filters = ext === "mp4" ? [{ name: t("MP4 video"), extensions: ["mp4"] }] : [{ name: t("SubRip subtitles"), extensions: ["srt"] }];
 			const res = await dialog.showSaveDialog(focused(), { defaultPath: join(dir, `${safe}.${ext}`), filters });
 			return res.canceled || !res.filePath ? null : res.filePath;
 		}
@@ -362,7 +411,7 @@ function registerIpc(): void {
 	};
 	ipcMain.handle("dialog:saveVideo", (_e, name: string) => exportTarget(name, "mp4"));
 	ipcMain.handle("dialog:pickImage", async () => {
-		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: t("Image"), extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
 		return res.canceled ? null : res.filePaths[0];
 	});
 	ipcMain.handle("dialog:chooseFolder", async (_e, current: string) => {
@@ -375,7 +424,7 @@ function registerIpc(): void {
 		void shell.openPath(dir);
 	});
 	ipcMain.handle("srt:import", async () => {
-		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: "Subtitles", extensions: ["srt", "vtt"] }] });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], filters: [{ name: t("Subtitles"), extensions: ["srt", "vtt"] }] });
 		return res.canceled ? null : parseSubtitles(readFileSync(res.filePaths[0], "utf8"));
 	});
 	ipcMain.handle("srt:export", async (_e, name: string, content: string) => {
@@ -388,7 +437,7 @@ function registerIpc(): void {
 	ipcMain.handle("project:save", async (_e, project: Project, path: string | null) => {
 		let target = path;
 		if (!target) {
-			const res = await dialog.showSaveDialog(focused(), { defaultPath: join(LIBRARY_DIR, `${project.name}.kroma`), filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
+			const res = await dialog.showSaveDialog(focused(), { defaultPath: join(LIBRARY_DIR, `${project.name}.kroma`), filters: [{ name: t("Kroma project"), extensions: ["kroma"] }] });
 			if (res.canceled || !res.filePath) return null;
 			target = res.filePath;
 		}
@@ -420,7 +469,7 @@ function registerIpc(): void {
 	ipcMain.handle("batch:pickProjects", () => pickProjects(focused()));
 	ipcMain.handle("batch:exportPath", (_e, projectPath: string, format: PostFormat) => batchExportPath(projectPath, format));
 	ipcMain.handle("project:open", async () => {
-		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], defaultPath: LIBRARY_DIR, filters: [{ name: "Kroma project", extensions: ["kroma"] }] });
+		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile"], defaultPath: LIBRARY_DIR, filters: [{ name: t("Kroma project"), extensions: ["kroma"] }] });
 		if (res.canceled) return null;
 		const project = JSON.parse(readFileSync(res.filePaths[0], "utf8")) as Project;
 		return { project, path: res.filePaths[0] };
@@ -501,14 +550,11 @@ app.whenReady().then(() => {
 	startUpdater(() => loadSettings().autoUpdate);
 	// "Start the engine with Kroma" (Settings → Voice Engine): quietly, so a missing setup never gets in the way.
 	if (loadSettings().kvsAutoStart && !testRun) void startEngine(loadSettings()).catch(() => undefined);
-	// Right-click the Dock icon (Mac) or the taskbar button (Windows) → New Window.
 	// From source (bun run dev) the Dock would show Electron's own icon; the installed app has Kroma's in its bundle.
 	if (!app.isPackaged && process.platform === "darwin") {
 		const icon = join(__dirname, "../../resources/icon.png");
 		if (existsSync(icon)) app.dock?.setIcon(icon);
 	}
-	app.dock?.setMenu(Menu.buildFromTemplate([{ label: "New Window", click: () => createWindow() }]));
-	if (process.platform === "win32") app.setUserTasks([{ program: process.execPath, arguments: "--new-window", iconPath: process.execPath, iconIndex: 0, title: "New Window", description: "Open another Kroma window" }]);
 	app.on("activate", () => {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});
