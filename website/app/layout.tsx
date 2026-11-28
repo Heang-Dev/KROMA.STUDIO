@@ -9,12 +9,14 @@ const kantumruy = Kantumruy_Pro({ subsets: ["khmer", "latin"], variable: "--font
 
 export const metadata: Metadata = {
 	// The address the site is published at (for link previews on Facebook, Telegram, X…).
+	// Link-preview image URLs are relative to it: "assets/…", not asset("/assets/…"), which would add /kroma twice.
 	metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://heang-dev.github.io/kroma/"),
 	title: "Kroma Studio · Turn any video into a Khmer video",
 	description:
 		"Download videos from YouTube, Bilibili, Douyin and 1,000+ sites, translate the subtitles to Khmer, give every character a voice, and post to YouTube, Facebook and TikTok. A free desktop app for macOS, Windows and Linux.",
 	icons: { icon: asset("/assets/kroma-favicon.png") },
-	openGraph: { title: "Kroma Studio", description: "Turn any video into a Khmer video: subtitles, voices and one-click posting, in one desktop app.", images: [{ url: asset("/assets/kroma-og.png"), width: 1200, height: 630, alt: "Kroma Studio" }] },
+	openGraph: { title: "Kroma Studio", description: "Turn any video into a Khmer video: subtitles, voices and one-click posting, in one desktop app.", images: [{ url: "assets/og-home.png", width: 1200, height: 630, alt: "Kroma Studio: turn any video into a Khmer video" }] },
+	twitter: { card: "summary_large_image" },
 };
 
 // The theme before the page draws (no flash): the visitor's choice, else the system's.
