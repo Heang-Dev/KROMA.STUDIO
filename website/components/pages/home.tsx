@@ -10,6 +10,7 @@ import { VoiceGallery } from "@/components/site/voice-gallery";
 import { WindowShot } from "@/components/site/window-shot";
 import { type Lang, localize, messages } from "@/lib/i18n";
 import { GITHUB_URL, asset, communityLinks } from "@/lib/site";
+import { latestVersion } from "@/lib/docs";
 import { cn } from "@/lib/utils";
 
 const wrap = "mx-auto w-[min(1180px,100%-32px)]";
@@ -65,7 +66,7 @@ export function HomePage({ lang }: { lang: Lang }) {
 			<section className={cn(wrap, "relative flex flex-col items-center pt-14 pb-11 text-center md:pt-22")}>
 				<div aria-hidden className="pointer-events-none absolute inset-x-[10%] -top-10 -z-10 h-[420px] bg-[radial-gradient(closest-side,var(--glow),transparent)]" />
 				<Reveal>
-					<Link href={L("/#posting")} className="inline-flex items-center gap-2.5 rounded-full border bg-background py-1 pr-3 pl-1 text-[12.5px] text-muted-foreground no-underline hover:text-foreground">
+					<Link href={L(`/docs/${latestVersion()}/batch/`)} className="inline-flex items-center gap-2.5 rounded-full border bg-background py-1 pr-3 pl-1 text-[12.5px] text-muted-foreground no-underline hover:text-foreground">
 						<span className="rounded-full bg-primary px-2 py-0.5 font-medium text-primary-foreground">{t.hero.pillTag}</span>
 						{t.hero.pill} <ArrowRight className="size-3.5" />
 					</Link>
