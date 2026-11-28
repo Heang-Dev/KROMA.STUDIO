@@ -100,7 +100,7 @@ export async function docPage(version: string, lang: Lang, slug: string): Promis
 
 	// {{releases}}: this version's releases from GitHub (0.1 → v0.1.0, v0.1.1 …).
 	if (body.includes("{{releases}}")) {
-		const list = (await releases()).filter((r) => r.tag.replace(/^v/, "").startsWith(`${version}.`));
+		const list = (await releases(lang)).filter((r) => r.tag.replace(/^v/, "").startsWith(`${version}.`));
 		const date = (d: string) => new Date(d).toLocaleDateString(lang === "km" ? "km-KH" : "en", { year: "numeric", month: "long", day: "numeric" });
 		const md = list.map((r) => `## ${r.tag.replace(/^v/, "")}\n\n_${date(r.date)}_ · [GitHub](${r.url})\n\n${r.body.trim()}`).join("\n\n");
 		body = body.replace("{{releases}}", md || (lang === "km" ? "_មិនទាន់មានកំណែនៅឡើយទេ។_" : "_No releases yet._"));

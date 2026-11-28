@@ -17,7 +17,7 @@ export async function DownloadPage({ lang }: { lang: Lang }) {
 	const t = m.downloadPage;
 	const d = m.download;
 	const L = (href: string) => localize(href, lang);
-	const list = await releases();
+	const list = await releases(lang);
 	const latest = list[0];
 	const date = (s: string) => new Date(s).toLocaleDateString(lang === "km" ? "km-KH" : "en", { year: "numeric", month: "long", day: "numeric" });
 	return (

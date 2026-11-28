@@ -19,13 +19,14 @@ Kroma Studio is an Electron app (this repo) with its website and docs in `websit
    - Read everything that changed since the last release: `git log --no-merges vPREV..HEAD -- src/` (the commit bodies too, not only the subjects).
    - Add `## X.Y.Z — YYYY-MM-DD` at the top of `CHANGELOG.md`, above the previous version: one line saying what the release is about, then a bullet per change.
    - Write it for the people who use Kroma, not for developers: what they can now do, where to find it (the real labels from the code, in **bold**), and what was fixed. Every user-visible change goes in; tests, CI and website-only changes don't.
-   - Commit it with the version bump in step 1 (`chore: release X.Y.Z`).
+   - **Then the same section in Khmer** at the top of `CHANGELOG.km.md`, with the same `## X.Y.Z — YYYY-MM-DD` heading. Translate the meaning, in the style of the Khmer docs: Khmer sentences, the app's labels kept in English and **bold** exactly as they appear in Kroma (its interface is in English). The site's Khmer pages show this section instead of the English notes; a version with no Khmer section falls back to English.
+   - Commit both with the version bump in step 1 (`chore: release X.Y.Z`).
 1. Bump `version` in `package.json`, commit, then `git tag vX.Y.Z` and push the tag. CI (`.github/workflows/build.yml`) builds Windows and Linux, runs the tests and a smoke test, and puts the files on a draft release in this repo.
 2. Build the Mac app here: `bunx electron-vite build && bunx electron-builder --mac dmg --publish never`. Rename `dist/Kroma Studio-X.Y.Z-arm64.dmg` to `Kroma-Studio-X.Y.Z-arm64.dmg`.
 3. Get the Windows and Linux files from the draft: `gh release download vX.Y.Z -R Heang-Dev/KROMA.STUDIO`. This takes about a minute. Don't use `gh run download`: artifact downloads can crawl at ~50 KB/s.
 4. Publish on the public repo: `gh release create vX.Y.Z -R Heang-Dev/kroma --latest --title "Kroma Studio X.Y.Z" --notes-file notes.md`, where `notes.md` is that version's section of `CHANGELOG.md`, word for word: `awk '/^## X\.Y\.Z /{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md`. Attach all seven files: the dmg, `Kroma-Studio-Setup-X.Y.Z.exe` and its `.blockmap`, `latest.yml`, the `.AppImage`, the `.deb` and `latest-linux.yml`. Never write different notes on GitHub: if they need changing, change `CHANGELOG.md` and then `gh release edit vX.Y.Z -R Heang-Dev/kroma --notes-file notes.md`.
 5. Check `curl -sL https://github.com/Heang-Dev/kroma/releases/latest/download/latest.yml | head -1` shows the new version. Then republish the site with `bash website/scripts/publish.sh`, so the footer, Changelog and Download page show it.
-6. Copy `CHANGELOG.md` to `../KROMA.WEBSITE/CHANGELOG.md`, then commit and push both repos.
+6. Copy `CHANGELOG.md` and `CHANGELOG.km.md` to `../KROMA.WEBSITE/`, then commit and push both repos.
 
 ## Keeping the website in step with the app
 
@@ -36,11 +37,11 @@ Two rules (X.Y.Z = major.minor.patch):
 
 ### Every release (0.1.4 → 0.1.5, and every minor and major too): the changelog
 
-`CHANGELOG.md` is the source. The GitHub release notes are copied from it, and the site's Changelog is built from the GitHub release notes. So:
-1. Before the release, write the version's section in `CHANGELOG.md` (step 0 above), covering every change. Read `git log` for `src/` since the last tag, commit bodies included, so nothing is left out.
+`CHANGELOG.md` is the source. The GitHub release notes are copied from it, and the site's Changelog is built from the GitHub release notes. The Khmer pages (Changelog, Download, the docs' **Release notes**) take each version's notes from `CHANGELOG.km.md` instead (`website/lib/github.ts`). So:
+1. Before the release, write the version's section in `CHANGELOG.md` and in `CHANGELOG.km.md` (step 0 above), covering every change. Read `git log` for `src/` since the last tag, commit bodies included, so nothing is left out.
 2. Publish the release with that section as its notes (step 4).
 3. Republish the site (step 5). The new release and its notes then appear in the Changelog, the footer, the Download page, and that version's **Release notes** docs page (through its `{{releases}}` placeholder).
-4. Check the live site: `curl -sL https://heang-dev.github.io/kroma/changelog/ | grep -c X.Y.Z` must find the new version.
+4. Check the live site: `curl -sL https://heang-dev.github.io/kroma/changelog/ | grep -c X.Y.Z` must find the new version, and `/km/changelog/` must show its notes in Khmer.
 
 For a patch, that's all. Don't rewrite the docs.
 

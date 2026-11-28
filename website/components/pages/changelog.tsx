@@ -13,7 +13,7 @@ export function Notes({ body }: { body: string }) {
 }
 
 export async function ChangelogPage({ lang }: { lang: Lang }) {
-	const list = await releases();
+	const list = await releases(lang);
 	const t = messages[lang].changelog;
 	return (
 		<main className={cn("mx-auto w-[min(780px,100%-32px)] pt-12 md:pt-16")}>
