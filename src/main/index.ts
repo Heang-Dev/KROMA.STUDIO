@@ -3,8 +3,12 @@ import { extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { BrowserWindow, Menu, app, dialog, ipcMain, protocol, session, shell, systemPreferences } from "electron";
 import { parseSubtitles } from "@shared/srt";
-import { type CaptionRequest, type ExportRequest, type MediaItem, type Project, type PublishRequest, type Settings, type StoryRequest, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
-import { fallbackCount, translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
+import { type CaptionRequest, type ExportRequest, type MediaItem, type MyStyle, type Project, type PublishRequest, type Settings, type StoryRequest, UI_ZOOM_STEPS, isKvsVoice } from "@shared/types";
+import { fallbackCount, findGlossaryTerms, translateToKhmer, writeCaptions, type TranslateLine } from "./ai";
+import { loadGlossary, saveGlossary } from "./glossary";
+import { detectBurnedSubtitles } from "./hardsubs";
+import { coverFrame, pickCoverTime, saveCover } from "./cover";
+import type { GlossaryTerm } from "@shared/glossary";
 import { defaultDownloadDir, downloadLink, LIBRARY_DIR } from "./download";
 
 const defaultExportDir = () => join(LIBRARY_DIR, "Exports");
@@ -13,6 +17,7 @@ import { listGeminiModels } from "./gemini";
 import { probe } from "./media";
 import { mediaVisuals } from "./visuals";
 import { firstRun, loadSettings, saveSettings, viewOf } from "./settings";
+import { loadMyStyles, saveMyStyles } from "./styles";
 import { findTool, installHint } from "./tools";
 import { mediaPath } from "@shared/media";
 import { transcribe } from "./transcribe";
@@ -203,6 +208,8 @@ function registerIpc(): void {
 	}));
 
 	ipcMain.handle("settings:get", () => viewOf(loadSettings()));
+	ipcMain.handle("styles:get", () => loadMyStyles());
+	ipcMain.handle("styles:set", (_e, list: MyStyle[]) => saveMyStyles(list));
 	ipcMain.handle("gemini:models", () => {
 		const key = loadSettings().geminiKey;
 		return key ? listGeminiModels(key) : [];
@@ -295,12 +302,22 @@ function registerIpc(): void {
 	ipcMain.handle("task:transcribe", (_e, taskId: string, path: string, duration: number, language: string) =>
 		task(taskId, (p, s) => transcribe(path, duration, language, loadSettings(), p, s)),
 	);
-	ipcMain.handle("task:translate", (_e, taskId: string, lines: TranslateLine[], notes: string, language?: string) =>
+	ipcMain.handle("task:translate", (_e, taskId: string, lines: TranslateLine[], notes: string, language?: string, projectPath?: string | null) =>
 		task(taskId, async (p, s) => {
-			const translations = await translateToKhmer(lines, notes, loadSettings(), p, s, language);
+			const translations = await translateToKhmer(lines, notes, loadSettings(), p, s, language, false, loadGlossary(projectPath));
 			return { translations, fallback: fallbackCount.get(lines) ?? 0 };
 		}),
 	);
+	// Episode covers: a frame, a good moment, and saving next to the exports.
+	ipcMain.handle("cover:frame", (_e, path: string, seconds: number) => coverFrame(path, seconds));
+	ipcMain.handle("cover:pickTime", (_e, path: string, duration: number) => pickCoverTime(path, duration));
+	ipcMain.handle("cover:save", (_e, projectPath: string | null, name: string, format: PostFormat, jpg: Uint8Array) => saveCover(projectPath, name, format, jpg));
+	// Burned-in subtitles: where they are in a video, to cover them.
+	ipcMain.handle("task:findHardsubs", (_e, taskId: string, path: string, duration: number) => task(taskId, (p, s) => detectBurnedSubtitles(path, duration, (f) => p(f, "Looking for burned-in subtitles"), s)));
+	// The series glossary (shared by the projects in a folder), and finding names for it.
+	ipcMain.handle("glossary:get", (_e, projectPath: string | null) => loadGlossary(projectPath));
+	ipcMain.handle("glossary:set", (_e, projectPath: string, terms: GlossaryTerm[]) => saveGlossary(projectPath, terms));
+	ipcMain.handle("task:glossaryFind", (_e, taskId: string, pairs: { source: string; text: string }[], language?: string) => task(taskId, (_p, s) => findGlossaryTerms(pairs, language, loadSettings(), s)));
 	ipcMain.handle("task:characters", (_e, taskId: string, lines: CharacterLine[], voices: VoiceChoice[], notes: string) => task(taskId, (p, s) => findCharacters(lines, voices, notes, loadSettings(), p, s)));
 	// Posting through Upload-Post (key and profile from Settings → Posting).
 	ipcMain.handle("post:account", () => postAccount(loadSettings().postKey));

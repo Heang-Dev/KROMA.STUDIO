@@ -1,5 +1,5 @@
 import { ASPECT_SIZE, type Project, type VideoObject } from "@shared/types";
-import { useEditor } from "@/state/store";
+import { runTask, useEditor } from "@/state/store";
 import { uid } from "./timeline";
 
 // Objects over the video (blur boxes, logos, text), placed in fractions of the output frame so the preview and the
@@ -39,10 +39,59 @@ export function removeObject(id: string): void {
 	if (state().selection?.id === id) state().select(null);
 }
 
-/** A blur box over the band where burned-in subtitles usually are (lower part of the picture). */
-export function coverOriginalSubtitles(): void {
-	const r = pictureRect(state().project);
-	add({ id: uid(), kind: "blur", name: "Cover original subtitles", x: r.x + r.w * 0.08, y: r.y + r.h * 0.8, w: r.w * 0.84, h: r.h * 0.14, opacity: 1, blur: 24 });
+/** A rectangle of the video picture (fractions) placed in the output frame (fractions), for any fit mode. */
+/** Where the whole video picture sits in the output frame (fractions); with Crop it's bigger than the frame. */
+export function pictureBox(project: Project): { x: number; y: number; w: number; h: number } {
+	const media = project.media.find((m) => m.id === project.clips[0]?.mediaId);
+	// Crop: the picture fills the frame and its overflow is cut off (centred).
+	if (project.fit === "fill" && media?.width && media.height) {
+		const frame = ASPECT_SIZE[project.aspect];
+		const scale = Math.max(frame.width / media.width, frame.height / media.height);
+		const w = (media.width * scale) / frame.width;
+		const h = (media.height * scale) / frame.height;
+		return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
+	}
+	return pictureRect(project);
+}
+
+export function pictureToFrame(project: Project, r: { x: number; y: number; w: number; h: number }): { x: number; y: number; w: number; h: number } {
+	const pic = pictureBox(project);
+	const x0 = Math.max(0, pic.x + r.x * pic.w);
+	const y0 = Math.max(0, pic.y + r.y * pic.h);
+	const x1 = Math.min(1, pic.x + (r.x + r.w) * pic.w);
+	const y1 = Math.min(1, pic.y + (r.y + r.h) * pic.h);
+	return { x: x0, y: y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0) };
+}
+
+export const HIDE_SUBTITLES_NAME = "Hide original subtitles";
+
+/**
+ * Finds the video's burned-in subtitles and puts a blur box exactly over them (replacing one placed before). When
+ * none are found, the box goes where subtitles usually are, and it says so. Returns whether they were found.
+ */
+export async function coverOriginalSubtitles(options: { quiet?: boolean } = {}): Promise<boolean> {
+	const { project } = state();
+	const media = project.media.find((m) => m.id === project.clips[0]?.mediaId);
+	if (!media) {
+		if (!options.quiet) state().showToast("Add a video first.", "error");
+		return false;
+	}
+	// Wrapped, so "none found" (null) isn't taken for a failure (runTask gives null then).
+	const result = await runTask(`hardsubs-${Date.now()}`, "Find burned-in subtitles", async (id) => ({ found: await window.kroma.findBurnedSubtitles(id, media.path, media.duration) }), { kind: "subtitles", done: false, failed: "Couldn't look for burned-in subtitles" });
+	if (!result) return false;
+	const { found } = result;
+	const guess = { x: 0.08, y: 0.8, w: 0.84, h: 0.14 };
+	const place = pictureToFrame(state().project, found ?? guess);
+	const box: VideoObject = { id: uid(), kind: "blur", name: HIDE_SUBTITLES_NAME, ...place, opacity: 1, blur: 30 };
+	state().update((p) => ({ ...p, objects: [...objectsOf(p).filter((o) => !(o.kind === "blur" && (o.name === HIDE_SUBTITLES_NAME || o.name === "Cover original subtitles"))), box] }));
+	if (!options.quiet) state().select({ kind: "object", id: box.id });
+	if (!options.quiet)
+		state().showToast(
+			found ? "Covered the burned-in subtitles" : "No burned-in subtitles found",
+			found ? "info" : "error",
+			found ? "The blur box sits over them for the whole video. Drag its edges to adjust." : "The box is where subtitles usually are: move it if needed, or delete it.",
+		);
+	return Boolean(found);
 }
 
 export function addBlurBox(): void {

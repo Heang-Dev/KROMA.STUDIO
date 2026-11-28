@@ -17,12 +17,17 @@ import {
 	retryItem,
 	runSummary,
 	stepFormat,
+	type StylePreset,
+	type PostFormat,
 } from "@shared/batch";
 import { useEditor } from "@/state/store";
 import { batchMode } from "./batchMode";
 import { exportFormat, findCharacters, getSubtitles, mainMedia, makeVoiceOver, preferredSiteSubtitle, publishVideo, removeOriginalVoices, setLanguage, setVoice, short, translateCues, voiceSettings, writePosts, PLATFORM_NAMES } from "./actions";
 import { notify } from "./notify";
 import { lookOf } from "./stylePresets";
+import { coverOriginalSubtitles, HIDE_SUBTITLES_NAME } from "./objects";
+import { coverWords, makeCovers } from "./covers";
+import { myStyleOf, useMyStyles } from "@/state/myStyles";
 import { totalDuration } from "./timeline";
 
 // Batch: runs the editor's own steps (lib/actions.ts) on one project after another, without asking anything, saving
@@ -281,11 +286,39 @@ async function runStep(step: BatchStep, item: BatchItem): Promise<boolean> {
 			});
 			return makeVoiceOver();
 		}
-		case "style":
-			const preset = o.style;
-			if (preset !== "keep") editor.update((p) => ({ ...p, style: { ...p.style, ...lookOf(preset) } }));
-			batchMode.lastNote = `Style: ${o.style}`;
+		case "hideSubtitles": {
+			// Found: blurred exactly. None found isn't a failure (many videos have none): the step notes it.
+			const found = await coverOriginalSubtitles({ quiet: true });
+			batchMode.lastNote = found ? "Burned-in subtitles blurred" : "No burned-in subtitles found";
+			if (!found) editor.update((p) => ({ ...p, objects: (p.objects ?? []).filter((x) => x.name !== HIDE_SUBTITLES_NAME) }));
 			return true;
+		}
+		case "style": {
+			const choice = o.style;
+			if (choice === "keep") return true;
+			if (choice.startsWith("my:")) {
+				// One of my styles: the whole look, size and position included.
+				await useMyStyles.getState().load();
+				const mine = myStyleOf(choice);
+				if (!mine) throw new Error("That saved style was deleted. Choose another subtitle style in the steps.");
+				editor.update((p) => ({ ...p, style: { ...mine.style, showSource: p.style.showSource } }));
+				batchMode.lastNote = `Style: ${mine.name}`;
+				return true;
+			}
+			const preset = choice as StylePreset;
+			editor.update((p) => ({ ...p, style: { ...p.style, ...lookOf(preset) } }));
+			batchMode.lastNote = `Style: ${preset}`;
+			return true;
+		}
+		case "covers": {
+			// The covers in the formats this batch exports (both when it exports none).
+			const formats = o.formats.length ? o.formats : (["16:9", "9:16"] as PostFormat[]);
+			const saved = await makeCovers(formats, true);
+			const now = useEditor.getState();
+			const words = coverWords(now.project, now.projectPath);
+			batchMode.lastNote = `Covers${words.label ? ` · ${words.label}` : ""}: ${Object.keys(saved ?? {}).join(", ")}`;
+			return Boolean(saved);
+		}
 		case "posts":
 			return writePosts();
 		default:

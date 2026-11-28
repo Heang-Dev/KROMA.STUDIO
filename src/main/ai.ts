@@ -3,6 +3,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { type TargetLanguage, hasWrongScript, languageOf } from "@shared/languages";
 import type { CaptionRequest, PlatformCaption, Settings } from "@shared/types";
+import { type GlossaryTerm, applyGlossary, cleanGlossary, glossaryPrompt } from "@shared/glossary";
 import { geminiWithFallback as gemini } from "./gemini";
 import { googleTranslate } from "./google-translate";
 import { mapLimit } from "./tools";
@@ -52,12 +53,16 @@ export async function translateToKhmer(
 	languageCode?: string,
 	/** Set on the second pass that re-translates lines written in the wrong script. */
 	repairing = false,
+	/** The series glossary: names and terms every episode translates the same way. */
+	glossary: GlossaryTerm[] = [],
 ): Promise<Record<string, string>> {
+	// Google Translate can't follow instructions, so it gets the names already swapped in.
+	const forGoogle = (ls: TranslateLine[]) => (glossary.length ? ls.map((l) => ({ ...l, text: applyGlossary(l.text, glossary) })) : ls);
 	const lang = languageOf(languageCode);
 	const TRANSLATE_SYSTEM = translateSystem(lang);
 	if (settings.translateProvider === "google") {
 		onProgress(0, "Translating with Google Translate");
-		return googleTranslate(lines, (done, total) => onProgress(done / total, `Translating with Google Translate · ${done}/${total}`), signal, lang.code);
+		return googleTranslate(forGoogle(lines), (done, total) => onProgress(done / total, `Translating with Google Translate · ${done}/${total}`), signal, lang.code);
 	}
 
 	const useGemini = settings.translateProvider === "gemini";
@@ -78,6 +83,7 @@ export async function translateToKhmer(
 		const prompt = [
 			notes.trim() ? `Notes about this video:\n${notes.trim()}\n` : "",
 			before.length ? `Earlier lines (context only):\n${before.map((l) => l.text).join("\n")}\n` : "",
+			glossaryPrompt(glossary, items.map((l) => l.text).join("\n")),
 			"Translate these lines:",
 			...items.map((l, k) => `${k + 1}. ${l.seconds ? `[${l.seconds.toFixed(1)}s] ` : ""}${l.text}`),
 		]
@@ -128,7 +134,7 @@ export async function translateToKhmer(
 	if (useGemini && missing.length) {
 		onProgress(-1, `Gemini is busy: translating ${missing.length} lines with Google Translate`);
 		try {
-			Object.assign(result, await googleTranslate(missing, () => undefined, signal, lang.code));
+			Object.assign(result, await googleTranslate(forGoogle(missing), () => undefined, signal, lang.code));
 			fallbackCount.set(lines, missing.length);
 			return result;
 		} catch {
@@ -136,7 +142,7 @@ export async function translateToKhmer(
 		}
 	}
 	if (failures.length === batches.length) throw new Error(failures[0]);
-	return repairing ? result : repairScript(result, lines, notes, settings, onProgress, signal, lang);
+	return repairing ? result : repairScript(result, lines, notes, settings, onProgress, signal, lang, glossary);
 }
 
 /** Lines that came back with letters of another script (a Thai word in Khmer, Chinese left as is) get one more try. */
@@ -148,18 +154,55 @@ async function repairScript(
 	onProgress: (progress: number, message: string) => void,
 	signal: AbortSignal | undefined,
 	lang: TargetLanguage,
+	glossary: GlossaryTerm[],
 ): Promise<Record<string, string>> {
 	const wrong = lines.filter((l) => result[l.id] && hasWrongScript(result[l.id], lang.code));
 	if (!wrong.length) return result;
 	onProgress(-1, `Fixing ${wrong.length} line${wrong.length === 1 ? "" : "s"} that mixed in another script`);
 	const note = `${notes}\nThese lines must be written only in ${lang.name} script: an earlier answer mixed in letters of another language.`.trim();
 	try {
-		const again = await translateToKhmer(wrong, note, settings, () => undefined, signal, lang.code, true);
+		const again = await translateToKhmer(wrong, note, settings, () => undefined, signal, lang.code, true, glossary);
 		for (const l of wrong) if (again[l.id] && !hasWrongScript(again[l.id], lang.code)) result[l.id] = again[l.id];
 	} catch {
 		// keep the first answer; the line can be fixed by hand
 	}
 	return result;
+}
+
+const GlossarySchema = z.object({ terms: z.array(z.object({ source: z.string(), target: z.string(), note: z.string() })) });
+const GEMINI_GLOSSARY_SCHEMA = {
+	type: "OBJECT",
+	properties: { terms: { type: "ARRAY", items: { type: "OBJECT", properties: { source: { type: "STRING" }, target: { type: "STRING" }, note: { type: "STRING" } }, required: ["source", "target", "note"] } } },
+	required: ["terms"],
+};
+
+/**
+ * Finds the names and recurring terms in translated subtitles (people, places, titles, groups, special words) with the
+ * spelling the translation used, for the series glossary. Needs Gemini or Claude.
+ */
+export async function findGlossaryTerms(pairs: { source: string; text: string }[], languageCode: string | undefined, settings: Settings, signal?: AbortSignal): Promise<GlossaryTerm[]> {
+	const lang = languageOf(languageCode);
+	// The chosen AI if it has a key; with Google Translate chosen, whichever AI has a key (Gemini first).
+	const useGemini = settings.translateProvider === "claude" && settings.anthropicKey ? false : Boolean(settings.geminiKey);
+	if (!useGemini && !settings.anthropicKey) throw new Error("Finding names needs Gemini or Claude: add a key in Settings → Translation.");
+	const system = `You build a glossary for translating a video series into ${lang.name}. From the original subtitles and their ${lang.name} translation, list every name of a person, place, family, company, title or rank, and any special term that recurs, with the exact ${lang.name} spelling the translation used. Use a short note to say who or what it is (in English). Leave out ordinary words. If the translation spelled a name in different ways, choose the most common one.`;
+	const sample = pairs.filter((p) => p.source.trim() && p.text.trim()).slice(0, 400);
+	if (!sample.length) return [];
+	const prompt = `Original → ${lang.name}:\n${sample.map((p) => `${p.source} → ${p.text}`).join("\n")}`;
+	let terms: GlossaryTerm[];
+	if (useGemini) {
+		const answer = await gemini<{ terms: GlossaryTerm[] }>(settings, { system, prompt, schema: GEMINI_GLOSSARY_SCHEMA, signal });
+		terms = answer.terms ?? [];
+	} else {
+		const response = await client(settings).beta.messages.parse(
+			{ model: settings.translateModel, max_tokens: 8000, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default", output_config: { effort: "low", format: betaZodOutputFormat(GlossarySchema) }, system, messages: [{ role: "user", content: prompt }] },
+			{ signal },
+		);
+		terms = response.parsed_output?.terms ?? [];
+	}
+	// Only terms that really are in the subtitles.
+	const all = sample.map((p) => p.source).join("\n");
+	return cleanGlossary(terms.filter((t) => all.includes(t.source)));
 }
 
 /** How many lines of a translate call fell back to Google Translate (read by the IPC handler). */

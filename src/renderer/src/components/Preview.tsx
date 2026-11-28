@@ -3,7 +3,8 @@ import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { ASPECT_SIZE } from "@shared/types";
 import { planVoice } from "@shared/voice";
 import { voiceCues, voiceSettings } from "@/lib/actions";
-import { drawCue, ensureFonts } from "@/lib/subtitleRender";
+import { captionWords, drawCue, ensureFonts } from "@/lib/subtitleRender";
+import { motionAt, wordShares } from "@shared/captionMotion";
 import { type PlacedClip, cueAt, formatTime, placeClips, totalDuration } from "@/lib/timeline";
 import { languageOf } from "@shared/languages";
 import { useEditor } from "@/state/store";
@@ -186,6 +187,12 @@ function SubtitleCanvas({ width, height }: { width: number; height: number }) {
 		void ensureFonts().then(() => setFontsReady(true));
 	}, []);
 
+	// An animated caption changes while it's on screen: work out the moment (rounded, so it redraws only when it shows).
+	const output = ASPECT_SIZE[aspect];
+	const shares = useMemo(() => (cue && style.animation && style.animation !== "none" ? wordShares(captionWords(cue, style, output)) : []), [cue, style, output]);
+	const motion = cue ? motionAt(style.animation, shares, cue.end - cue.start, time - cue.start) : undefined;
+	const motionKey = motion ? `${motion.word ?? ""}:${motion.enter === undefined ? "" : Math.round(motion.enter * 20)}` : "";
+
 	useEffect(() => {
 		const canvas = ref.current;
 		if (!canvas) return;
@@ -195,10 +202,10 @@ function SubtitleCanvas({ width, height }: { width: number; height: number }) {
 		const ctx = canvas.getContext("2d")!;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 		if (!cue) return;
-		const output = ASPECT_SIZE[aspect];
 		ctx.scale(canvas.width / output.width, canvas.height / output.height);
-		drawCue(ctx, cue, style, output);
-	}, [cue, style, aspect, width, height, fontsReady]);
+		drawCue(ctx, cue, style, output, motion);
+		// motion is read through motionKey (it changes only when what's drawn changes).
+	}, [cue, style, output, width, height, fontsReady, motionKey]);
 
 	return <canvas ref={ref} className="pointer-events-none absolute inset-0 size-full" />;
 }
