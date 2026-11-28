@@ -4,19 +4,18 @@ Every Kroma Studio release, newest first, written for the people who use Kroma.
 
 Each version's section is that release's notes: it's written here first, before the release, and the GitHub release on [Heang-Dev/kroma](https://github.com/Heang-Dev/kroma/releases) uses it word for word. The same notes appear on the website's [Changelog](https://heang-dev.github.io/kroma/changelog/).
 
+## 0.2.3 — 2026-11-28
+
+Notification banners on the Mac.
+
+- **Notification banners on the Mac.** Kroma now asks your Mac for permission to show notifications, and appears in **System Settings → Notifications** as **Kroma Studio**. Before, macOS refused Kroma's notifications without asking. After updating, press **Send test** in **Settings → Notifications** and choose **Allow** when your Mac asks; then pick **Banners** for Kroma Studio in System Settings.
+- **Kroma tells you when notifications are blocked.** If your computer refuses Kroma's notifications, a notice says so with **Open settings**, and **Settings → Notifications** shows a warning until one gets through.
+
 ## 0.2.2 — 2026-11-28
 
 Cancelling a voice-over really stops it.
 
 - **Fixed: a cancelled voice-over kept the voice engine busy.** Before, pressing cancel stopped it in Kroma, but the voice engine went on voicing every remaining line, so your next voice-over sat at **Waiting in line** until it finished. Now the engine stops after the line it's speaking, and the next voice-over starts straight away.
-
-## 0.2.2 — 2026-11-28
-
-Notification banners on the Mac, and cancelling a voice-over really stops it.
-
-- **Notification banners on the Mac.** Kroma now asks your Mac for permission to show notifications, and appears in **System Settings → Notifications** as **Kroma Studio**. Before, macOS refused Kroma's notifications without asking. After updating, press **Send test** in **Settings → Notifications** and choose **Allow** when your Mac asks; then pick **Banners** for Kroma Studio in System Settings.
-- **Kroma tells you when notifications are blocked.** If your computer refuses Kroma's notifications, a notice says so with **Open settings**, and **Settings → Notifications** shows a warning until one gets through.
-- **Cancelling a voice-over stops it in the voice engine.** Before, the engine kept voicing the cancelled lines, and the next voice-over waited at **Waiting in line** until it finished. Now the cancelled one stops after the line being spoken, and the next starts right away.
 
 ## 0.2.1 — 2026-11-28
 
