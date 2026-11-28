@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { khmerDictionary, resolveUiLanguage, setUiLanguage, t } from "./index";
+import { kmAreas, kmShared } from "./km";
 
 /** Every t("…") text in the source (the literal ones; t(variable) can't be checked here). */
 function textsInSource(dir: string, found = new Map<string, string>()): Map<string, string> {
@@ -44,5 +45,11 @@ describe("interface languages", () => {
 	it("keeps every {value} in the Khmer", () => {
 		const wrong = Object.entries(khmerDictionary()).filter(([en, km]) => (en.match(/\{\w+\}/g) ?? []).sort().join() !== (km.match(/\{\w+\}/g) ?? []).sort().join());
 		expect(wrong.map(([en]) => en)).toEqual([]);
+	});
+
+	it("says each text one way: the area files agree, or ./shared decides", () => {
+		const seen = new Map<string, Set<string>>();
+		for (const dict of Object.values(kmAreas)) for (const [en, km] of Object.entries(dict)) if (!(en in kmShared)) seen.set(en, (seen.get(en) ?? new Set()).add(km));
+		expect([...seen].filter(([, kms]) => kms.size > 1).map(([en]) => en)).toEqual([]);
 	});
 });

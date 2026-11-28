@@ -186,7 +186,7 @@ function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" |
 			disabled={Boolean(disabled)}
 			aria-current={active ? "page" : undefined}
 			className={cn(
-				"flex w-16 flex-col items-center gap-1 rounded-md py-2 text-[10px] transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-4",
+				"flex w-16 shrink-0 flex-col items-center gap-1 rounded-md py-2 text-[10px] transition-colors [@media(max-height:800px)]:gap-0.5 [@media(max-height:800px)]:py-1.5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-4",
 				active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-foreground/5 hover:text-sidebar-foreground",
 				disabled && "pointer-events-none opacity-40",
 			)}
@@ -214,7 +214,8 @@ function Rail({ panel, page }: { panel: Panel | null; page: "voices" | "story" |
 		s.setPanel(id);
 	};
 	return (
-		<nav className="flex w-[72px] shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-2" aria-label={t("Menu")}>
+		// On a short window the items sit a little closer, and the rail scrolls rather than cutting off Batch and Settings.
+		<nav className="flex min-h-0 w-[72px] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r bg-sidebar py-2 [scrollbar-width:none] [@media(max-height:800px)]:gap-0.5" aria-label={t("Menu")}>
 			{PANELS.map((p) => item(p.id, t(p.label), p.icon, panel === p.id, () => openPanel(p.id), locked))}
 			<div className="my-1 h-px w-10 bg-border" />
 			{item("voices", t("Voices"), <Library />, page === "voices", () => useEditor.getState().openVoices())}
