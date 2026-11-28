@@ -18,7 +18,7 @@
 <h2 align="center">Turn any video into a Khmer video.</h2>
 
 <p align="center">
-  Download from YouTube, Bilibili, Douyin and 1,000+ sites. Get the subtitles, translate them to Khmer, give every character their own voice, and post to YouTube, Facebook and TikTok. One free, open-source desktop app.
+  Download a video or a whole series from YouTube, Bilibili, Douyin and 1,000+ sites. Get the subtitles, translate them to Khmer, give every character their own voice, and post to YouTube, Facebook and TikTok. One free, open-source desktop app.
 </p>
 
 <h3 align="center">
@@ -38,9 +38,9 @@
 
 ### Download from 1,000+ sites
 
-Paste a link from YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook or TikTok, or a whole share message. Kroma brings the site's own subtitles along when it has them, or you import a file from your computer.
+Paste a link from YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook or TikTok, or a whole share message. Kroma brings the site's own subtitles along when it has them. The Download Center takes a whole series, playlist or channel and makes each episode its own numbered project.
 
-[Downloading videos →](https://heang-dev.github.io/kroma/docs/0.1/downloading/)
+[Downloading videos →](https://heang-dev.github.io/kroma/docs/0.2/downloading/)
 
 </td>
 <td width="50%">
@@ -52,9 +52,9 @@ Paste a link from YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook or TikTok, o
 
 ### Khmer that sounds like Khmer
 
-Gemini (free), Google Translate (free, no key) or Claude translate the meaning the way people talk: the right politeness, common spellings for foreign words, and every line short enough to read in its time on screen. Thai, Vietnamese, Lao, English, Indonesian and Malay too.
+Gemini (free), Google Translate (free, no key) or Claude translate the meaning the way people talk: the right politeness, common spellings for foreign words, and every line short enough to read in its time on screen. A series glossary keeps every name spelled the same in every episode. Thai, Vietnamese, Lao, English, Indonesian and Malay too.
 
-[Translation →](https://heang-dev.github.io/kroma/docs/0.1/translation/)
+[Translation →](https://heang-dev.github.io/kroma/docs/0.2/translation/)
 
 </td>
 <td width="50%">
@@ -68,7 +68,7 @@ Gemini (free), Google Translate (free, no key) or Claude translate the meaning t
 
 Kroma reads the dialogue, works out who says each line and gives the narrator, the king and the hero each their own voice. The original voices are removed; the music and effects stay.
 
-[Characters & voices →](https://heang-dev.github.io/kroma/docs/0.1/characters-and-voices/)
+[Characters & voices →](https://heang-dev.github.io/kroma/docs/0.2/characters-and-voices/)
 
 </td>
 <td width="50%">
@@ -94,9 +94,9 @@ Kings, queens, heroes, monks, villains and kids, each a saved voice that sounds 
 
 ### Style it your way
 
-Khmer subtitles in your style, the original burned-in subtitles blurred away, your logo and text on top. 16:9 for YouTube, 9:16 for TikTok and Reels, 1:1, from the same project.
+33 subtitle styles with Khmer display fonts, shadows and glows, animated captions (fade, pop, or the spoken word lighting up), and your own saved looks. **Hide original subtitles** finds the burned-in Chinese subtitles and blurs exactly those. 16:9 for YouTube, 9:16 for TikTok and Reels, 1:1, from the same project.
 
-[Style & objects →](https://heang-dev.github.io/kroma/docs/0.1/style-and-objects/)
+[Style & objects →](https://heang-dev.github.io/kroma/docs/0.2/style-and-objects/)
 
 </td>
 <td width="50%">
@@ -108,9 +108,9 @@ Khmer subtitles in your style, the original burned-in subtitles blurred away, yo
 
 ### Post everywhere in one click
 
-The AI writes a title, text and hashtags for each platform. Connect YouTube, Facebook and TikTok once, tick where to post, and Kroma exports, uploads and follows each post to the end.
+The AI writes a title, text and hashtags for each platform. Connect YouTube, Facebook and TikTok once, tick where to post, and Kroma exports the right format for each, uploads and follows each post to the end. Episode covers with the number (ភាគ ៥, EP 5) come in 16:9 and 9:16.
 
-[Posting →](https://heang-dev.github.io/kroma/docs/0.1/posting/)
+[Posting →](https://heang-dev.github.io/kroma/docs/0.2/posting/)
 
 </td>
 <td width="50%">
@@ -121,11 +121,12 @@ The AI writes a title, text and hashtags for each platform. Connect YouTube, Fac
 
 ## More in Kroma
 
-- **Batch.** Add many videos at once, from the Download Center or your project files, choose the steps once (subtitles, translate, characters, voice-over, style, export, post text) and press **Process**. Each video goes through every step while you do something else, then waits in **Ready to post** so you check it first.
+- **Batch.** Add many videos at once, from the Download Center or your project files, choose the steps once (subtitles, translate, characters, voice-over, hide the original subtitles, style, export, covers, post text) and press **Process**. Each video goes through every step while you do something else, then waits in **Ready to post** so you check it first.
 - **The right format for each platform.** YouTube gets 16:9; TikTok, Facebook and Reels get 9:16. Kroma exports each format it needs and uploads the right file to each platform.
 - **Download Center.** Paste a whole series, a playlist or a channel, tick the episodes you want, and each video becomes its own project, numbered in a folder. The queue keeps going while you work and picks up after a restart.
+- **Series glossary, my styles and episode covers.** One spelling for every name across a series, your subtitle look saved for every project, and a numbered thumbnail for every episode. [Release notes →](https://heang-dev.github.io/kroma/docs/0.2/release-notes/)
 - **Story studio.** Write a story one line per speaker, give every character a voice, and Kroma reads it aloud. Save the audio with its subtitles.
-- **A voice engine built in.** One button installs it on your computer, or run it on a free Google Colab GPU. [Voice engine →](https://heang-dev.github.io/kroma/docs/0.1/voice-engine/)
+- **A voice engine built in.** One button installs it on your computer, or run it on a free Google Colab GPU. [Voice engine →](https://heang-dev.github.io/kroma/docs/0.2/voice-engine/)
 - **Notifications.** A bell in the title bar keeps everything that finished or failed, with **Retry** or **Open**, and your computer tells you when Kroma is in the background.
 
 ## Download
@@ -155,10 +156,10 @@ Kroma updates itself: new versions download in the background and a **Restart to
 | Speech to text | Gemini (default), Groq Whisper large-v3 or OpenAI: a 5-minute video in seconds |
 | Translate | Gemini (free tier), Google Translate (free, no key) or Claude; lines written to fit their time on screen |
 | Characters & voices | Finds who says each line; 36 Khmer voices and voice cloning on Kroma's own voice engine (`engine/`, installed with one button or run on Google Colab), free instant voices; original voices removed with audio-separator |
-| Edit | Preview, timeline (split, trim, reorder), subtitle list, styles, blur boxes, logos and text |
+| Edit | Preview, timeline (split, trim, reorder), subtitle list, 33 styles and animated captions, burned-in subtitles found and blurred, logos and text |
 | Export | FFmpeg, Small / Standard / High; subtitles drawn by Chromium (correct Khmer shaping), so the export matches the preview |
 | Post | AI-written titles, text and hashtags; one-click posting to YouTube, Facebook and TikTok through Upload-Post, in the right format for each (16:9 or 9:16) |
-| Batch | Runs many videos through the same steps, one after another, and stops before posting |
+| Batch | Runs many videos through the same steps, one after another, and stops before posting; numbered covers for each episode |
 
 The heavy AI work runs in the cloud with your own keys (many free), so long videos are fast on any computer. Your videos, projects and keys stay on your machine; keys are encrypted with your system's keychain.
 

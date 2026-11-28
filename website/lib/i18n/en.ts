@@ -10,12 +10,12 @@ export const en = {
 	},
 	nav: { features: "Features", voices: "Voices", docs: "Docs", changelog: "Changelog", faq: "FAQ", download: "Download", github: "GitHub", menuOpen: "Open menu", menuClose: "Close menu", theme: "Switch light / dark", language: "Language" },
 	hero: {
-		pill: "Post to YouTube, Facebook and TikTok in one click",
+		pill: "Whole series in one go: Download Center and Batch",
 		pillTag: "New",
 		eyebrow: "Open source · MIT · macOS · Windows · Linux",
 		titleBefore: "Turn any video into a",
 		titleAfter: "video.",
-		lead: "Download from YouTube, Bilibili, Douyin and 1,000+ sites. Get the subtitles, translate them to Khmer, give every character their own voice, and post to YouTube, Facebook and TikTok. All in one app.",
+		lead: "Download a video or a whole series from YouTube, Bilibili, Douyin and 1,000+ sites. Get the subtitles, translate them to Khmer, give every character their own voice, and post to YouTube, Facebook and TikTok. All in one app.",
 		downloadFor: "Download for",
 		downloadAny: "Download Kroma Studio",
 		viewGithub: "View on GitHub",
@@ -27,14 +27,14 @@ export const en = {
 	workflow: {
 		kicker: "How it works",
 		title: "From a link to a finished post, step by step.",
-		sub: "The step bar along the bottom of Kroma shows what's done and what's next, so a new video is easy from start to end.",
+		sub: "The status bar along the bottom of Kroma shows what's done and what's next. For a whole series, Batch runs every step on every episode for you.",
 		steps: [
-			["Paste a link", "YouTube, Bilibili, Douyin, Youku, iQiyi, TikTok and 1,000+ sites. Kroma even reads the title from a share message."],
+			["Paste a link", "One video, or a whole series, playlist or channel from YouTube, Bilibili, Douyin, Youku, iQiyi, TikTok and 1,000+ sites. Each episode becomes its own project."],
 			["Get the subtitles", "Uses the site's own subtitles, or cloud speech-to-text: a 5-minute video in seconds."],
-			["Translate", "Natural, spoken Khmer, written short enough to read and to say in time. Thai, Vietnamese, Lao, English, Indonesian and Malay too."],
+			["Translate", "Natural, spoken Khmer, short enough to read and to say in time, with one spelling for every name across the series. Thai, Vietnamese, Lao, English, Indonesian and Malay too."],
 			["Characters & voices", "Kroma finds who says each line. Give the narrator, the king and the hero each their own voice."],
-			["Style", "Khmer subtitles in your style, original subtitles blurred away, your logo on top."],
-			["Export & post", "Small, Standard or High, sized for each platform, then posted everywhere in one click."],
+			["Style", "33 subtitle styles, Khmer fonts and animated captions. The original subtitles are found and blurred away automatically."],
+			["Export & post", "16:9 for YouTube, 9:16 for TikTok and Reels, with a numbered cover for each episode, then posted everywhere in one click."],
 		] as [string, string][],
 	},
 	features: {
@@ -44,7 +44,7 @@ export const en = {
 			{
 				title: "Khmer that sounds like Khmer",
 				text: "Gemini (free), Google Translate (free) or Claude translate the meaning the way people talk, with the right politeness, common spellings for foreign words, and every line kept to the time it's on screen.",
-				points: ["Notes for the translator: names, who's who, the tone", "Lines in the wrong script are caught and translated again", "Find & replace across every line, remembered for next time"],
+				points: ["A series glossary: every name spelled the same in every episode", "Notes for the translator: who's who, the tone", "Lines in the wrong script are caught and translated again"],
 				alt: "The Translate panel with the spoken language and the target language, and Khmer subtitle lines.",
 			},
 			{
@@ -55,8 +55,8 @@ export const en = {
 			},
 			{
 				title: "Post everywhere in one click",
-				text: "The AI writes a title, text and hashtags for each platform. Connect YouTube, Facebook and TikTok once, tick where to post, and Kroma exports, uploads and follows each post to the end.",
-				points: ["Posts saved with the project, edit them any time", "YouTube visibility, TikTok post or drafts, Facebook Reels", "A history with links to every post"],
+				text: "The AI writes a title, text and hashtags for each platform. Connect YouTube, Facebook and TikTok once, tick where to post, and Kroma exports the right format for each, uploads, and follows each post to the end.",
+				points: ["YouTube in 16:9, TikTok and Reels in 9:16, from one project", "Episode covers with the number: ភាគ ៥, EP 5", "Batch: check a whole series, then post it from Ready to post"],
 				alt: "The Post panel with Khmer titles, text and hashtags for YouTube, Facebook and TikTok.",
 			},
 		],
@@ -78,6 +78,7 @@ export const en = {
 			["Free to start", "Gemini and Groq have free tiers; Google Translate and the instant voices need no key at all."],
 			["Your keys, your files", "Videos and projects stay on your computer. API keys are encrypted with your system's keychain."],
 			["Made for Khmer", "Correct Khmer line breaking and shaping, common spellings, Khmer voices for every kind of character."],
+			["Made for series", "Download a whole drama, and let Batch subtitle, translate, voice, style and export every episode while you do something else."],
 			["Every platform", "macOS, Windows and Linux; 9:16 for TikTok and Reels, 16:9 for YouTube, 1:1, from the same project."],
 		] as [string, string][],
 	},
@@ -88,11 +89,13 @@ export const en = {
 		head: ["Task", "By hand", "Kroma Studio"] as [string, string, string],
 		rows: [
 			["Download the video", "A separate downloader site", "Built in, 1,000+ sites"],
+			["A 40-episode series", "Every step, 40 times", "Batch does every episode"],
 			["Subtitles", "Type them by hand", "Speech-to-text in seconds"],
 			["Khmer translation", "Copy and paste, line by line", "The whole video, timed to fit"],
 			["A voice per character", "Record every part yourself", "36 voices, or your own clone"],
 			["Remove the original voices", "Another app", "One switch"],
-			["Hide burned-in subtitles", "Mask them by hand", "One click"],
+			["Hide burned-in subtitles", "Mask them by hand", "Found and blurred automatically"],
+			["Episode thumbnails", "Design each one", "Numbered covers for the series"],
 			["Post to 3 platforms", "Upload 3 times, write 3 captions", "One click, captions written"],
 			["Price", "Several subscriptions", "Free and open source"],
 		] as [string, string, string][],
@@ -112,7 +115,7 @@ export const en = {
 		afterSteps: {
 			key: ["Add a free AI key", ": Kroma opens Settings → Translation the first time. A free Gemini key covers translation and posts."],
 			link: ["Paste a video link", " in Media, then press ", "Make Khmer subtitles", "."],
-			guide: ["Read the guide", ": the ", "docs", " walk through characters, voices and posting."],
+			guide: ["Read the guide", ": the ", "docs", " walk through characters, voices, whole series and posting."],
 		},
 	},
 	faq: {
@@ -120,7 +123,8 @@ export const en = {
 		title: "Questions",
 		items: [
 			["Is Kroma Studio free?", "Yes, free and open source (MIT). It uses AI services with your own keys: Gemini and Groq have free tiers, Google Translate and the instant voices need no key. One-click posting uses Upload-Post: free for YouTube and Facebook (10 posts a month); TikTok needs their paid plan."],
-			["Do I need a powerful computer?", "No. Speech-to-text, translation and the instant voices run in the cloud. Removing the original voices runs on your computer and takes about 40 seconds per 5 minutes on a recent machine. The designed and cloned Khmer voices use the Khmer Voice Studio engine, on a free Google Colab GPU or your own machine."],
+			["Do I need a powerful computer?", "No. Speech-to-text, translation and the instant voices run in the cloud. Removing the original voices runs on your computer and takes about 40 seconds per 5 minutes on a recent machine. The designed and cloned Khmer voices use Kroma's own voice engine, installed in one click, on your computer or a free Google Colab GPU."],
+			["Can it do a whole series?", "Yes. Paste the series' link in Downloads: every episode becomes its own numbered project. Then Batch runs the steps you choose (subtitles, translation, voice-over, hiding the original subtitles, style, export, covers) on each one, and stops before posting so you can check them."],
 			["How do updates work?", "Kroma checks for new versions on start and every few hours, downloads them in the background, and shows a “Restart to update” card in the bottom-right corner. One click and you're on the new version."],
 			["Which sites can I download from?", "Anything yt-dlp supports: YouTube, Bilibili, Douyin, Youku, iQiyi, Facebook, TikTok and over 1,000 more. Videos protected with DRM can't be downloaded."],
 			["Which languages?", "From almost any spoken language (Chinese, English, Korean, Japanese…) into Khmer, Thai, Vietnamese, Lao, English, Indonesian or Malay. The 36 designed voices speak Khmer; the other languages use free instant voices."],
@@ -155,7 +159,7 @@ export const en = {
 		samples: "Sample above",
 		kindsTitle: "Three kinds of voices",
 		kinds: [
-			["Designed voices", "The 36 Khmer voices here, made with the Khmer Voice Studio engine. Run it on a free Google Colab GPU or on your own computer."],
+			["Designed voices", "The 36 Khmer voices here, made with Kroma's own voice engine. Install it in one click and run it on your computer, or on a free Google Colab GPU."],
 			["Instant voices", "Free cloud voices that need no key and no setup: a Khmer man and woman, and voices for Thai, Vietnamese, Lao, English, Indonesian and Malay."],
 			["Your own voice", "Read a short text in the app and Kroma clones your voice. Only clone your own voice, or someone's who said yes."],
 		] as [string, string][],
