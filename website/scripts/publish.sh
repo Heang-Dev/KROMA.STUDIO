@@ -19,6 +19,7 @@ if [ "${PUBLISH_ANYWAY:-}" != "1" ]; then
 	fi
 fi
 NEXT_BASE_PATH=/kroma NEXT_PUBLIC_SITE_URL=https://heang-dev.github.io/kroma/ bun run build
+node scripts/check-changelog.mjs   # every release has Khmer notes, or the Khmer pages would show English
 touch out/.nojekyll   # GitHub Pages must serve the _next/ folder as is
 work=$(mktemp -d)
 cp -R out/. "$work/"
