@@ -25,7 +25,7 @@ export const km: Messages = {
 		forAll: "សម្រាប់ macOS, Windows និង Linux",
 		trust: "គ្មានការបង់ប្រចាំខែ។ ប្រើ key AI ផ្ទាល់ខ្លួន ដែលភាគច្រើនឥតគិតថ្លៃ។ ដំណើរការលើកុំព្យូទ័ររបស់អ្នក ហើយការងារ AI ធ្ងន់ៗធ្វើនៅលើ cloud។",
 	},
-	showcase: { label: "អ្វីដែល Kroma ធ្វើបាន", tabs: { characters: "តួអង្គ", download: "ទាញយក", translate: "បកប្រែ", voices: "សំឡេង", style: "រចនាប័ទ្ម", post: "បង្ហោះ" } },
+	showcase: { label: "អ្វីដែល Kroma ធ្វើបាន", tabs: { characters: "តួអង្គ", download: "ទាញយក", translate: "បកប្រែ", batch: "Batch", voices: "សំឡេង", style: "រចនាប័ទ្ម", post: "បង្ហោះ" } },
 	workflow: {
 		kicker: "របៀបប្រើ",
 		title: "ពីតំណភ្ជាប់ ដល់ការបង្ហោះ មួយជំហានម្តងៗ។",

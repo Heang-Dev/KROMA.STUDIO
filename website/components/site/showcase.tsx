@@ -11,9 +11,10 @@ import { cn } from "@/lib/utils";
 // crossfade, so the page never jumps.
 
 const TABS = [
-	{ id: "characters", label: "Characters", src: "/assets/editor-dark.jpg", light: "/assets/editor-light.jpg", alt: "The editor with Khmer subtitles and the Characters panel: the Narrator and the Young man each with their own voice." },
-	{ id: "download", label: "Download", src: "/assets/media-dark.jpg", alt: "The Media panel: paste a link from YouTube, Bilibili, Douyin and 1,000+ sites." },
+	{ id: "characters", label: "Characters", src: "/assets/editor-dark.jpg", light: "/assets/editor-light.jpg", alt: "The editor with Khmer subtitles on a Monkey King video, the Characters panel with the Singer's voice, and every line voiced." },
+	{ id: "download", label: "Download", src: "/assets/downloads-dark.jpg", alt: "The Download Center downloading a whole series, Journey to the West: two done, two downloading, two waiting, each its own project." },
 	{ id: "translate", label: "Translate", src: "/assets/translate-dark.jpg", alt: "The Translate panel turning the Chinese lines into Khmer." },
+	{ id: "batch", label: "Batch", src: "/assets/batch-dark.jpg", alt: "Batch: five videos going through subtitles, translation, characters and post text, one after another." },
 	{ id: "voices", label: "Voices", src: "/assets/voices-dark.jpg", alt: "The Voices library: King, Emperor, Queen, Prince, Princess and more, each with a player." },
 	{ id: "style", label: "Style", src: "/assets/style-dark.jpg", alt: "The Style panel for the Khmer subtitles." },
 	{ id: "post", label: "Post", src: "/assets/post-dark.jpg", alt: "The Post panel with titles, text and hashtags for YouTube, Facebook and TikTok." },

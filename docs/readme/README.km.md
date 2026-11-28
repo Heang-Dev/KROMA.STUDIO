@@ -100,7 +100,7 @@ Kroma អានការសន្ទនា រកថាអ្នកណានិ�
 
 </td>
 <td width="50%">
-  <img src="../assets/readme-style-dark.jpg" alt="ផ្ទាំង Style ដែលមានការកំណត់អក្សររត់ និងប្រអប់ព្រិលលើអក្សររត់ដើម" width="100%" />
+  <img src="../assets/readme-style-dark.jpg" alt="ផ្ទាំង Style ដែលមានរចនាប័ទ្មអក្សររត់ស្រាប់" width="100%" />
 </td>
 </tr>
 <tr>

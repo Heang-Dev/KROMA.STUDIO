@@ -23,7 +23,7 @@ export const en = {
 		forAll: "For macOS, Windows and Linux",
 		trust: "No subscription. Your own AI keys, many free. Runs on your computer; the heavy AI work happens in the cloud.",
 	},
-	showcase: { label: "What Kroma does", tabs: { characters: "Characters", download: "Download", translate: "Translate", voices: "Voices", style: "Style", post: "Post" } },
+	showcase: { label: "What Kroma does", tabs: { characters: "Characters", download: "Download", translate: "Translate", batch: "Batch", voices: "Voices", style: "Style", post: "Post" } },
 	workflow: {
 		kicker: "How it works",
 		title: "From a link to a finished post, step by step.",

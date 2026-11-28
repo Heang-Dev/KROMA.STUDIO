@@ -100,7 +100,7 @@ Kings, queens, heroes, monks, villains and kids, each a saved voice that sounds 
 
 </td>
 <td width="50%">
-  <img src="docs/assets/readme-style-dark.jpg" alt="The Style panel with subtitle settings and a blur box over the original subtitles" width="100%" />
+  <img src="docs/assets/readme-style-dark.jpg" alt="The Style panel with subtitle style presets" width="100%" />
 </td>
 </tr>
 <tr>
