@@ -98,7 +98,8 @@
 			"target": [
 				"dir"
 			],
-			"identity": null,
+			"identity": "-",
+			"hardenedRuntime": false,
 			"extendInfo": {
 				"NSMicrophoneUsageDescription": "Kroma Studio uses the microphone to record your voice for cloning."
 			}

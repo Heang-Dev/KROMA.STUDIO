@@ -32,7 +32,7 @@ import { connectLink, ensureProfile, facebookPages, postAccount, postProfiles, p
 import { addDownloads, importProjects, pickImport, cancelDownload, clearFinished, downloadState, fetchTitles, listLinks, listPlatforms, listSource, removeDownload, retryDownload, retryFailed, setDownloadOptions, setDownloadsPaused, showDownload, startDownloadCenter, stopDownloads } from "./downloads";
 import type { DownloadOptions, ListedVideo } from "@shared/downloads";
 import type { SystemNotice } from "@shared/notify";
-import { openNotificationSettings, playNoticeSound, setUnreadBadge, showNotifyLog, showSystemNotice } from "./notify";
+import { notificationsBlocked, openNotificationSettings, playNoticeSound, setUnreadBadge, showNotifyLog, showSystemNotice } from "./notify";
 import { batchExportPath, pickProjects, readBatch, writeBatch } from "./batch";
 import type { BatchState, PostFormat } from "@shared/batch";
 
@@ -445,6 +445,7 @@ function registerIpc(): void {
 	ipcMain.handle("notify:sound", (_e, name: string) => playNoticeSound(String(name)));
 	ipcMain.handle("notify:badge", (_e, count: number) => setUnreadBadge(Number(count) || 0));
 	ipcMain.handle("notify:showLog", () => showNotifyLog());
+	ipcMain.handle("notify:blocked", () => notificationsBlocked());
 	ipcMain.handle("notify:openSystemSettings", () => openNotificationSettings());
 	ipcMain.handle("file:exists", (_e, path: string) => existsSync(path));
 	ipcMain.handle("shell:show", (_e, path: string) => shell.showItemInFolder(path));

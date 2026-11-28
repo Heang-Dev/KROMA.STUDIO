@@ -1,9 +1,10 @@
+import { create } from "zustand";
 import { DEFAULT_SETTINGS } from "@shared/types";
 import { type MainNotice, type NoticeEntry, type NoticeKind, type NoticeTone, type NotifyPrefs, type StoredAction, actionLabel, noticePlan, soundFor } from "@shared/notify";
 import { unreadCount, useNotifications } from "@/state/notifications";
 import { useEditor } from "@/state/store";
 import { batchMode, noteBatchMessage } from "./batchMode";
-import { platform } from "./platform";
+import { isMac, platform } from "./platform";
 
 // The one way to say long work finished or failed: it goes into the history (the bell in the title bar), shows the
 // usual toast, and shows a system notification when Kroma is in the background (always for a failure), as the
@@ -143,8 +144,29 @@ export async function runAction(entry: NoticeEntry): Promise<void> {
 }
 
 /** Listens for entries from the main process, clicks on system notifications, and other windows' changes. */
+/** Whether macOS refused Kroma's last notification (not allowed for Kroma Studio): Settings → Notifications warns. */
+export const useNotificationsBlocked = create<{ blocked: boolean }>(() => ({ blocked: false }));
+
+let blockedNoticeShown = false;
+function onBlocked(blocked: boolean): void {
+	useNotificationsBlocked.setState({ blocked });
+	// Said once per session, in Kroma (where you'll see it), with the way to fix it.
+	if (!blocked || blockedNoticeShown) return;
+	blockedNoticeShown = true;
+	useEditor
+		.getState()
+		.showToast(
+			"Your Mac isn't showing Kroma's notifications",
+			"error",
+			isMac ? "Allow Kroma Studio in System Settings → Notifications, with the alert style Banners. Until then you'll hear them, and see them in the bell." : "Allow Kroma Studio in your system's notification settings.",
+			{ label: "Open settings", onClick: () => void window.kroma.openNotificationSettings() },
+		);
+}
+
 export function startNotifications(): () => void {
+	void window.kroma.notificationsBlocked?.().then(onBlocked).catch(() => undefined);
 	const stops = [
+		window.kroma.onNotificationsBlocked?.(onBlocked) ?? (() => undefined),
 		window.kroma.onNotice((notice: MainNotice) => {
 			const entry: NoticeEntry = { ...notice, read: false };
 			useNotifications.getState().add(entry);

@@ -160,6 +160,13 @@ const api = {
 		ipcRenderer.on("notify:entry", handler);
 		return () => ipcRenderer.off("notify:entry", handler);
 	},
+	/** Whether macOS refused Kroma's last notification (not allowed for Kroma Studio). */
+	notificationsBlocked: (): Promise<boolean> => ipcRenderer.invoke("notify:blocked"),
+	onNotificationsBlocked: (listener: (blocked: boolean) => void): (() => void) => {
+		const handler = (_e: unknown, blocked: boolean) => listener(blocked);
+		ipcRenderer.on("notify:blocked", handler);
+		return () => ipcRenderer.off("notify:blocked", handler);
+	},
 	onNoticeClicked: (listener: (id: string) => void): (() => void) => {
 		const handler = (_e: unknown, id: string) => listener(id);
 		ipcRenderer.on("notify:clicked", handler);
