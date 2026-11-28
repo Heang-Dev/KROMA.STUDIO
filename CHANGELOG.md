@@ -4,6 +4,12 @@ Every Kroma Studio release, newest first, written for the people who use Kroma.
 
 Each version's section is that release's notes: it's written here first, before the release, and the GitHub release on [Heang-Dev/kroma](https://github.com/Heang-Dev/kroma/releases) uses it word for word. The same notes appear on the website's [Changelog](https://heang-dev.github.io/kroma/changelog/).
 
+## 0.2.2 — 2026-11-28
+
+Cancelling a voice-over really stops it.
+
+- **Fixed: a cancelled voice-over kept the voice engine busy.** Before, pressing cancel stopped it in Kroma, but the voice engine went on voicing every remaining line, so your next voice-over sat at **Waiting in line** until it finished. Now the engine stops after the line it's speaking, and the next voice-over starts straight away.
+
 ## 0.2.1 — 2026-11-28
 
 Notifications you hear and see, even when your Mac hides them.
