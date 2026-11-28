@@ -12,6 +12,8 @@ import { runTask, useEditor } from "@/state/store";
 import { notify, playSound, setNotifyPrefs, useNotificationsBlocked } from "@/lib/notify";
 import { MAC_SOUNDS } from "@shared/notify";
 import { useNotifications } from "@/state/notifications";
+import { t, UI_LANGUAGES, type UiLanguageSetting } from "@shared/i18n";
+import { switchUiLanguage } from "@/lib/i18n";
 import { useUpdateState } from "../UpdateButton";
 import { refreshEngineStatus } from "../EngineStatus";
 import { AppSelect, Card, ChoiceTiles, Group, Row, Segmented, SwitchRow, TaskProgress, useBusy } from "../common";
@@ -774,6 +776,26 @@ function NotificationsSection({ settings, save }: SectionProps) {
 function AppearanceSection({ settings, save }: SectionProps) {
 	return (
 		<>
+		<Group title={t("Language")}>
+			<Card>
+				<Row
+					stack
+					label={t("Interface language")}
+					description={t("The language of Kroma's menus, buttons and messages. Your subtitles and voices don't change.")}
+					control={
+						<AppSelect<UiLanguageSetting>
+							label={t("Interface language")}
+							value={settings.uiLanguage ?? "auto"}
+							options={UI_LANGUAGES.map((o) => ({ value: o.value, label: o.value === "auto" ? t("Automatic") : o.label, description: o.value === "auto" ? t("Like your computer: ខ្មែរ if it's set to Khmer, otherwise English") : o.description }))}
+							onChange={async (uiLanguage) => {
+								await save({ uiLanguage });
+								switchUiLanguage(await window.kroma.uiLanguage());
+							}}
+						/>
+					}
+				/>
+			</Card>
+		</Group>
 		<Group title="Size">
 			<Card>
 				<Row

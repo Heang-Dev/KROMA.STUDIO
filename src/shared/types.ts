@@ -1,3 +1,4 @@
+import type { UiLanguageSetting } from "./i18n";
 import type { CoverSettings } from "./cover";
 import type { CaptionAnimation } from "./captionMotion";
 // Types shared by the main process, the preload bridge and the editor UI.
@@ -286,6 +287,8 @@ export interface Settings {
 	notifySystem: boolean;
 	/** Only failures show a system notification. */
 	notifyOnlyErrors: boolean;
+	/** The interface language: English, Khmer, or automatic (Khmer when the computer is set to Khmer). */
+	uiLanguage: UiLanguageSetting;
 	/** Notifications play a sound (system notifications, and notices in Kroma). */
 	notifySound: boolean;
 	/** The sound for finished work, and for a failure: a macOS system sound name (other systems use their own). */
@@ -467,6 +470,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	facebookPageId: "",	autoUpdate: true,
 	notifySystem: true,
 	notifyOnlyErrors: false,
+	uiLanguage: "auto",
 	notifySound: true,
 	notifySoundDone: "Glass",
 	notifySoundFailed: "Basso",

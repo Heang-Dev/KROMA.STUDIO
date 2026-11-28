@@ -17,6 +17,7 @@ import { listGeminiModels } from "./gemini";
 import { probe } from "./media";
 import { mediaVisuals } from "./visuals";
 import { firstRun, loadSettings, saveSettings, viewOf } from "./settings";
+import { resolveUiLanguage, setUiLanguage, uiLanguage } from "@shared/i18n";
 import { loadMyStyles, saveMyStyles } from "./styles";
 import { findTool, installHint } from "./tools";
 import { mediaPath } from "@shared/media";
@@ -103,7 +104,8 @@ function createWindow(): void {
 				// (recoloured to the theme by the editor, see window:titleBar).
 				{ titleBarStyle: "hidden" as const, titleBarOverlay: { color: "#0e0f12", symbolColor: "#e5e5e5", height: 44 }, icon: windowIcon() }),
 		show: false,
-		webPreferences: { preload: join(__dirname, "../preload/index.js"), sandbox: true, contextIsolation: true },
+		// The interface language goes in with the window, so its very first paint is already in that language.
+		webPreferences: { preload: join(__dirname, "../preload/index.js"), sandbox: true, contextIsolation: true, additionalArguments: [`--kroma-language=${uiLanguage()}`] },
 	});
 	// The saved interface size, applied before the window shows and again after every reload.
 	const contentsId = win.webContents.id;
@@ -215,7 +217,13 @@ function registerIpc(): void {
 		return key ? listGeminiModels(key) : [];
 	});
 	ipcMain.handle("zoom:set", (_e, zoom: number) => setZoom(zoom));
-	ipcMain.handle("settings:save", (_e, patch: Partial<Record<keyof Settings, string | number | boolean | null>>) => saveSettings(patch));
+	ipcMain.handle("settings:save", (_e, patch: Partial<Record<keyof Settings, string | number | boolean | null>>) => {
+		const view = saveSettings(patch);
+		// A new interface language: the menus and messages from here on, and every window, switch at once.
+		if ("uiLanguage" in patch) applyUiLanguage();
+		return view;
+	});
+	ipcMain.handle("ui:language", () => uiLanguage());
 
 	ipcMain.handle("media:open", async () => {
 		const res = await dialog.showOpenDialog(focused(), { properties: ["openFile", "multiSelections"], filters: VIDEO_FILTERS });
@@ -467,7 +475,18 @@ app.on("second-instance", (_e, argv) => {
 });
 if (process.platform === "win32") app.setAppUserModelId("kh.kroma.studio");
 
+/** Sets the interface language from the settings (and the computer's locale), and tells the windows and menus. */
+function applyUiLanguage(): void {
+	const language = resolveUiLanguage(loadSettings().uiLanguage, app.getLocale());
+	const changed = language !== uiLanguage();
+	setUiLanguage(language);
+	if (!changed) return;
+	buildMenu();
+	for (const w of BrowserWindow.getAllWindows()) w.webContents.send("ui:language", language);
+}
+
 app.whenReady().then(() => {
+	setUiLanguage(resolveUiLanguage(loadSettings().uiLanguage, app.getLocale()));
 	if (!firstCopy) return;
 	protocol.handle("kroma", serveMedia);
 	// The editor may use the microphone (recording a voice to clone); nothing else (camera, screen, …).
