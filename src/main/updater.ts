@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { accessSync, constants, createWriteStream, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { accessSync, constants, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -52,13 +53,27 @@ export function isNewer(latest: string, current: string): boolean {
 export function startUpdater(downloadAutomatically: () => boolean): void {
 	const testRun = process.env.KROMA_SMOKE === "1" || process.env.KROMA_E2E === "1";
 	if ((!app.isPackaged || testRun) && process.env.KROMA_UPDATE_TEST !== "1") return;
+	if (method === "mac") restoreMacUpdate();
 	const check = () => void checkForUpdates(downloadAutomatically()).catch(() => undefined);
 	setTimeout(check, 8000);
 	setInterval(check, CHECK_EVERY);
 }
 
-/** Looks for a newer release; downloads it when `download` (automatic updates) is on. */
-export async function checkForUpdates(download = true): Promise<UpdateState> {
+let inflight: Promise<UpdateState> | null = null;
+
+/**
+ * Looks for a newer release; downloads it when `download` (automatic updates) is on. One at a time: a second check
+ * while one runs (the timed check and a click on Check for updates) waits for the first instead of downloading the
+ * same file again into the same place.
+ */
+export function checkForUpdates(download = true): Promise<UpdateState> {
+	inflight ??= runCheck(download).finally(() => {
+		inflight = null;
+	});
+	return inflight;
+}
+
+async function runCheck(download: boolean): Promise<UpdateState> {
 	if (state.status === "downloading" || state.status === "ready") return state;
 	publish({ status: "checking", error: undefined });
 	try {
@@ -74,7 +89,7 @@ export async function checkForUpdates(download = true): Promise<UpdateState> {
 export async function downloadUpdate(): Promise<void> {
 	if (state.status !== "available") return;
 	if (method === "auto") await autoUpdaterRef?.downloadUpdate();
-	else await checkWithGitHub(true);
+	else await checkForUpdates(true);
 }
 
 // ── Windows installer and AppImage: electron-updater ──
@@ -114,7 +129,7 @@ interface GitHubRelease {
 	tag_name: string;
 	body: string | null;
 	html_url: string;
-	assets: { name: string; browser_download_url: string; size: number }[];
+	assets: { name: string; browser_download_url: string; size: number; digest?: string | null }[];
 }
 
 async function checkWithGitHub(download: boolean): Promise<void> {
@@ -126,6 +141,8 @@ async function checkWithGitHub(download: boolean): Promise<void> {
 
 	const wanted = method === "mac" ? new RegExp(`${process.arch === "arm64" ? "arm64" : "x64"}\\.dmg$`, "i") : /amd64\.deb$|\.deb$/i;
 	const asset = release.assets.find((a) => wanted.test(a.name)) ?? (method === "mac" ? release.assets.find((a) => /\.dmg$/i.test(a.name)) : undefined);
+	// Already downloaded and unpacked (before a restart): ready straight away, nothing to download again.
+	if (method === "mac" && macStaged && stagedVersion(macStaged) === version) return publish({ status: "ready", version, progress: 1, notes: release.body ?? undefined, url: release.html_url });
 	publish({ status: "available", version, notes: release.body ?? undefined, url: release.html_url });
 	if (!asset || !download) return;
 
@@ -136,6 +153,12 @@ async function checkWithGitHub(download: boolean): Promise<void> {
 	for (const name of readdirSync(dir)) if (name !== `${asset.name}.part`) rmSync(join(dir, name), { recursive: true, force: true });
 	await downloadFile(asset.browser_download_url, file, asset.size, (progress, speed, secondsLeft) => publish({ status: "downloading", progress, speed, secondsLeft }));
 	publish({ speed: undefined, secondsLeft: undefined });
+	// GitHub publishes each file's SHA-256: a damaged download is thrown away here, not installed.
+	const expected = asset.digest?.startsWith("sha256:") ? asset.digest.slice(7) : null;
+	if (expected && (await sha256(file)) !== expected) {
+		rmSync(file, { force: true });
+		throw new Error("The download was damaged. It will download again on the next check.");
+	}
 
 	if (method === "deb") {
 		debFile = file;
@@ -151,11 +174,63 @@ async function checkWithGitHub(download: boolean): Promise<void> {
 		await run("/usr/bin/ditto", [join(mount, "Kroma Studio.app"), staged]);
 		await run("/usr/bin/xattr", ["-cr", staged]).catch(() => "");
 		macStaged = staged;
+		writeFileSync(join(dir, "staged.json"), JSON.stringify({ version }));
 	} finally {
 		await run("/usr/bin/hdiutil", ["detach", mount, "-force"]).catch(() => "");
 		rmSync(file, { force: true });
 	}
 	publish({ status: "ready", progress: 1 });
+}
+
+async function sha256(file: string): Promise<string> {
+	const hash = createHash("sha256");
+	await pipeline(createReadStream(file), hash);
+	return hash.digest("hex");
+}
+
+/** The version of an unpacked app, from its Info.plist. */
+function stagedVersion(app: string): string | null {
+	try {
+		const plist = readFileSync(join(app, "Contents", "Info.plist"), "utf8");
+		return plist.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/)?.[1] ?? null;
+	} catch {
+		return null;
+	}
+}
+
+const updatesDir = () => join(app.getPath("userData"), "updates");
+
+/**
+ * On start (Mac): an update downloaded before a restart is ready again at once, instead of downloading it again;
+ * and if the last "Restart to update" couldn't replace the app, say why.
+ */
+function restoreMacUpdate(): void {
+	const dir = updatesDir();
+	const result = join(dir, "install-result.json");
+	if (existsSync(result)) {
+		try {
+			const { ok, error } = JSON.parse(readFileSync(result, "utf8")) as { ok: boolean; error?: string };
+			if (!ok) {
+				const message = `macOS didn't let Kroma replace itself${error ? ` (${error.trim().split(": ").pop()})` : ""}. Allow Kroma Studio in System Settings → Privacy & Security → App Management, then update again, or drag the new Kroma Studio from the Finder window into Applications.`;
+				setTimeout(() => notifyFromMain({ tone: "error", kind: "updates", title: "The update couldn't be installed", detail: message }), 3000);
+				publish({
+					status: "error",
+					error: `macOS didn't let Kroma replace itself${error ? ` (${error.trim().split(": ").pop()})` : ""}. Allow Kroma Studio in System Settings → Privacy & Security → App Management, then update again, or drag the new Kroma Studio from the Finder window into Applications.`,
+				});
+				const staged = join(dir, "Kroma Studio.app");
+				if (existsSync(staged)) shell.showItemInFolder(staged);
+			}
+		} catch {
+			/* unreadable: ignore */
+		}
+		rmSync(result, { force: true });
+	}
+	const staged = join(dir, "Kroma Studio.app");
+	const version = existsSync(staged) ? stagedVersion(staged) : null;
+	if (version && isNewer(version, app.getVersion())) {
+		macStaged = staged;
+		if (state.status !== "error") publish({ status: "ready", version, progress: 1 });
+	} else if (existsSync(staged)) rmSync(staged, { recursive: true, force: true });
 }
 
 /** Smoothed download speed: each new reading moves the average a quarter of the way, so the time left doesn't jump. */
@@ -256,19 +331,24 @@ export async function installUpdate(): Promise<void> {
 		`#!/bin/bash
 while kill -0 ${process.pid} 2>/dev/null; do sleep 0.3; done
 OLD="$TARGET.old-$$"
-if mv "$TARGET" "$OLD" && /usr/bin/ditto "$STAGED" "$TARGET"; then
+RESULT="$UPDATES/install-result.json"
+if ERR=$( { mv "$TARGET" "$OLD" && /usr/bin/ditto "$STAGED" "$TARGET"; } 2>&1 ); then
+  echo '{"ok":true}' > "$RESULT"
   /usr/bin/xattr -cr "$TARGET" 2>/dev/null
   rm -rf "$OLD" "$STAGED"
   # Tell Finder and the Dock the app changed, so they show the new version's icon rather than a cached one.
   /usr/bin/touch "$TARGET"
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$TARGET" 2>/dev/null
 else
-  rm -rf "$TARGET"; mv "$OLD" "$TARGET"
+  # Put the old app back (if it was moved), and leave the reason for the next start to show.
+  [ -d "$OLD" ] && { rm -rf "$TARGET"; mv "$OLD" "$TARGET"; }
+  ESC=$(printf '%s' "$ERR" | tail -c 300 | tr '\\n\\r\\t' '   ' | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
+  printf '{"ok":false,"error":"%s"}\\n' "$ESC" > "$RESULT\"
 fi
 /usr/bin/open "$TARGET"
 `,
 	);
-	spawn("/bin/bash", [script], { detached: true, stdio: "ignore", env: { ...process.env, TARGET: target, STAGED: macStaged } }).unref();
+	spawn("/bin/bash", [script], { detached: true, stdio: "ignore", env: { ...process.env, TARGET: target, STAGED: macStaged, UPDATES: updatesDir() } }).unref();
 	app.quit();
 }
 
